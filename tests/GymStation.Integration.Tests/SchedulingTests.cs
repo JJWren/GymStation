@@ -158,9 +158,10 @@ public class SchedulingTests(PostgresFixture fixture)
         var subs = new SubstitutionService(context, new NotificationService(context));
         var request = await subs.RequestAsync(session.Id, coach.Id, null, null);
 
-        // Chicago is UTC-5 in August; 12h before the session start is inside the T-24h window.
-        var sessionLocal = session.Date.ToDateTime(session.StartTime);
-        var nowUtc = new DateTimeOffset(sessionLocal.AddHours(-12), TimeSpan.Zero).AddHours(5);
+        // Derive the UTC instant from the gym's zone so DST can never skew the test.
+        var zone = TimeZoneInfo.FindSystemTimeZoneById("America/Chicago");
+        var localBefore = session.Date.ToDateTime(session.StartTime).AddHours(-12);
+        var nowUtc = new DateTimeOffset(localBefore, zone.GetUtcOffset(localBefore)).ToUniversalTime();
 
         var escalated = await subs.EscalateDueAsync(nowUtc);
 

@@ -1,4 +1,5 @@
 using GymStation.Domain.Notifications;
+using GymStation.Domain.People;
 using GymStation.Domain.Scheduling;
 using GymStation.Infrastructure.Notifications;
 using Microsoft.EntityFrameworkCore;
@@ -18,6 +19,19 @@ public class SubstitutionService(GymStationDbContext db, NotificationService not
             throw new InvalidOperationException("Cannot request cover for a cancelled session.");
         }
 
+        // Only the session's assigned instructor (or gym staff acting on their behalf)
+        // can put a session up for cover.
+        if (session.InstructorPersonId != requestedByPersonId)
+        {
+            var requester = await db.Persons.SingleOrDefaultAsync(p => p.Id == requestedByPersonId && !p.Archived, ct)
+                ?? throw new InvalidOperationException("Requester not found in the active gym.");
+
+            if (!requester.HasRole(PersonRoles.Admin) && !requester.HasRole(PersonRoles.Owner))
+            {
+                throw new InvalidOperationException("Only the session's instructor or gym staff can request cover.");
+            }
+        }
+
         var settings = await db.GymSettings.SingleAsync(ct);
         if (proposedSubPersonId is null && !settings.OpenClaimsEnabled)
         {
@@ -35,12 +49,13 @@ public class SubstitutionService(GymStationDbContext db, NotificationService not
         db.SubstitutionRequests.Add(request);
 
         var when = $"{session.Date:ddd dd MMM} {session.StartTime:HH\\:mm}";
+        var requesterUserIds = await notifications.UserIdsForPersonsAsync([requestedByPersonId], ct);
         var recipients = proposedSubPersonId is { } named
             ? await notifications.UserIdsForPersonsAsync([named], ct)
-            : await notifications.InstructorUserIdsAsync(ct);
+            : (await notifications.InstructorUserIdsAsync(ct)).Except(requesterUserIds).ToList();
 
         notifications.Notify(
-            recipients.Where(id => true).ToList(),
+            recipients,
             NotificationCategory.SwapRequested,
             $"Cover needed: {session.Name} · {when}",
             proposedSubPersonId is null

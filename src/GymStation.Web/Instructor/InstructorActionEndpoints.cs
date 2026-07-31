@@ -30,7 +30,15 @@ public static class InstructorActionEndpoints
                 return Results.Redirect("/instructor/swaps?failed=1");
             }
 
-            await subs.RequestAsync(sessionId, personId.Value, proposedSubPersonId, note);
+            try
+            {
+                await subs.RequestAsync(sessionId, personId.Value, proposedSubPersonId, note);
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Redirect("/instructor/swaps?failed=1");
+            }
+
             return Results.Redirect("/instructor/swaps");
         });
 

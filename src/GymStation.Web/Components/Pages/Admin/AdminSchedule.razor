@@ -267,9 +267,14 @@
 
     private async Task AddTypeAsync()
     {
+        // Rendered into style attributes later — only a strict hex color is stored.
+        var color = System.Text.RegularExpressions.Regex.IsMatch(TypeForm.ColorHex, "^#[0-9a-fA-F]{6}$")
+            ? TypeForm.ColorHex
+            : "#707886";
+
         if (!string.IsNullOrWhiteSpace(TypeForm.Name))
         {
-            Db.ClassTypes.Add(new ClassType { Id = Guid.NewGuid(), Name = TypeForm.Name.Trim().ToLowerInvariant(), ColorHex = TypeForm.ColorHex });
+            Db.ClassTypes.Add(new ClassType { Id = Guid.NewGuid(), Name = TypeForm.Name.Trim().ToLowerInvariant(), ColorHex = color });
             await Db.SaveChangesAsync();
         }
 

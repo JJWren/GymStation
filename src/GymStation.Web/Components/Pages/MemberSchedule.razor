@@ -18,7 +18,7 @@
         @foreach (var type in _types)
         {
             <a class="chip @(Type == type.Name ? "active" : null)"
-               href="/schedule?date=@_date:yyyy-MM-dd&type=@type.Name"
+               href="/schedule?date=@_date:yyyy-MM-dd&type=@Uri.EscapeDataString(type.Name)"
                style="@(Type == type.Name ? $"border-color:{type.ColorHex};color:{type.ColorHex}" : null)">@type.Name</a>
         }
     </div>
