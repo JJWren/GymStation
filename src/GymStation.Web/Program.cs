@@ -11,8 +11,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-builder.Services.AddGymStationData(builder.Configuration.GetConnectionString("Default")
-    ?? throw new InvalidOperationException("Missing ConnectionStrings:Default"));
+builder.Services.AddGymStationData(
+    builder.Configuration.GetConnectionString("Default")
+        ?? throw new InvalidOperationException("Missing ConnectionStrings:Default"),
+    builder.Configuration["Storage:Root"] ?? "data/media");
 
 builder.Services.AddIdentityCore<AppUser>(o =>
     {
@@ -29,7 +31,9 @@ builder.Services.ConfigureApplicationCookie(o =>
     o.LoginPath = "/login";
     o.AccessDeniedPath = "/login";
 });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(o =>
+    o.AddPolicy("GymStaff", p => p.RequireAuthenticatedUser().AddRequirements(new GymStaffRequirement())));
+builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, GymStaffHandler>();
 builder.Services.AddCascadingAuthenticationState();
 
 var app = builder.Build();
@@ -43,8 +47,9 @@ app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages:
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
-app.UseAuthorization();
+// Tenant hydration must precede authorization: the GymStaff policy reads the active gym.
 app.UseMiddleware<ActiveGymMiddleware>();
+app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapStaticAssets();

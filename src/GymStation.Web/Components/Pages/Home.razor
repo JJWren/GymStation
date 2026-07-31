@@ -1,7 +1,42 @@
-﻿@page "/"
+@page "/"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@layout GymStation.Web.Components.Layout.AdminLayout
+@using GymStation.Infrastructure
+@using GymStation.Infrastructure.Tenancy
+@using Microsoft.EntityFrameworkCore
+@inject GymStationDbContext Db
+@inject ITenantContext Tenant
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Today · GymStation</PageTitle>
 
-<h1>Hello, world!</h1>
+<h1 class="page-title">TODAY</h1>
+<p class="page-sub">@DateOnly.FromDateTime(DateTime.Today).ToString("ddd dd MMM yyyy").ToUpperInvariant()</p>
 
-Welcome to your new app.
+@if (Tenant.CurrentGymId is null)
+{
+    <div class="patch">
+        <p>No active gym. <a href="/pick-gym">Pick a gym</a> to continue.</p>
+    </div>
+}
+else
+{
+    <div class="filters">
+        <span class="chip chip--on">@_activeMembers ACTIVE MEMBERS</span>
+        <span class="chip">@_instructors INSTRUCTORS</span>
+    </div>
+    <p class="cap">THE ATTENTION QUEUE, SESSIONS, AND KPIS ARRIVE WITH SCHEDULING (PHASE 3) AND ATTENDANCE (PHASE 4). ROSTER AND RANKS ARE LIVE IN THE RAIL.</p>
+}
+
+@code {
+    private int _activeMembers;
+    private int _instructors;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Tenant.CurrentGymId is not null)
+        {
+            _activeMembers = await Db.Persons.CountAsync(p => !p.Archived);
+            _instructors = await Db.Persons.CountAsync(p => !p.Archived && p.Roles.HasFlag(GymStation.Domain.People.PersonRoles.Instructor));
+        }
+    }
+}

@@ -25,6 +25,9 @@ public class Person : ITenantOwned
 
     public DateOnly JoinedOn { get; set; }
 
+    /// <summary>Stored path in the file store; null renders the silhouette placeholder.</summary>
+    public string? PortraitPath { get; set; }
+
     public bool Archived { get; set; }
 
     public bool HasRole(PersonRoles role) => role != PersonRoles.None && (Roles & role) == role;

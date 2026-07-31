@@ -1,0 +1,272 @@
+@page "/admin/people/{PersonId:guid}"
+@attribute [Authorize(Policy = "GymStaff")]
+@layout AdminLayout
+@using System.Security.Claims
+@inject GymStationDbContext Db
+@inject RankService Ranks
+@inject NavigationManager Nav
+
+<PageTitle>@(_person?.DisplayName ?? "Person") · GymStation</PageTitle>
+
+@if (_person is null)
+{
+    <p class="cap">PERSON NOT FOUND IN THE ACTIVE GYM.</p>
+}
+else
+{
+    <p class="page-sub"><a href="/admin/roster">ROSTER</a> → @_person.DisplayName.ToUpperInvariant()</p>
+
+    <header class="patch" style="display:flex;gap:18px;align-items:center">
+        <div class="avatar avatar--l" role="img" aria-label="Portrait placeholder"></div>
+        <div style="flex:1;position:relative;z-index:1">
+            <h1 class="page-title">@_person.DisplayName.ToUpperInvariant()</h1>
+            <p class="cap" style="margin:4px 0 10px">
+                @_person.Roles.ToString().ToUpperInvariant()
+                @if (_ageGroup is not null)
+                {
+                    <text> · IBJJF: @_ageGroup.ToUpperInvariant() (DERIVED)</text>
+                }
+                · JOINED @_person.JoinedOn.ToString("MMM yyyy").ToUpperInvariant()
+                @if (_person.UserId is null)
+                {
+                    <text> · NO LOGIN</text>
+                }
+            </p>
+            @if (_current is not null)
+            {
+                <BeltBar Size="l" BandColorHex="@_current.Rank.BandColorHex" BarColorHex="@_current.Rank.BarColorHex"
+                         Stripes="@_current.Stripes" Label="@($"{_current.Rank.Name}, {_current.Stripes} stripes")" />
+                <p class="cap" style="margin-top:6px">@_current.Rank.Name.ToUpperInvariant() · @_current.Stripes STRIPES · @RankProgress.FormatDuration(Today.ToDateTime(TimeOnly.MinValue) - _current.AtRankSince.ToDateTime(TimeOnly.MinValue)) AT RANK</p>
+            }
+        </div>
+    </header>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start" class="detail-cols">
+        <section>
+            <h2 class="section-h">Rank history</h2>
+            <div class="form-card tl">
+                @if (_awards.Count == 0)
+                {
+                    <p class="cap">NO RANK AWARDS RECORDED YET.</p>
+                }
+                @foreach (var award in _awards)
+                {
+                    <div class="ev">
+                        <span class="d">@award.AwardedOn.ToString("dd MMM yyyy").ToUpperInvariant()</span>
+                        <div>
+                            <BeltBar Size="s" BandColorHex="@award.Rank.BandColorHex" BarColorHex="@award.Rank.BarColorHex"
+                                     Stripes="@award.Stripes" Label="@($"{award.Rank.Name}, {award.Stripes} stripes")" />
+                            <div class="who">
+                                @(award.Stripes > 0 ? "STRIPE" : "PROMOTION") ·
+                                @(award.SelfReported ? "SELF-REPORTED" : _names.GetValueOrDefault(award.AwardedByPersonId ?? Guid.Empty, "STAFF").ToUpperInvariant())
+                            </div>
+                        </div>
+                        <span></span>
+                    </div>
+                }
+            </div>
+
+            <h2 class="section-h">Record rank award</h2>
+            <EditForm class="form-card" FormName="record-award" Model="AwardForm" OnValidSubmit="RecordAwardAsync">
+                <label for="rank">Rank</label>
+                <InputSelect id="rank" @bind-Value="AwardForm.RankId">
+                    <option value="">— pick a rank —</option>
+                    @foreach (var system in _systems)
+                    {
+                        <optgroup label="@system.Name">
+                            @foreach (var rank in system.Ranks)
+                            {
+                                <option value="@rank.Id">@rank.Name</option>
+                            }
+                        </optgroup>
+                    }
+                </InputSelect>
+                <div class="form-grid">
+                    <div>
+                        <label for="stripes">Stripes at this award</label>
+                        <InputNumber id="stripes" @bind-Value="AwardForm.Stripes" />
+                    </div>
+                    <div>
+                        <label for="on">Awarded on</label>
+                        <InputDate id="on" @bind-Value="AwardForm.AwardedOn" />
+                    </div>
+                </div>
+                <div class="check-row" style="margin-top:10px">
+                    <label><InputCheckbox @bind-Value="AwardForm.SelfReported" /> SELF-REPORTED (PRE-APP HISTORY)</label>
+                </div>
+                @if (_awardError is not null)
+                {
+                    <p class="validation-message">@_awardError</p>
+                }
+                <p style="margin-top:14px"><button class="btn" type="submit">RECORD AWARD</button></p>
+            </EditForm>
+        </section>
+
+        <section>
+            @if (_person.HasRole(PersonRoles.Instructor))
+            {
+                <h2 class="section-h">Instructor profile</h2>
+                <EditForm class="form-card" FormName="instructor-profile" Model="ProfileForm" OnValidSubmit="SaveProfileAsync">
+                    <label for="exp">Experience summary</label>
+                    <InputText id="exp" @bind-Value="ProfileForm.ExperienceSummary" />
+                    <label for="bio">Bio</label>
+                    <InputTextArea id="bio" @bind-Value="ProfileForm.Bio" rows="4" />
+                    <div class="form-grid">
+                        <div>
+                            <label for="rate">Pay rate (staff-only; never public)</label>
+                            <InputNumber id="rate" @bind-Value="ProfileForm.PayRate" />
+                        </div>
+                        <div>
+                            <label for="unit">Rate unit</label>
+                            <InputSelect id="unit" @bind-Value="ProfileForm.PayRateUnit">
+                                <option value="@PayRateUnit.PerClass">Per class</option>
+                                <option value="@PayRateUnit.Hourly">Hourly</option>
+                                <option value="@PayRateUnit.Monthly">Monthly</option>
+                            </InputSelect>
+                        </div>
+                    </div>
+                    <p style="margin-top:14px"><button class="btn" type="submit">SAVE PROFILE</button></p>
+                </EditForm>
+            }
+
+            <h2 class="section-h">Guardians</h2>
+            <div class="form-card">
+                @if (_guardianEmails.Count == 0)
+                {
+                    <p class="cap">NO GUARDIAN LINKS. (LINKED GUARDIANS CAN CHECK THIS PERSON IN FROM PHASE 4.)</p>
+                }
+                else
+                {
+                    @foreach (var email in _guardianEmails)
+                    {
+                        <p class="mono">@email</p>
+                    }
+                }
+            </div>
+        </section>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid PersonId { get; set; }
+
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+
+    [SupplyParameterFromForm(FormName = "record-award")]
+    public RecordAwardForm? PostedAwardForm { get; set; }
+
+    [SupplyParameterFromForm(FormName = "instructor-profile")]
+    public InstructorProfileForm? PostedProfileForm { get; set; }
+
+    private RecordAwardForm AwardForm => PostedAwardForm ??= new();
+    private InstructorProfileForm ProfileForm
+    {
+        get => PostedProfileForm ??= new();
+        set => PostedProfileForm = value;
+    }
+
+    private Person? _person;
+    private CurrentRank? _current;
+    private List<RankAward> _awards = [];
+    private List<RankSystem> _systems = [];
+    private Dictionary<Guid, string> _names = [];
+    private List<string> _guardianEmails = [];
+    private string? _ageGroup;
+    private string? _awardError;
+    private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
+
+    public class RecordAwardForm
+    {
+        public Guid? RankId { get; set; }
+        public int Stripes { get; set; }
+        public DateOnly AwardedOn { get; set; } = DateOnly.FromDateTime(DateTime.Today);
+        public bool SelfReported { get; set; }
+    }
+
+    public class InstructorProfileForm
+    {
+        public string? ExperienceSummary { get; set; }
+        public string? Bio { get; set; }
+        public decimal? PayRate { get; set; }
+        public PayRateUnit PayRateUnit { get; set; } = PayRateUnit.PerClass;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _person = await Db.Persons.SingleOrDefaultAsync(p => p.Id == PersonId);
+        if (_person is null)
+        {
+            return;
+        }
+
+        _ageGroup = IbjjfAgeGroup.FromBirthDate(_person.DateOfBirth, Today);
+        _systems = await Ranks.GetVisibleSystemsAsync();
+        _awards = await Ranks.GetAwardsForPersonAsync(PersonId);
+        _current = (await Ranks.GetPrimaryRanksAsync([PersonId])).GetValueOrDefault(PersonId);
+
+        var awarderIds = _awards.Where(a => a.AwardedByPersonId is not null).Select(a => a.AwardedByPersonId!.Value).Distinct().ToList();
+        _names = await Db.Persons.Where(p => awarderIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, p => p.DisplayName);
+
+        var guardianUserIds = await Db.GuardianLinks.Where(l => l.ChildPersonId == PersonId)
+            .Select(l => l.GuardianUserId).ToListAsync();
+        _guardianEmails = await Db.Users.Where(u => guardianUserIds.Contains(u.Id))
+            .Select(u => u.Email ?? u.UserName ?? "unknown").ToListAsync();
+
+        var profile = await Db.InstructorProfiles.SingleOrDefaultAsync(p => p.PersonId == PersonId);
+        if (profile is not null && HttpContext?.Request.Method != "POST")
+        {
+            ProfileForm = new InstructorProfileForm
+            {
+                ExperienceSummary = profile.ExperienceSummary,
+                Bio = profile.Bio,
+                PayRate = profile.PayRate,
+                PayRateUnit = profile.PayRateUnit,
+            };
+        }
+    }
+
+    private async Task RecordAwardAsync()
+    {
+        if (AwardForm.RankId is not { } rankId)
+        {
+            _awardError = "Pick a rank.";
+            return;
+        }
+
+        try
+        {
+            var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            Guid? awardedBy = null;
+            if (!AwardForm.SelfReported && Guid.TryParse(raw, out var userId))
+            {
+                awardedBy = (await Db.Persons.SingleOrDefaultAsync(p => p.UserId == userId))?.Id;
+            }
+
+            await Ranks.RecordAwardAsync(PersonId, rankId, AwardForm.Stripes, AwardForm.AwardedOn, awardedBy, AwardForm.SelfReported, null);
+            Nav.NavigateTo($"/admin/people/{PersonId}");
+        }
+        catch (InvalidOperationException ex)
+        {
+            _awardError = ex.Message;
+        }
+    }
+
+    private async Task SaveProfileAsync()
+    {
+        var profile = await Db.InstructorProfiles.SingleOrDefaultAsync(p => p.PersonId == PersonId);
+        if (profile is null)
+        {
+            profile = new InstructorProfile { PersonId = PersonId };
+            Db.InstructorProfiles.Add(profile);
+        }
+
+        profile.ExperienceSummary = ProfileForm.ExperienceSummary;
+        profile.Bio = ProfileForm.Bio;
+        profile.PayRate = ProfileForm.PayRate;
+        profile.PayRateUnit = ProfileForm.PayRateUnit;
+        await Db.SaveChangesAsync();
+
+        Nav.NavigateTo($"/admin/people/{PersonId}");
+    }
+}
