@@ -1,0 +1,77 @@
+<!-- @dsCard group="Member Views" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Member · Events</title>
+<style>
+  :root{
+    --bg:#171B21; --panel:#1C222A; --surface:#232B36; --edge:#3A4656;
+    --ink:#F1EDE3; --ink-dim:#A9AEB9; --ink-faint:#707886;
+    --tenant:#C9503B; --tenant-ink:#FFF3EC; --ok:#4E9B6B; --warn:#C9A227;
+    --font-display:"Archivo Black","Arial Black",sans-serif;
+    --font-body:"Public Sans","Segoe UI",-apple-system,sans-serif;
+    --font-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  }
+  *{margin:0;box-sizing:border-box}
+  body{background:var(--bg);display:flex;justify-content:center;padding:26px;font-family:var(--font-body);
+    background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.015) 0 2px,transparent 2px 6px),
+      repeating-linear-gradient(-45deg,rgba(0,0,0,.06) 0 2px,transparent 2px 6px)}
+  .phone{width:360px;min-height:640px;background:var(--bg);border:1px solid var(--edge);border-radius:24px;color:var(--ink);display:flex;flex-direction:column;overflow:hidden}
+  .top{padding:16px 16px 10px}
+  .top b{font:700 16px/1 var(--font-display)}
+  .content{flex:1;padding:2px 14px;overflow:hidden}
+  .ev{background:var(--surface);border-radius:12px;padding:14px;margin-bottom:10px;position:relative}
+  .ev::after{content:"";position:absolute;inset:4px;border:1.5px dashed rgba(120,135,155,.22);border-radius:9px;pointer-events:none}
+  .kind{font:600 8px/1 var(--font-mono);letter-spacing:.12em;border:1px solid var(--warn);color:var(--warn);border-radius:99px;padding:4px 8px;display:inline-block;margin-bottom:8px}
+  .kind--sem{border-color:var(--tenant);color:var(--tenant)}
+  .kind--grad{border-color:var(--ok);color:var(--ok)}
+  .n{font:700 16px/1.25}
+  .d{font:600 10px/1.6 var(--font-mono);color:var(--ink-faint);letter-spacing:.06em;margin:4px 0 10px}
+  .rsvp{display:flex;gap:8px;position:relative;z-index:1}
+  .b{flex:1;font:700 11px/1 var(--font-mono);letter-spacing:.08em;border-radius:8px;padding:11px 0;text-align:center;border:1.5px solid var(--edge);color:var(--ink-dim);background:transparent}
+  .b--on{background:var(--tenant);border-color:var(--tenant);color:var(--tenant-ink)}
+  .who{font:600 9px/1.6 var(--font-mono);color:var(--ink-faint);letter-spacing:.06em;margin-top:8px}
+  .who b{color:var(--ink-dim)}
+  .tabs{display:flex;border-top:1px solid var(--edge);background:var(--panel)}
+  .tabs a{flex:1;text-align:center;padding:11px 0 13px;color:var(--ink-faint);text-decoration:none}
+  .tabs a b{display:block;font:16px/1.2 var(--font-body)}
+  .tabs a span{font:8px/1 var(--font-mono);letter-spacing:.12em}
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="top"><b>EVENTS</b></div>
+    <div class="content">
+      <div class="ev">
+        <span class="kind">TOURNAMENT</span>
+        <div class="n">Coastline Open — Gi & No-Gi</div>
+        <div class="d">SAT 16 AUG · GULFPORT SPORTSPLEX · REG CLOSES FRI 01 AUG</div>
+        <div class="rsvp"><button class="b b--on">✓ GOING</button><button class="b">INTERESTED</button></div>
+        <div class="who"><b>12 GOING</b> · 5 INTERESTED · PROF. SILVA CORNERING</div>
+      </div>
+      <div class="ev">
+        <span class="kind kind--sem">SEMINAR</span>
+        <div class="n">Leg-lock Fundamentals w/ guest black belt</div>
+        <div class="d">SUN 24 AUG · 11:00–14:00 · AT IRONWORKS · $40 MEMBERS</div>
+        <div class="rsvp"><button class="b">GOING</button><button class="b b--on">✓ INTERESTED</button></div>
+        <div class="who">8 GOING · <b>11 INTERESTED</b></div>
+      </div>
+      <div class="ev">
+        <span class="kind kind--grad">GRADING</span>
+        <div class="n">Quarterly promotion day</div>
+        <div class="d">SAT 27 SEP · AFTER COMPETITION CLASS · ALL RANKS</div>
+        <div class="rsvp"><button class="b">GOING</button><button class="b">INTERESTED</button></div>
+        <div class="who">PUBLISHED BY J. TORRES · 3 DAYS AGO</div>
+      </div>
+    </div>
+    <nav class="tabs" aria-label="Member navigation">
+      <a href="#"><b>▦</b><span>SCHEDULE</span></a>
+      <a href="#"><b>✓</b><span>CHECK-IN</span></a>
+      <a href="#"><b>▤</b><span>DIARY</span></a>
+      <a href="#"><b>▲</b><span>PROGRESS</span></a>
+    </nav>
+  </div>
+</body>
+</html>

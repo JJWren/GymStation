@@ -1,0 +1,75 @@
+<!-- @dsCard group="Instructor" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Instructor · Substitutions</title>
+<style>
+  :root{
+    --bg:#171B21; --panel:#1C222A; --surface:#232B36; --edge:#3A4656;
+    --ink:#F1EDE3; --ink-dim:#A9AEB9; --ink-faint:#707886;
+    --tenant:#C9503B; --tenant-ink:#FFF3EC; --ok:#4E9B6B; --warn:#C9A227;
+    --font-display:"Archivo Black","Arial Black",sans-serif;
+    --font-body:"Public Sans","Segoe UI",-apple-system,sans-serif;
+    --font-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  }
+  *{margin:0;box-sizing:border-box}
+  body{background:var(--bg);display:flex;justify-content:center;padding:26px;font-family:var(--font-body);
+    background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.015) 0 2px,transparent 2px 6px),
+      repeating-linear-gradient(-45deg,rgba(0,0,0,.06) 0 2px,transparent 2px 6px)}
+  .phone{width:360px;min-height:640px;background:var(--bg);border:1px solid var(--edge);border-radius:24px;color:var(--ink);display:flex;flex-direction:column;overflow:hidden}
+  .top{padding:16px 16px 6px}
+  .top b{font:700 16px/1 var(--font-display)}
+  .top i{display:block;font:9px/1.5 var(--font-mono);color:var(--ink-faint);letter-spacing:.12em;font-style:normal}
+  .content{flex:1;padding:6px 14px;overflow:hidden}
+  .lbl{font:600 9px/1 var(--font-mono);letter-spacing:.16em;color:var(--ink-dim);margin:10px 0 8px}
+  .card{background:var(--surface);border-radius:12px;padding:13px 14px;margin-bottom:9px}
+  .n{font:700 14px/1.25}
+  .d{font:600 9px/1.6 var(--font-mono);color:var(--ink-faint);letter-spacing:.06em;margin:2px 0 8px}
+  .flow{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}
+  .st{font:600 8px/1 var(--font-mono);letter-spacing:.06em;padding:4px 6px;border-radius:99px;border:1px solid var(--edge);color:var(--ink-faint)}
+  .st--done{border-color:var(--ok);color:var(--ok)}
+  .st--now{border-color:var(--warn);color:var(--warn)}
+  .row{display:flex;gap:8px}
+  .b{flex:1;font:700 11px/1 var(--font-mono);letter-spacing:.08em;border-radius:8px;padding:11px 0;text-align:center;border:1.5px solid var(--edge);color:var(--ink-dim);background:transparent}
+  .b--main{background:var(--tenant);border-color:var(--tenant);color:var(--tenant-ink)}
+  .b--ok{border-color:var(--ok);color:var(--ok)}
+  .mine{border-left:3px solid var(--tenant)}
+  .cap{font:8.5px/1.6 var(--font-mono);color:var(--ink-faint);letter-spacing:.05em;margin-top:2px}
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="top"><b>SUBSTITUTIONS</b><i>COACH ANA · IRONWORKS SETTING: ADMIN-GATE · OPEN CLAIMS ON</i></div>
+    <div class="content">
+      <div class="lbl">MY REQUEST</div>
+      <div class="card mine">
+        <div class="n">Thu 12:00 · No-Gi Lunch</div>
+        <div class="d">I MARKED UNAVAILABLE · OPEN REQUEST (ANYONE CAN CLAIM)</div>
+        <div class="flow"><span class="st st--done">REQUESTED</span><span class="st st--now">AWAITING CLAIM</span><span class="st">PENDING APPROVAL</span><span class="st">APPLIED</span></div>
+        <div class="cap">NO CLAIMS YET · ESCALATES TO ADMINS AT WED 12:00 (T-24H)</div>
+        <div class="row" style="margin-top:8px"><button class="b">WITHDRAW</button><button class="b">NAME A SUB INSTEAD</button></div>
+      </div>
+
+      <div class="lbl">CLAIMABLE — OPEN REQUESTS FROM OTHERS</div>
+      <div class="card">
+        <div class="n">Sat 10:00 · Competition</div>
+        <div class="d">PROF. SILVA OUT (CORNERING AT COASTLINE OPEN)</div>
+        <div class="flow"><span class="st st--done">REQUESTED</span><span class="st st--now">AWAITING CLAIM</span></div>
+        <div class="row"><button class="b b--main">CLAIM THIS SESSION</button></div>
+      </div>
+
+      <div class="lbl">INCOMING — NAMED TO ME</div>
+      <div class="card">
+        <div class="n">Tue 18:00 · No-Gi</div>
+        <div class="d">COACH WEBB PROPOSED ME · I ACCEPTED 09:12</div>
+        <div class="flow"><span class="st st--done">REQUESTED</span><span class="st st--done">ACCEPTED</span><span class="st st--now">PENDING APPROVAL</span><span class="st">APPLIED</span></div>
+        <div class="cap">WAITING ON ADMIN — IN AUTO-APPLY GYMS THIS WOULD ALREADY BE ON THE SCHEDULE</div>
+      </div>
+
+      <div class="row" style="margin-top:6px"><button class="b b--ok">+ MARK ME UNAVAILABLE…</button></div>
+    </div>
+  </div>
+</body>
+</html>

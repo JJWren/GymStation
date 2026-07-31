@@ -1,0 +1,79 @@
+<!-- @dsCard group="Member Views" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Member · Training diary</title>
+<style>
+  :root{
+    --bg:#171B21; --panel:#1C222A; --surface:#232B36; --edge:#3A4656;
+    --ink:#F1EDE3; --ink-dim:#A9AEB9; --ink-faint:#707886;
+    --tenant:#C9503B; --tenant-ink:#FFF3EC; --ok:#4E9B6B;
+    --font-display:"Archivo Black","Arial Black",sans-serif;
+    --font-body:"Public Sans","Segoe UI",-apple-system,sans-serif;
+    --font-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  }
+  *{margin:0;box-sizing:border-box}
+  body{background:var(--bg);display:flex;justify-content:center;padding:26px;font-family:var(--font-body);
+    background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.015) 0 2px,transparent 2px 6px),
+      repeating-linear-gradient(-45deg,rgba(0,0,0,.06) 0 2px,transparent 2px 6px)}
+  .phone{width:360px;min-height:640px;background:var(--bg);border:1px solid var(--edge);border-radius:24px;color:var(--ink);display:flex;flex-direction:column;overflow:hidden}
+  .top{display:flex;justify-content:space-between;align-items:center;padding:16px 16px 10px}
+  .top b{font:700 16px/1 var(--font-display)}
+  .priv{font:600 8px/1 var(--font-mono);letter-spacing:.12em;border:1px solid var(--ok);color:var(--ok);border-radius:99px;padding:4px 8px}
+  .content{flex:1;padding:4px 14px 8px;overflow:hidden}
+  .entry{background:var(--surface);border-radius:12px;padding:13px 14px;margin-bottom:10px;position:relative}
+  .entry::after{content:"";position:absolute;inset:4px;border:1.5px dashed rgba(120,135,155,.22);border-radius:9px;pointer-events:none}
+  .eh{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .eh .d{font:700 11px/1 var(--font-mono)}
+  .kind{font:600 8px/1 var(--font-mono);letter-spacing:.1em;border:1px solid var(--edge);color:var(--ink-dim);border-radius:99px;padding:4px 7px}
+  .kind--sess{border-color:var(--tenant);color:var(--tenant)}
+  .kind--self{border-color:var(--ok);color:var(--ok)}
+  .txt{font:13px/1.5 var(--font-body);color:var(--ink-dim)}
+  .txt b{color:var(--ink)}
+  .rolls{margin-top:8px;border-top:1px dashed #2c3440;padding-top:8px}
+  .roll{display:flex;justify-content:space-between;font:600 10px/1.9 var(--font-mono);color:var(--ink-dim)}
+  .roll .p{color:var(--ink)}
+  .add{position:relative;z-index:1;margin:2px 14px 14px;text-align:center;font:700 13px/1 var(--font-mono);letter-spacing:.1em;background:var(--tenant);color:var(--tenant-ink);border:none;border-radius:10px;padding:14px 0}
+  .tabs{display:flex;border-top:1px solid var(--edge);background:var(--panel)}
+  .tabs a{flex:1;text-align:center;padding:11px 0 13px;color:var(--ink-faint);text-decoration:none}
+  .tabs a b{display:block;font:16px/1.2 var(--font-body)}
+  .tabs a span{font:8px/1 var(--font-mono);letter-spacing:.12em}
+  .tabs a.on{color:var(--ink)} .tabs a.on b{color:var(--tenant)}
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="top"><b>DIARY</b><span class="priv">🔒 ONLY YOU CAN SEE THIS</span></div>
+    <div class="content">
+      <div class="entry">
+        <div class="eh"><span class="d">TUE 30 JUL</span><span class="kind kind--sess">NO-GI LUNCH · CHECKED IN</span></div>
+        <div class="txt"><b>Learned:</b> arm-drag to single, finishing against the fence. Key detail — head position on the drag, ear to shoulder blade.</div>
+        <div class="rolls">
+          <div class="roll"><span class="p">MARCUS W.</span><span>2×5MIN · 1 SUB FOR, 0 AGAINST</span></div>
+          <div class="roll"><span class="p">VISITOR (NO TAG)</span><span>1×5MIN · EVEN</span></div>
+        </div>
+      </div>
+      <div class="entry">
+        <div class="eh"><span class="d">SUN 28 JUL</span><span class="kind kind--self">SELF-REPORTED · 1.0 HR</span></div>
+        <div class="txt"><b>Home drilling:</b> pendulum sweep reps ×50 each side. Counts toward my self-reported hours only.</div>
+      </div>
+      <div class="entry">
+        <div class="eh"><span class="d">SAT 27 JUL</span><span class="kind kind--sess">COMPETITION · CHECKED IN</span></div>
+        <div class="txt"><b>Learned:</b> comp-pace rounds. Gas tank fine, grips died round 3 — more gi hangs.</div>
+        <div class="rolls">
+          <div class="roll"><span class="p">OMAR H.</span><span>3×6MIN · 1-1</span></div>
+        </div>
+      </div>
+    </div>
+    <button class="add">+ NEW ENTRY</button>
+    <nav class="tabs" aria-label="Member navigation">
+      <a href="#"><b>▦</b><span>SCHEDULE</span></a>
+      <a href="#"><b>✓</b><span>CHECK-IN</span></a>
+      <a class="on" href="#"><b>▤</b><span>DIARY</span></a>
+      <a href="#"><b>▲</b><span>PROGRESS</span></a>
+    </nav>
+  </div>
+</body>
+</html>

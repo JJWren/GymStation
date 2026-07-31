@@ -1,0 +1,94 @@
+<!-- @dsCard group="Member Views" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Member · Progress</title>
+<style>
+  :root{
+    --bg:#171B21; --panel:#1C222A; --surface:#232B36; --edge:#3A4656;
+    --ink:#F1EDE3; --ink-dim:#A9AEB9; --ink-faint:#707886;
+    --tenant:#C9503B; --ok:#4E9B6B;
+    --font-display:"Archivo Black","Arial Black",sans-serif;
+    --font-body:"Public Sans","Segoe UI",-apple-system,sans-serif;
+    --font-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+    --belt-blue:#2456A6; --belt-purple:#5C3D93; --belt-black:#17181A; --tape:#F2EEE3;
+  }
+  *{margin:0;box-sizing:border-box}
+  body{background:var(--bg);display:flex;justify-content:center;padding:26px;font-family:var(--font-body);
+    background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.015) 0 2px,transparent 2px 6px),
+      repeating-linear-gradient(-45deg,rgba(0,0,0,.06) 0 2px,transparent 2px 6px)}
+  .phone{width:360px;min-height:640px;background:var(--bg);border:1px solid var(--edge);border-radius:24px;color:var(--ink);display:flex;flex-direction:column;overflow:hidden}
+  .top{padding:16px 16px 10px}
+  .top b{font:700 16px/1 var(--font-display)}
+  .content{flex:1;padding:2px 14px;overflow:hidden}
+  .card{background:var(--surface);border-radius:12px;padding:14px;margin-bottom:10px}
+  .belt{display:flex;height:13px;border-radius:2px;overflow:hidden;margin-bottom:8px}
+  .belt .band{flex:1;background:var(--belt-purple)}
+  .belt .bar{width:26%;background:var(--belt-black);display:flex;gap:3px;justify-content:center;padding:0 4px}
+  .belt .bar i{width:4px;background:var(--tape)}
+  .bl{font:600 10px/1.5 var(--font-mono);color:var(--ink-dim);letter-spacing:.08em}
+  .bl b{color:var(--ink)}
+  .hours{display:flex;gap:10px}
+  .h{flex:1;background:var(--panel);border-radius:9px;padding:10px 12px}
+  .h b{font:700 24px/1 var(--font-mono)}
+  .h span{display:block;font:8px/1.5 var(--font-mono);letter-spacing:.12em;color:var(--ink-faint);margin-top:3px}
+  .h--self b{color:var(--ok)}
+  .lbl{font:600 9px/1 var(--font-mono);letter-spacing:.16em;color:var(--ink-dim);margin:2px 0 8px}
+  .bars{display:flex;gap:3px;align-items:flex-end;height:52px}
+  .bars i{flex:1;background:var(--tenant);opacity:.75;border-radius:2px 2px 0 0}
+  .cap{font:8.5px/1.5 var(--font-mono);color:var(--ink-faint);letter-spacing:.06em;margin-top:6px}
+  .tl .ev{display:grid;grid-template-columns:74px 1fr;gap:10px;align-items:center;padding:7px 0;border-bottom:1px dashed #2c3440}
+  .tl .ev:last-child{border:none}
+  .tl .d{font:600 9px/1.2 var(--font-mono);color:var(--ink-faint);text-align:right}
+  .tl .beltS{display:flex;height:6px;border-radius:2px;overflow:hidden}
+  .tl .beltS .band{flex:1}
+  .tl .beltS .bar{width:30%;background:var(--belt-black);display:flex;gap:2px;justify-content:center;padding:0 3px}
+  .tl .beltS .bar i{width:3px;background:var(--tape)}
+  .tl .who{font:8.5px/1.4 var(--font-mono);color:var(--ink-faint);margin-top:2px;letter-spacing:.06em}
+  .tabs{display:flex;border-top:1px solid var(--edge);background:var(--panel)}
+  .tabs a{flex:1;text-align:center;padding:11px 0 13px;color:var(--ink-faint);text-decoration:none}
+  .tabs a b{display:block;font:16px/1.2 var(--font-body)}
+  .tabs a span{font:8px/1 var(--font-mono);letter-spacing:.12em}
+  .tabs a.on{color:var(--ink)} .tabs a.on b{color:var(--tenant)}
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="top"><b>PROGRESS</b></div>
+    <div class="content">
+      <div class="card">
+        <div class="belt" aria-label="Purple belt, two stripes"><span class="band"></span><span class="bar"><i></i><i></i></span></div>
+        <div class="bl">PURPLE · 2 STRIPES · <b>2y 3m AT BELT</b> · IBJJF: ADULT</div>
+      </div>
+      <div class="card">
+        <div class="lbl">MAT HOURS — TWO TIERS</div>
+        <div class="hours">
+          <div class="h"><b>127</b><span>GYM-VERIFIED</span></div>
+          <div class="h h--self"><b>14</b><span>SELF-REPORTED</span></div>
+          <div class="h"><b>141</b><span>TOTAL</span></div>
+        </div>
+        <div class="cap">VERIFIED = CONFIRMED CHECK-INS · SELF-REPORTED = YOUR DIARY ENTRIES · OWNER STATS USE VERIFIED ONLY</div>
+      </div>
+      <div class="card">
+        <div class="lbl">SESSIONS / WEEK — LAST 12</div>
+        <div class="bars"><i style="height:60%"></i><i style="height:75%"></i><i style="height:45%"></i><i style="height:90%"></i><i style="height:70%"></i><i style="height:80%"></i><i style="height:30%"></i><i style="height:85%"></i><i style="height:75%"></i><i style="height:95%"></i><i style="height:65%"></i><i style="height:80%"></i></div>
+        <div class="cap">AVG 3.2/WK · BEST STREAK: 9 SESSIONS (MAY)</div>
+      </div>
+      <div class="card tl">
+        <div class="lbl">PROMOTION HISTORY</div>
+        <div class="ev"><span class="d">14 JUN 26</span><div><div class="beltS"><span class="band" style="background:var(--belt-purple)"></span><span class="bar"><i></i><i></i></span></div><div class="who">STRIPE · PROF. SILVA</div></div></div>
+        <div class="ev"><span class="d">02 DEC 24</span><div><div class="beltS"><span class="band" style="background:var(--belt-purple)"></span><span class="bar"></span></div><div class="who">PROMOTION · PROF. SILVA</div></div></div>
+        <div class="ev"><span class="d">21 MAR 21</span><div><div class="beltS"><span class="band" style="background:var(--belt-blue)"></span><span class="bar"></span></div><div class="who">SELF-REPORTED · PREVIOUS GYM</div></div></div>
+      </div>
+    </div>
+    <nav class="tabs" aria-label="Member navigation">
+      <a href="#"><b>▦</b><span>SCHEDULE</span></a>
+      <a href="#"><b>✓</b><span>CHECK-IN</span></a>
+      <a href="#"><b>▤</b><span>DIARY</span></a>
+      <a class="on" href="#"><b>▲</b><span>PROGRESS</span></a>
+    </nav>
+  </div>
+</body>
+</html>

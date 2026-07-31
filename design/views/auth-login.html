@@ -1,0 +1,56 @@
+<!-- @dsCard group="Auth" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Auth · Login + gym picker</title>
+<style>
+  :root{
+    --bg:#171B21; --panel:#1C222A; --surface:#232B36; --edge:#3A4656;
+    --ink:#F1EDE3; --ink-dim:#A9AEB9; --ink-faint:#707886;
+    --tenant:#C9503B; --tenant-ink:#FFF3EC;
+    --font-display:"Archivo Black","Arial Black",sans-serif;
+    --font-body:"Public Sans","Segoe UI",-apple-system,sans-serif;
+    --font-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  }
+  *{margin:0;box-sizing:border-box}
+  body{background:var(--bg);display:flex;justify-content:center;gap:26px;padding:30px;font-family:var(--font-body);flex-wrap:wrap;
+    background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.015) 0 2px,transparent 2px 6px),
+      repeating-linear-gradient(-45deg,rgba(0,0,0,.06) 0 2px,transparent 2px 6px)}
+  .phone{width:330px;background:var(--bg);border:1px solid var(--edge);border-radius:24px;color:var(--ink);padding:34px 22px;align-self:flex-start}
+  .logo{text-align:center;margin-bottom:26px}
+  .logo b{font:700 22px/1 var(--font-display);letter-spacing:.02em}
+  .logo i{display:block;font:9px/1 var(--font-mono);color:var(--ink-faint);letter-spacing:.3em;font-style:normal;margin-top:6px}
+  .f{background:var(--panel);border:1px solid var(--edge);border-radius:9px;padding:13px 14px;font:600 12px/1 var(--font-mono);color:var(--ink-faint);letter-spacing:.06em;margin-bottom:10px}
+  .b{display:block;width:100%;font:700 13px/1 var(--font-mono);letter-spacing:.1em;background:var(--ink);color:#171B21;border:none;border-radius:9px;padding:14px 0;margin-top:6px}
+  .alt{text-align:center;font:600 10px/1 var(--font-mono);color:var(--ink-faint);letter-spacing:.1em;margin-top:16px}
+  .note{font:9px/1.6 var(--font-mono);color:var(--ink-faint);letter-spacing:.06em;text-align:center;margin-top:22px}
+  /* picker */
+  .pick h2{font:600 10px/1 var(--font-mono);letter-spacing:.18em;color:var(--ink-dim);text-align:center;margin-bottom:16px}
+  .gym{display:flex;gap:12px;align-items:center;background:var(--surface);border-radius:12px;padding:14px;margin-bottom:10px;position:relative}
+  .gym::after{content:"";position:absolute;inset:4px;border:1.5px dashed rgba(120,135,155,.22);border-radius:9px}
+  .crest{width:40px;height:40px;border-radius:9px;flex:none}
+  .gym b{font:700 14px/1.2 var(--font-display)}
+  .gym i{display:block;font:9px/1.5 var(--font-mono);color:var(--ink-faint);letter-spacing:.08em;font-style:normal;margin-top:2px}
+  .go{margin-left:auto;font:700 16px/1 var(--font-mono);color:var(--ink-faint)}
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="logo"><b>GYMSTATION</b><i>SIGN IN</i></div>
+    <div class="f">EMAIL</div>
+    <div class="f">PASSWORD</div>
+    <button class="b">SIGN IN</button>
+    <div class="alt">FORGOT PASSWORD · JOIN WITH INVITE CODE</div>
+    <div class="note">ONE LOGIN, EVERY GYM YOU TRAIN AT.<br>SINGLE-GYM USERS SKIP THE PICKER ENTIRELY.</div>
+  </div>
+  <div class="phone pick">
+    <div class="logo"><b>ANA REYES</b><i>CHOOSE YOUR GYM</i></div>
+    <h2>YOU BELONG TO 2 GYMS</h2>
+    <div class="gym"><div class="crest" style="background:#C9503B"></div><div><b>IRONWORKS BJJ</b><i>MEMBER · PURPLE·2 · HOME GYM</i></div><span class="go">→</span></div>
+    <div class="gym"><div class="crest" style="background:#3E8E9E"></div><div><b>COASTLINE GRAPPLING</b><i>MEMBER · DROP-IN HISTORY</i></div><span class="go">→</span></div>
+    <div class="note">SHOWN ONLY BECAUSE THIS USER BELONGS TO MULTIPLE GYMS.<br>EACH GYM KEEPS ITS OWN ROSTER RECORD (PERSON) FOR YOU.</div>
+  </div>
+</body>
+</html>
