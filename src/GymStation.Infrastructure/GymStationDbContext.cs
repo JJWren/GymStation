@@ -1,6 +1,8 @@
 using GymStation.Domain.People;
+using GymStation.Domain.Ranks;
 using GymStation.Domain.Tenancy;
 using GymStation.Infrastructure.Identity;
+using GymStation.Infrastructure.Ranks;
 using GymStation.Infrastructure.Tenancy;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -24,6 +26,10 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
     public DbSet<GymSettings> GymSettings => Set<GymSettings>();
     public DbSet<Person> Persons => Set<Person>();
     public DbSet<GuardianLink> GuardianLinks => Set<GuardianLink>();
+    public DbSet<InstructorProfile> InstructorProfiles => Set<InstructorProfile>();
+    public DbSet<RankSystem> RankSystems => Set<RankSystem>();
+    public DbSet<Rank> Ranks => Set<Rank>();
+    public DbSet<RankAward> RankAwards => Set<RankAward>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -59,6 +65,45 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
             e.HasIndex(l => new { l.GuardianUserId, l.ChildPersonId }).IsUnique();
             e.HasOne(l => l.ChildPerson).WithMany().HasForeignKey(l => l.ChildPersonId).OnDelete(DeleteBehavior.Cascade);
             e.HasQueryFilter(l => CurrentGymId != null && l.GymId == CurrentGymId);
+        });
+
+        builder.Entity<InstructorProfile>(e =>
+        {
+            e.HasKey(p => p.PersonId);
+            e.Property(p => p.Bio).HasMaxLength(2000);
+            e.Property(p => p.ExperienceSummary).HasMaxLength(300);
+            e.Property(p => p.PayRate).HasPrecision(10, 2);
+            e.HasOne(p => p.Person).WithOne().HasForeignKey<InstructorProfile>(p => p.PersonId).OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(p => CurrentGymId != null && p.GymId == CurrentGymId);
+        });
+
+        builder.Entity<RankSystem>(e =>
+        {
+            e.Property(s => s.Name).HasMaxLength(80);
+            // Platform ladders (GymId null) are visible to every tenant; custom ladders only to their own.
+            e.HasQueryFilter(s => s.GymId == null || (CurrentGymId != null && s.GymId == CurrentGymId));
+            e.HasData(IbjjfSeed.Systems());
+        });
+
+        builder.Entity<Rank>(e =>
+        {
+            e.Property(r => r.Name).HasMaxLength(60);
+            e.Property(r => r.BandColorHex).HasMaxLength(9);
+            e.Property(r => r.BarColorHex).HasMaxLength(9);
+            e.HasIndex(r => new { r.RankSystemId, r.Order }).IsUnique();
+            e.HasOne<RankSystem>().WithMany(s => s.Ranks).HasForeignKey(r => r.RankSystemId).OnDelete(DeleteBehavior.Cascade);
+            // A Rank is visible iff its system is (composes with the RankSystem filter above).
+            e.HasQueryFilter(r => RankSystems.Any(s => s.Id == r.RankSystemId));
+            e.HasData(IbjjfSeed.Ranks());
+        });
+
+        builder.Entity<RankAward>(e =>
+        {
+            e.Property(a => a.Note).HasMaxLength(500);
+            e.HasIndex(a => new { a.GymId, a.PersonId, a.AwardedOn });
+            e.HasOne(a => a.Person).WithMany().HasForeignKey(a => a.PersonId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(a => a.Rank).WithMany().HasForeignKey(a => a.RankId).OnDelete(DeleteBehavior.Restrict);
+            e.HasQueryFilter(a => CurrentGymId != null && a.GymId == CurrentGymId);
         });
     }
 

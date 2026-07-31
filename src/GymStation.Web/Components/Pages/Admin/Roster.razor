@@ -1,0 +1,193 @@
+@page "/admin/roster"
+@attribute [Authorize(Policy = "GymStaff")]
+@layout AdminLayout
+@using GymStation.Infrastructure.Identity
+@using Microsoft.AspNetCore.Identity
+@inject GymStationDbContext Db
+@inject RankService Ranks
+@inject UserManager<AppUser> Users
+@inject NavigationManager Nav
+
+<PageTitle>Roster · GymStation</PageTitle>
+
+<div class="head-row">
+    <h1 class="page-title">ROSTER</h1>
+</div>
+<p class="page-sub">@_people.Count SHOWN · SORTED BY NAME</p>
+
+<div class="filters">
+    <form method="get" style="display:contents">
+        <input type="search" name="q" value="@Q" placeholder="SEARCH NAME…" aria-label="Search name" />
+        <button class="btn btn--ghost" type="submit">SEARCH</button>
+    </form>
+    <a class="chip @(Role is null ? "active" : null)" href="/admin/roster">ALL</a>
+    <a class="chip @(Role == "member" ? "active" : null)" href="/admin/roster?role=member">MEMBERS</a>
+    <a class="chip @(Role == "instructor" ? "active" : null)" href="/admin/roster?role=instructor">INSTRUCTORS</a>
+    <a class="chip @(Role == "kids" ? "active" : null)" href="/admin/roster?role=kids">KIDS</a>
+</div>
+
+<table class="ledger-table">
+    <thead>
+        <tr><th>Person</th><th>Rank</th><th>At rank</th><th>Roles</th></tr>
+    </thead>
+    <tbody>
+    @foreach (var person in _people)
+    {
+        var rank = _ranks.GetValueOrDefault(person.Id);
+        <tr>
+            <td class="nm">
+                <a href="/admin/people/@person.Id">@person.DisplayName</a>
+                <i>
+                    @RoleLine(person)
+                    @if (person.UserId is null)
+                    {
+                        <text> · NO LOGIN</text>
+                    }
+                </i>
+            </td>
+            <td>
+                @if (rank is not null)
+                {
+                    <BeltBar Size="s" BandColorHex="@rank.Rank.BandColorHex" BarColorHex="@rank.Rank.BarColorHex"
+                             Stripes="@rank.Stripes" Label="@($"{rank.Rank.Name}, {rank.Stripes} stripes")" />
+                }
+                else
+                {
+                    <span class="mono">—</span>
+                }
+            </td>
+            <td class="mono">@(rank is null ? "—" : RankProgress.FormatDuration(Today.ToDateTime(TimeOnly.MinValue) - rank.AtRankSince.ToDateTime(TimeOnly.MinValue)))</td>
+            <td class="mono">@person.Roles.ToString().ToUpperInvariant()</td>
+        </tr>
+    }
+    </tbody>
+</table>
+
+<h2 class="section-h">Add person</h2>
+<EditForm class="form-card" FormName="add-person" Model="Form" OnValidSubmit="AddPersonAsync">
+    <div class="form-grid">
+        <div>
+            <label for="first">First name</label>
+            <InputText id="first" @bind-Value="Form.FirstName" />
+        </div>
+        <div>
+            <label for="last">Last name</label>
+            <InputText id="last" @bind-Value="Form.LastName" />
+        </div>
+        <div>
+            <label for="dob">Date of birth (age groups, kids ladders)</label>
+            <InputDate id="dob" @bind-Value="Form.DateOfBirth" />
+        </div>
+        <div>
+            <label for="email">Link login by email (optional — leave empty for kids / no-device members)</label>
+            <InputText id="email" @bind-Value="Form.LinkEmail" type="email" />
+        </div>
+    </div>
+    <div class="check-row">
+        <label><InputCheckbox @bind-Value="Form.IsMember" /> MEMBER</label>
+        <label><InputCheckbox @bind-Value="Form.IsInstructor" /> INSTRUCTOR</label>
+        <label><InputCheckbox @bind-Value="Form.IsAdmin" /> ADMIN</label>
+    </div>
+    @if (_formError is not null)
+    {
+        <p class="validation-message">@_formError</p>
+    }
+    <p style="margin-top:14px"><button class="btn" type="submit">ADD TO ROSTER</button></p>
+</EditForm>
+
+@code {
+    [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+    [SupplyParameterFromQuery(Name = "role")] public string? Role { get; set; }
+
+    [SupplyParameterFromForm(FormName = "add-person")]
+    public AddPersonForm? PostedForm { get; set; }
+
+    private AddPersonForm Form => PostedForm ??= new();
+
+    private List<Person> _people = [];
+    private Dictionary<Guid, CurrentRank> _ranks = [];
+    private string? _formError;
+    private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
+
+    public class AddPersonForm
+    {
+        public string FirstName { get; set; } = "";
+        public string LastName { get; set; } = "";
+        public DateOnly? DateOfBirth { get; set; }
+        public string? LinkEmail { get; set; }
+        public bool IsMember { get; set; } = true;
+        public bool IsInstructor { get; set; }
+        public bool IsAdmin { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var query = Db.Persons.Where(p => !p.Archived);
+
+        if (!string.IsNullOrWhiteSpace(Q))
+        {
+            var term = Q.Trim();
+            query = query.Where(p => (p.FirstName + " " + p.LastName).ToLower().Contains(term.ToLower()));
+        }
+
+        query = Role switch
+        {
+            "member" => query.Where(p => p.Roles.HasFlag(PersonRoles.Member)),
+            "instructor" => query.Where(p => p.Roles.HasFlag(PersonRoles.Instructor)),
+            "kids" => query.Where(p => p.DateOfBirth != null && p.DateOfBirth > Today.AddYears(-16)),
+            _ => query,
+        };
+
+        _people = await query.OrderBy(p => p.FirstName).ThenBy(p => p.LastName).ToListAsync();
+        _ranks = await Ranks.GetPrimaryRanksAsync(_people.Select(p => p.Id).ToList());
+    }
+
+    private static string RoleLine(Person p)
+    {
+        var joined = $"JOINED {p.JoinedOn.Year}";
+        return p.DateOfBirth is { } dob
+            ? $"{IbjjfAgeGroup.FromBirthDate(dob, Today)?.ToUpperInvariant() ?? "—"} · {joined}"
+            : joined;
+    }
+
+    private async Task AddPersonAsync()
+    {
+        if (string.IsNullOrWhiteSpace(Form.FirstName) || string.IsNullOrWhiteSpace(Form.LastName))
+        {
+            _formError = "First and last name are required.";
+            return;
+        }
+
+        var roles = PersonRoles.None;
+        if (Form.IsMember) roles |= PersonRoles.Member;
+        if (Form.IsInstructor) roles |= PersonRoles.Instructor;
+        if (Form.IsAdmin) roles |= PersonRoles.Admin;
+        if (roles == PersonRoles.None) roles = PersonRoles.Member;
+
+        Guid? userId = null;
+        if (!string.IsNullOrWhiteSpace(Form.LinkEmail))
+        {
+            var user = await Users.FindByEmailAsync(Form.LinkEmail.Trim());
+            if (user is null)
+            {
+                _formError = $"No login exists for {Form.LinkEmail}. Leave it empty, or have them register first.";
+                return;
+            }
+            userId = user.Id;
+        }
+
+        Db.Persons.Add(new Person
+        {
+            Id = Guid.NewGuid(),
+            FirstName = Form.FirstName.Trim(),
+            LastName = Form.LastName.Trim(),
+            DateOfBirth = Form.DateOfBirth,
+            UserId = userId,
+            Roles = roles,
+            JoinedOn = Today,
+        });
+        await Db.SaveChangesAsync();
+
+        Nav.NavigateTo("/admin/roster");
+    }
+}

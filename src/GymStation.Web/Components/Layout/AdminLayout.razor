@@ -1,0 +1,51 @@
+@inherits LayoutComponentBase
+@using GymStation.Infrastructure
+@using GymStation.Infrastructure.Tenancy
+@using Microsoft.EntityFrameworkCore
+@inject GymStationDbContext Db
+@inject ITenantContext Tenant
+
+<div class="app-frame">
+    <nav class="rail" aria-label="Admin sections">
+        <div class="brand">
+            <div class="crest"></div>
+            <div><b>@(_gymName ?? "GYMSTATION")</b><i>GYMSTATION</i></div>
+        </div>
+        <NavLink class="tab" href="/" Match="NavLinkMatch.All">TODAY</NavLink>
+        <NavLink class="tab" href="/admin/roster">ROSTER</NavLink>
+        <NavLink class="tab" href="/admin/ranks">RANKS</NavLink>
+        <span class="tab tab--soon" title="Phase 3">SCHEDULE</span>
+        <span class="tab tab--soon" title="Phase 5">DUES</span>
+        <span class="tab tab--soon" title="Phase 6">EVENTS</span>
+        <span class="tab tab--soon" title="Phase 7">REPORTS</span>
+        <span class="tab tab--soon" title="Phase 7">SETTINGS</span>
+        <div class="foot">
+            GYMSTATION · V1
+            <form method="post" action="/auth/logout">
+                <AntiforgeryToken />
+                <button type="submit">SIGN OUT</button>
+            </form>
+        </div>
+    </nav>
+    <main class="main">
+        @Body
+    </main>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    private string? _gymName;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Tenant.CurrentGymId is { } gymId)
+        {
+            _gymName = (await Db.Gyms.SingleOrDefaultAsync(g => g.Id == gymId))?.Name.ToUpperInvariant();
+        }
+    }
+}

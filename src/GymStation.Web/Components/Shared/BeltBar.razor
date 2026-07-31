@@ -1,0 +1,28 @@
+@* The signature component: rank + stripes as a true-color physical belt strip.
+   Belt colors come from Rank data and are never tenant-themed. *@
+
+<div class="belt @SizeClass @(NeedsOutline ? "belt--outline" : null)"
+     role="img" aria-label="@AriaLabel">
+    <span class="band" style="background:@BandColorHex"></span>
+    <span class="bar" style="background:@BarColorHex">
+        @for (var i = 0; i < Stripes; i++)
+        {
+            <i></i>
+        }
+    </span>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public required string BandColorHex { get; set; }
+    [Parameter, EditorRequired] public required string BarColorHex { get; set; }
+    [Parameter] public int Stripes { get; set; }
+    [Parameter] public string Size { get; set; } = "m";
+    [Parameter] public string? Label { get; set; }
+
+    private string? SizeClass => Size switch { "s" => "belt--s", "l" => "belt--l", _ => null };
+
+    // Light bands (white belt) vanish on the dark base without an edge.
+    private bool NeedsOutline => BandColorHex.StartsWith("#E", StringComparison.OrdinalIgnoreCase);
+
+    private string AriaLabel => Label ?? $"Belt, {Stripes} stripes";
+}

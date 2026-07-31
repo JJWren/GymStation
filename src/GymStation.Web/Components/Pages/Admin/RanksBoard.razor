@@ -1,0 +1,100 @@
+@page "/admin/ranks"
+@attribute [Authorize(Policy = "GymStaff")]
+@layout AdminLayout
+@inject GymStationDbContext Db
+@inject RankService Ranks
+
+<PageTitle>Ranks · GymStation</PageTitle>
+
+<div class="head-row">
+    <h1 class="page-title">RANKS</h1>
+    <div class="filters" style="margin:0">
+        @foreach (var system in _systems)
+        {
+            <a class="chip @(system.Id == _selected?.Id ? "active" : null)" href="/admin/ranks?system=@system.Id">
+                @system.Name.ToUpperInvariant() · @_countsBySystem.GetValueOrDefault(system.Id)
+            </a>
+        }
+    </div>
+</div>
+<p class="page-sub">BELT BOARD · TIME-AT-RANK DERIVED FROM RANK AWARDS</p>
+
+@if (_selected is not null)
+{
+    @foreach (var rank in _selected.Ranks.OrderByDescending(r => r.Order))
+    {
+        var holders = _holdersByRank.GetValueOrDefault(rank.Id, []);
+        <div class="lane">
+            <div class="lane-head">
+                <BeltBar BandColorHex="@rank.BandColorHex" BarColorHex="@rank.BarColorHex" Stripes="0" Label="@rank.Name" />
+                <b>@rank.Name.ToUpperInvariant()</b>
+                <span class="n">@holders.Count</span>
+            </div>
+            <div class="ppl">
+                @foreach (var (person, current) in holders)
+                {
+                    <a class="p" href="/admin/people/@person.Id">
+                        @person.DisplayName
+                        <i>@current.Stripes STRIPES · @RankProgress.FormatDuration(Today.ToDateTime(TimeOnly.MinValue) - current.AtRankSince.ToDateTime(TimeOnly.MinValue))</i>
+                    </a>
+                }
+                @if (holders.Count == 0)
+                {
+                    <span class="cap">NOBODY AT THIS RANK.</span>
+                }
+            </div>
+        </div>
+    }
+    <p class="cap">RECORD PROMOTIONS FROM A PERSON'S PROFILE PAGE. BATCH PROMOTION DAY ARRIVES WITH A LATER PHASE.</p>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "system")] public Guid? SystemId { get; set; }
+
+    private List<RankSystem> _systems = [];
+    private RankSystem? _selected;
+    private Dictionary<Guid, List<(Person Person, CurrentRank Current)>> _holdersByRank = [];
+    private Dictionary<Guid, int> _countsBySystem = [];
+    private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _systems = await Ranks.GetVisibleSystemsAsync();
+        _selected = _systems.FirstOrDefault(s => s.Id == SystemId) ?? _systems.FirstOrDefault();
+
+        var awards = await Db.RankAwards.Include(a => a.Rank).ToListAsync();
+        var personIds = awards.Select(a => a.PersonId).Distinct().ToList();
+        var persons = await Db.Persons.Where(p => personIds.Contains(p.Id) && !p.Archived).ToDictionaryAsync(p => p.Id);
+
+        foreach (var group in awards.GroupBy(a => a.PersonId))
+        {
+            if (!persons.TryGetValue(group.Key, out var person))
+            {
+                continue;
+            }
+
+            foreach (var bySystem in group.GroupBy(a => a.Rank.RankSystemId))
+            {
+                var current = RankProgress.Current(bySystem);
+                if (current is null)
+                {
+                    continue;
+                }
+
+                _countsBySystem[bySystem.Key] = _countsBySystem.GetValueOrDefault(bySystem.Key) + 1;
+
+                if (_selected is not null && bySystem.Key == _selected.Id)
+                {
+                    (_holdersByRank.TryGetValue(current.Rank.Id, out var list)
+                        ? list
+                        : _holdersByRank[current.Rank.Id] = []).Add((person, current));
+                }
+            }
+        }
+
+        foreach (var list in _holdersByRank.Values)
+        {
+            list.Sort((a, b) => b.Current.Stripes.CompareTo(a.Current.Stripes));
+        }
+    }
+}
