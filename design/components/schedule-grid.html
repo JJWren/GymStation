@@ -1,0 +1,72 @@
+<!-- @dsCard group="Schedule" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Schedule — desktop week grid</title>
+<style>
+  :root{
+    --bg:#171B21; --panel:#1C222A; --surface:#232B36; --surface-2:#2A3441; --edge:#3A4656;
+    --ink:#F1EDE3; --ink-dim:#A9AEB9; --ink-faint:#707886;
+    --tenant:#C9503B; --warn:#C9A227; --bad:#C4554D;
+    --font-display:"Archivo Black","Arial Black",sans-serif;
+    --font-body:"Public Sans","Segoe UI",-apple-system,sans-serif;
+    --font-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  }
+  *{margin:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font:13px/1.4 var(--font-body);padding:28px;
+    background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.015) 0 2px,transparent 2px 6px),
+      repeating-linear-gradient(-45deg,rgba(0,0,0,.06) 0 2px,transparent 2px 6px)}
+  .bar{display:flex;justify-content:space-between;align-items:baseline;max-width:1060px;margin:0 auto 16px}
+  h1{font:22px/1 var(--font-display)}
+  .wk{font:600 12px/1 var(--font-mono);letter-spacing:.14em;color:var(--ink-dim)}
+  .scroller{overflow-x:auto}
+  .grid{display:grid;grid-template-columns:repeat(6,minmax(150px,1fr));gap:10px;min-width:940px;max-width:1060px;margin:0 auto}
+  .day{background:var(--panel);border-radius:10px;padding:8px}
+  .day h3{font:600 11px/1 var(--font-mono);letter-spacing:.16em;color:var(--ink-dim);text-transform:uppercase;padding:6px 6px 10px;border-bottom:1px solid var(--edge);margin-bottom:8px;text-align:center}
+  .ses{background:var(--surface);border-radius:8px;padding:9px 10px;margin-bottom:8px;border-left:3px solid var(--tenant);position:relative}
+  .t{font:700 12px/1.2 var(--font-mono)}
+  .n{font:600 13px/1.25 var(--font-body);margin:3px 0 2px}
+  .c{font:10px/1.4 var(--font-mono);color:var(--ink-faint);letter-spacing:.04em}
+  .tag{display:inline-block;font:600 9px/1 var(--font-mono);letter-spacing:.08em;border:1px solid var(--edge);color:var(--ink-dim);border-radius:99px;padding:3px 6px;margin-top:6px}
+  .tag--kids{border-color:#3E8E5A;color:#7FBF9B}
+  .tag--comp{border-color:var(--warn);color:var(--warn)}
+  .stamp{position:absolute;top:7px;right:7px;font:700 8.5px/1 var(--font-mono);letter-spacing:.1em;padding:3px 5px;border:1.5px solid currentColor;border-radius:3px;transform:rotate(3deg)}
+  .ses--cancelled{opacity:.55;border-left-color:var(--bad)}
+  .ses--cancelled .n{text-decoration:line-through}
+  .cap{font:11px/1.5 var(--font-mono);color:var(--ink-faint);max-width:1060px;margin:14px auto 0}
+</style>
+</head>
+<body>
+  <div class="bar"><h1>SCHEDULE</h1><span class="wk">WK OF 27 JUL 2026 · EDIT-IN-PLACE (ADMIN)</span></div>
+  <div class="scroller">
+  <div class="grid">
+    <div class="day"><h3>Mon</h3>
+      <div class="ses"><div class="t">06:00</div><div class="n">Fundamentals</div><div class="c">PROF. SILVA</div><span class="tag">gi</span></div>
+      <div class="ses"><div class="t">18:00</div><div class="n">Adv Gi</div><div class="c">PROF. SILVA</div><span class="tag">gi</span></div>
+    </div>
+    <div class="day"><h3>Tue</h3>
+      <div class="ses"><div class="t">12:00</div><div class="n">No-Gi Lunch</div><div class="c">COACH ANA</div><span class="tag">no-gi</span></div>
+      <div class="ses"><span class="stamp" style="color:var(--tenant)">COVERED—ANA</span><div class="t">18:00</div><div class="n">No-Gi</div><div class="c" style="text-decoration:line-through">COACH WEBB</div><div class="c">COACH ANA</div><span class="tag">no-gi</span></div>
+    </div>
+    <div class="day"><h3>Wed</h3>
+      <div class="ses"><div class="t">17:00</div><div class="n">Kids BJJ</div><div class="c">COACH DANA</div><span class="tag tag--kids">kids</span></div>
+      <div class="ses"><div class="t">18:00</div><div class="n">Adv Gi</div><div class="c">PROF. SILVA</div><span class="tag">gi</span></div>
+    </div>
+    <div class="day"><h3>Thu</h3>
+      <div class="ses ses--cancelled"><span class="stamp" style="color:var(--bad)">CANCELLED</span><div class="t">12:00</div><div class="n">No-Gi Lunch</div><div class="c">COACH ANA</div><span class="tag">no-gi</span></div>
+      <div class="ses"><div class="t">18:00</div><div class="n">Fundamentals</div><div class="c">COACH DANA</div><span class="tag">gi</span></div>
+    </div>
+    <div class="day"><h3>Fri</h3>
+      <div class="ses"><div class="t">18:00</div><div class="n">Open Mat</div><div class="c">ALL COACHES</div><span class="tag">open-mat</span></div>
+    </div>
+    <div class="day"><h3>Sat</h3>
+      <div class="ses"><div class="t">10:00</div><div class="n">Competition</div><div class="c">PROF. SILVA</div><span class="tag tag--comp">competition</span></div>
+      <div class="ses"><div class="t">11:30</div><div class="n">Open Mat</div><div class="c">ALL COACHES</div><span class="tag">open-mat</span></div>
+    </div>
+  </div>
+  </div>
+  <p class="cap">Substitutions render as a stamp + struck instructor — the ClassTemplate is untouched, only this dated ClassSession changed. Cancelled sessions stay visible (struck, dimmed) rather than vanishing; members got the notification, the grid shows why. Left border = tenant accent; tag colors are per-gym ClassType settings.</p>
+</body>
+</html>

@@ -1,0 +1,94 @@
+<!-- @dsCard group="Belt System" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Belt System — the signature</title>
+<style>
+  :root{
+    --bg:#171B21; --panel:#1C222A; --surface:#232B36; --edge:#3A4656;
+    --ink:#F1EDE3; --ink-dim:#A9AEB9; --ink-faint:#707886; --tenant:#C9503B;
+    --font-display:"Archivo Black","Arial Black",sans-serif;
+    --font-body:"Public Sans","Segoe UI",-apple-system,sans-serif;
+    --font-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+    /* belt colors — sacred, identical in both modes, never tenant-themed */
+    --belt-white:#E9E6DC; --belt-blue:#2456A6; --belt-purple:#5C3D93;
+    --belt-brown:#7A5230; --belt-black:#17181A; --belt-red-bar:#A31D26;
+    --belt-grey:#9BA1AB; --belt-yellow:#E8C13A; --belt-orange:#E07B39; --belt-green:#3E8E5A;
+    --tape:#F2EEE3;
+  }
+  *{margin:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--font-body);padding:36px;max-width:860px;margin:0 auto;
+    background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.015) 0 2px,transparent 2px 6px),
+      repeating-linear-gradient(-45deg,rgba(0,0,0,.06) 0 2px,transparent 2px 6px)}
+  .eyebrow{font:600 11px/1 var(--font-mono);letter-spacing:.22em;color:var(--tenant);text-transform:uppercase;margin-bottom:6px}
+  h1{font:26px/1.1 var(--font-display);margin-bottom:20px}
+  h2{font:600 12px/1 var(--font-mono);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-dim);margin:26px 0 12px}
+  .cap{font:11px/1.5 var(--font-mono);color:var(--ink-faint)}
+  /* THE COMPONENT */
+  .belt{display:flex;height:12px;border-radius:2px;overflow:hidden;box-shadow:0 1px 0 rgba(0,0,0,.4)}
+  .belt .band{flex:1}
+  .belt .bar{width:26%;min-width:44px;background:var(--belt-black);display:flex;gap:4px;justify-content:center;padding:0 5px}
+  .belt .bar i{width:5px;background:var(--tape)}
+  .belt--red .bar{background:var(--belt-red-bar)}
+  .belt--outline{outline:1px solid #4a5260}
+  .belt--s{height:7px}.belt--s .bar{gap:3px}.belt--s .bar i{width:3.5px}
+  .belt--l{height:18px}
+  .ladder{display:grid;gap:12px;max-width:520px}
+  .rung{display:grid;grid-template-columns:110px 1fr;gap:14px;align-items:center}
+  .rung .lbl{font:600 11px/1.2 var(--font-mono);letter-spacing:.08em;color:var(--ink-dim);text-align:right}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:30px}
+  @media(max-width:680px){.split{grid-template-columns:1fr}}
+  /* timeline */
+  .tl{max-width:520px;margin-top:4px}
+  .tl .ev{display:grid;grid-template-columns:110px 1fr;gap:14px;align-items:center;padding:9px 0;border-bottom:1px dashed #2c3440}
+  .tl .d{font:600 11px/1.2 var(--font-mono);color:var(--ink-faint);text-align:right}
+  .tl .who{font:11px/1.2 var(--font-mono);color:var(--ink-faint);margin-top:4px}
+</style>
+</head>
+<body>
+  <div class="eyebrow">The signature component</div>
+  <h1>THE BELT BAR</h1>
+  <p style="color:var(--ink-dim);max-width:600px;margin-bottom:8px">Rank + stripes as a physical belt strip. It anchors roster cards, profiles, schedule instructor chips, and promotion timelines. Belt colors are identical in dark and light modes and are <b style="color:var(--ink)">never</b> recolored by tenant themes.</p>
+
+  <div class="split">
+    <div>
+      <h2>Adult ladder (IBJJF, seeded)</h2>
+      <div class="ladder">
+        <div class="rung"><span class="lbl">WHITE · 2</span><div class="belt belt--outline"><span class="band" style="background:var(--belt-white)"></span><span class="bar"><i></i><i></i></span></div></div>
+        <div class="rung"><span class="lbl">BLUE · 3</span><div class="belt"><span class="band" style="background:var(--belt-blue)"></span><span class="bar"><i></i><i></i><i></i></span></div></div>
+        <div class="rung"><span class="lbl">PURPLE · 2</span><div class="belt"><span class="band" style="background:var(--belt-purple)"></span><span class="bar"><i></i><i></i></span></div></div>
+        <div class="rung"><span class="lbl">BROWN · 1</span><div class="belt"><span class="band" style="background:var(--belt-brown)"></span><span class="bar"><i></i></span></div></div>
+        <div class="rung"><span class="lbl">BLACK · 2°</span><div class="belt belt--red"><span class="band" style="background:var(--belt-black)"></span><span class="bar"><i></i><i></i></span></div></div>
+      </div>
+      <div class="cap" style="margin-top:10px">Black belt carries the red rank bar. Degrees render as stripes on it.</div>
+    </div>
+    <div>
+      <h2>Kids ladder (IBJJF, seeded)</h2>
+      <div class="ladder">
+        <div class="rung"><span class="lbl">GREY · 1</span><div class="belt"><span class="band" style="background:var(--belt-grey)"></span><span class="bar"><i></i></span></div></div>
+        <div class="rung"><span class="lbl">YELLOW · 0</span><div class="belt"><span class="band" style="background:var(--belt-yellow)"></span><span class="bar"></span></div></div>
+        <div class="rung"><span class="lbl">ORANGE · 3</span><div class="belt"><span class="band" style="background:var(--belt-orange)"></span><span class="bar"><i></i><i></i><i></i></span></div></div>
+        <div class="rung"><span class="lbl">GREEN · 2</span><div class="belt"><span class="band" style="background:var(--belt-green)"></span><span class="bar"><i></i><i></i></span></div></div>
+      </div>
+      <div class="cap" style="margin-top:10px">Solid-color simplification of the grey/white/black variants; full variant bands are an implementation detail of the RankSystem seed. Custom RankSystems (judo, kickboxing levels) define their own bands.</div>
+
+      <h2>Sizes</h2>
+      <div style="display:grid;gap:10px;max-width:420px">
+        <div class="belt belt--s"><span class="band" style="background:var(--belt-purple)"></span><span class="bar"><i></i><i></i></span></div>
+        <div class="belt"><span class="band" style="background:var(--belt-purple)"></span><span class="bar"><i></i><i></i></span></div>
+        <div class="belt belt--l"><span class="band" style="background:var(--belt-purple)"></span><span class="bar"><i></i><i></i></span></div>
+      </div>
+      <div class="cap" style="margin-top:8px">S — roster rows · M — cards · L — profile header</div>
+    </div>
+  </div>
+
+  <h2>Promotion timeline (RankAwards)</h2>
+  <div class="tl">
+    <div class="ev"><span class="d">14 JUN 2026</span><div><div class="belt belt--s"><span class="band" style="background:var(--belt-purple)"></span><span class="bar"><i></i><i></i></span></div><div class="who">STRIPE · AWARDED BY PROF. SILVA</div></div></div>
+    <div class="ev"><span class="d">02 DEC 2024</span><div><div class="belt belt--s"><span class="band" style="background:var(--belt-purple)"></span><span class="bar"></span></div><div class="who">PROMOTION · AWARDED BY PROF. SILVA</div></div></div>
+    <div class="ev"><span class="d">21 MAR 2021</span><div><div class="belt belt--s"><span class="band" style="background:var(--belt-blue)"></span><span class="bar"></span></div><div class="who">PROMOTION · SELF-REPORTED (PRE-APP)</div></div></div>
+  </div>
+</body>
+</html>

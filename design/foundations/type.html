@@ -1,0 +1,63 @@
+<!-- @dsCard group="Type" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Type — display, body, data</title>
+<style>
+  :root{
+    --bg:#171B21; --panel:#1C222A; --surface:#232B36; --edge:#3A4656;
+    --ink:#F1EDE3; --ink-dim:#A9AEB9; --ink-faint:#707886; --tenant:#C9503B;
+    --font-display:"Archivo Black","Arial Black",sans-serif;
+    --font-body:"Public Sans","Segoe UI",-apple-system,sans-serif;
+    --font-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  }
+  *{margin:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--font-body);padding:36px;max-width:860px;margin:0 auto;
+    background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.015) 0 2px,transparent 2px 6px),
+      repeating-linear-gradient(-45deg,rgba(0,0,0,.06) 0 2px,transparent 2px 6px)}
+  .eyebrow{font:600 11px/1 var(--font-mono);letter-spacing:.22em;color:var(--ink-dim);text-transform:uppercase;margin-bottom:24px}
+  .spec{border-bottom:1px dashed #2c3440;padding:18px 0}
+  .spec .cap{font:11px/1.5 var(--font-mono);color:var(--ink-faint);margin-top:8px}
+  .d1{font:40px/1.05 var(--font-display)}
+  .d2{font:26px/1.15 var(--font-display)}
+  .h-mono{font:600 12px/1 var(--font-mono);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-dim)}
+  .body-lead{font:17px/1.6 var(--font-body)}
+  .body-std{font:15px/1.55 var(--font-body);color:var(--ink-dim)}
+  .data{font:600 15px/1.4 var(--font-mono)}
+  .data-big{font:700 56px/1 var(--font-mono);letter-spacing:-.02em}
+  .rules{margin-top:26px;font-size:14px;color:var(--ink-dim)}
+  .rules li{margin-bottom:8px}
+  b{color:var(--ink)}
+</style>
+</head>
+<body>
+  <div class="eyebrow">Type · three faces, three jobs</div>
+
+  <div class="spec">
+    <div class="d1">HEAVY ROUNDS BUILD LIGHT HANDS</div>
+    <div class="cap">DISPLAY — Archivo Black (self-hosted in app; falls back Arial Black). Page titles, hero lines, section identity. Rationed: once or twice per screen.</div>
+  </div>
+
+  <div class="spec">
+    <div class="body-lead">Ana logged 14 sessions this month — her best streak since joining.</div>
+    <div class="body-std">Body text handles sentences: descriptions, notes, empty states, confirmations. Public Sans, falls back to Segoe UI.</div>
+    <div class="cap">BODY — Public Sans. 15px standard, 17px lead. Sentence case everywhere.</div>
+  </div>
+
+  <div class="spec">
+    <div class="data-big">127<span style="font-size:20px;color:var(--ink-dim)"> hrs</span></div>
+    <div class="data">TUE 30 JUL · 18:00–19:30 · $85.00 · 3.2/wk</div>
+    <div class="h-mono" style="margin-top:10px">Section label · eyebrow · stamp</div>
+    <div class="cap">DATA — IBM Plex Mono (falls back ui-monospace/Consolas). Every count, date, time, money amount, average, stamp, and eyebrow label. If it's a value, it's mono. Tabular by nature — columns of numbers align for free.</div>
+  </div>
+
+  <ul class="rules">
+    <li><b>Scale:</b> 11 mono-meta · 13 small · 15 body · 17 lead · 22 h3 · 26 h2 · 40 display · 56+ scoreboard numerals.</li>
+    <li><b>Mono carries letter-spacing</b> (.12–.22em uppercase); display and body never track out.</li>
+    <li><b>No serif anywhere</b> — the ledger voice comes from mono + stamps, not from an editorial serif.</li>
+    <li><b>Numerals in mono are the tell</b> that a value is live data, not copy. Never set data in body face.</li>
+  </ul>
+</body>
+</html>

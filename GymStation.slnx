@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/GymStation.Domain/GymStation.Domain.csproj" />
+    <Project Path="src/GymStation.Infrastructure/GymStation.Infrastructure.csproj" />
+    <Project Path="src/GymStation.Web/GymStation.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/GymStation.Domain.Tests/GymStation.Domain.Tests.csproj" />
+    <Project Path="tests/GymStation.Integration.Tests/GymStation.Integration.Tests.csproj" />
+  </Folder>
+</Solution>

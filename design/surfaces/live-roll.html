@@ -1,0 +1,62 @@
+<!-- @dsCard group="Instructor" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live roll — the scoreboard moment</title>
+<style>
+  :root{
+    --board:#0E1116; --line:#232B36; --ink:#F1EDE3; --ink-dim:#8B93A0;
+    --tenant:#C9503B; --ok:#4E9B6B; --warn:#C9A227;
+    --font-display:"Archivo Black","Arial Black",sans-serif;
+    --font-body:"Public Sans","Segoe UI",-apple-system,sans-serif;
+    --font-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+    --belt-blue:#2456A6; --belt-purple:#5C3D93; --belt-white:#E9E6DC; --belt-black:#17181A; --tape:#F2EEE3;
+  }
+  *{margin:0;box-sizing:border-box}
+  body{background:var(--board);color:var(--ink);font:14px/1.4 var(--font-body);padding:30px;display:flex;justify-content:center}
+  .board{width:100%;max-width:760px}
+  .head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid var(--line);padding-bottom:12px;margin-bottom:18px}
+  .head h1{font:20px/1 var(--font-display);letter-spacing:.02em}
+  .head .s{font:600 11px/1 var(--font-mono);letter-spacing:.16em;color:var(--ink-dim)}
+  .nums{display:flex;gap:14px;margin-bottom:20px;flex-wrap:wrap}
+  .num{flex:1;min-width:150px;background:#12161D;border:1px solid var(--line);border-radius:10px;padding:14px 16px;text-align:center}
+  .num b{font:700 54px/1 var(--font-mono);letter-spacing:-.02em;display:block}
+  .num span{font:600 9px/1 var(--font-mono);letter-spacing:.2em;color:var(--ink-dim)}
+  .num--pend b{color:var(--warn)}
+  .num--ok b{color:var(--ok)}
+  .roll .r{display:flex;align-items:center;gap:12px;padding:10px 6px;border-bottom:1px solid var(--line)}
+  .belt{display:flex;height:7px;width:86px;border-radius:2px;overflow:hidden;flex:none}
+  .belt .band{flex:1}
+  .belt .bar{width:30%;background:var(--belt-black);display:flex;gap:2.5px;justify-content:center;padding:0 3px}
+  .belt .bar i{width:3.5px;background:var(--tape)}
+  .nm{flex:1;font:600 14px/1.2 var(--font-body)}
+  .src{font:9px/1 var(--font-mono);letter-spacing:.12em;color:var(--ink-dim)}
+  .act{display:flex;gap:8px}
+  .b{font:700 11px/1 var(--font-mono);letter-spacing:.08em;border-radius:6px;padding:8px 12px;border:1.5px solid var(--line);color:var(--ink-dim);background:transparent}
+  .b--ok{border-color:var(--ok);color:var(--ok)}
+  .foot{display:flex;justify-content:space-between;align-items:center;margin-top:16px}
+  .b--all{background:var(--ok);border:none;color:#0B1310;padding:12px 18px;font:700 12px/1 var(--font-mono);letter-spacing:.1em;border-radius:8px}
+  .b--add{background:transparent;border:1.5px dashed var(--line);color:var(--ink-dim);padding:12px 18px;font:700 12px/1 var(--font-mono);letter-spacing:.1em;border-radius:8px}
+  .cap{font:10px/1.6 var(--font-mono);color:var(--ink-dim);margin-top:16px}
+</style>
+</head>
+<body>
+  <div class="board">
+    <div class="head"><h1>NO-GI · 18:00</h1><span class="s">TUE 30 JUL · COACH ANA (COVERING) · AUTO-CONFIRM 21:30</span></div>
+    <div class="nums">
+      <div class="num"><b>14</b><span>ON THE MAT</span></div>
+      <div class="num num--pend"><b>3</b><span>PENDING</span></div>
+      <div class="num num--ok"><b>11</b><span>CONFIRMED</span></div>
+    </div>
+    <div class="roll">
+      <div class="r"><div class="belt"><span class="band" style="background:var(--belt-purple)"></span><span class="bar"><i></i><i></i></span></div><span class="nm">Ana Reyes</span><span class="src">SELF · 17:41</span><div class="act"><button class="b b--ok">✓</button><button class="b">✕</button></div></div>
+      <div class="r"><div class="belt"><span class="band" style="background:var(--belt-blue)"></span><span class="bar"><i></i><i></i><i></i></span></div><span class="nm">Marcus Webb</span><span class="src">SELF · 17:52</span><div class="act"><button class="b b--ok">✓</button><button class="b">✕</button></div></div>
+      <div class="r"><div class="belt"><span class="band" style="background:var(--belt-white);outline:1px solid #4a5260"></span><span class="bar"><i></i></span></div><span class="nm">Tom Hale</span><span class="src">GUARDIAN · 17:55</span><div class="act"><button class="b b--ok">✓</button><button class="b">✕</button></div></div>
+    </div>
+    <div class="foot"><button class="b--add">+ ADD MEMBER (NO PHONE)</button><button class="b--all">CONFIRM ALL · 3</button></div>
+    <p class="cap">The one deliberately dark-boarded surface in both modes — scoreboard semantics are literally true here. Soft approval: everything unconfirmed auto-confirms at session end + 2h; ✕ strikes a no-show; ADD covers the member whose phone is in the locker.</p>
+  </div>
+</body>
+</html>

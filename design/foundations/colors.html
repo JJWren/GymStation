@@ -1,0 +1,110 @@
+<!-- @dsCard group="Colors" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Colors — modes, tenant tokens, stamps</title>
+<style>
+  :root{
+    --bg:#171B21; --panel:#1C222A; --surface:#232B36; --surface-2:#2A3441; --edge:#3A4656;
+    --ink:#F1EDE3; --ink-dim:#A9AEB9; --ink-faint:#707886;
+    --ok:#4E9B6B; --warn:#C9A227; --bad:#C4554D;
+    --font-display:"Archivo Black","Arial Black",sans-serif;
+    --font-body:"Public Sans","Segoe UI",-apple-system,sans-serif;
+    --font-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  }
+  *{margin:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--font-body);padding:32px;
+    background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.015) 0 2px,transparent 2px 6px),
+      repeating-linear-gradient(-45deg,rgba(0,0,0,.06) 0 2px,transparent 2px 6px)}
+  .eyebrow{font:600 11px/1 var(--font-mono);letter-spacing:.22em;color:var(--ink-dim);text-transform:uppercase;margin-bottom:18px}
+  h2{font:600 12px/1 var(--font-mono);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-dim);margin:26px 0 12px}
+  .row{display:flex;flex-wrap:wrap;gap:10px}
+  .sw{width:118px;border-radius:8px;overflow:hidden;border:1px solid var(--edge)}
+  .sw i{display:block;height:52px}
+  .sw b{display:block;font:600 10px/1.3 var(--font-mono);padding:6px 8px;background:var(--panel);letter-spacing:.02em}
+  .sw b em{display:block;font-style:normal;color:var(--ink-faint)}
+  /* light-mode panel */
+  .light{background:#EFEAE0;color:#26241F;border-radius:12px;padding:22px;margin-top:8px;
+    background-image:repeating-linear-gradient(0deg,rgba(90,110,130,.10) 0 1px,transparent 1px 26px)}
+  .light .sw{border-color:#C9C2B2}
+  .light .sw b{background:#F7F4EC;color:#26241F}
+  .light .sw b em{color:#8D897C}
+  .light h2{color:#5C594F}
+  /* tenant demo */
+  .tenants{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:640px){.tenants{grid-template-columns:1fr}}
+  .tcard{background:var(--surface);border-radius:12px;padding:16px;position:relative}
+  .tcard::after{content:"";position:absolute;inset:5px;border:1.5px dashed rgba(120,135,155,.35);border-radius:8px;pointer-events:none}
+  .tcard h3{font:16px/1.2 var(--font-display);margin-bottom:2px}
+  .tcard .cap{font:10px/1.4 var(--font-mono);color:var(--ink-faint);margin-bottom:12px}
+  .btn{display:inline-block;font:700 12px/1 var(--font-mono);letter-spacing:.08em;padding:9px 14px;border-radius:6px;margin-right:8px}
+  .chip{display:inline-block;font:600 10px/1 var(--font-mono);padding:5px 9px;border-radius:99px;border:1px solid var(--edge);color:var(--ink-dim)}
+  .stamp{display:inline-block;font:700 11px/1 var(--font-mono);letter-spacing:.12em;padding:5px 9px;border:1.5px solid currentColor;border-radius:3px;transform:rotate(-2deg);margin:0 10px 6px 0}
+</style>
+</head>
+<body>
+  <div class="eyebrow">Colors · dark is base (mat &amp; gi) · light is the paper ledger</div>
+
+  <h2>Dark base — mat &amp; gi fabric</h2>
+  <div class="row">
+    <div class="sw"><i style="background:#171B21"></i><b>--bg <em>#171B21 · mat charcoal</em></b></div>
+    <div class="sw"><i style="background:#1C222A"></i><b>--panel <em>#1C222A</em></b></div>
+    <div class="sw"><i style="background:#232B36"></i><b>--surface <em>#232B36 · patch</em></b></div>
+    <div class="sw"><i style="background:#2A3441"></i><b>--surface-2 <em>#2A3441</em></b></div>
+    <div class="sw"><i style="background:#3A4656"></i><b>--edge <em>#3A4656 · stitch</em></b></div>
+    <div class="sw"><i style="background:#F1EDE3"></i><b>--ink <em>#F1EDE3 · canvas</em></b></div>
+    <div class="sw"><i style="background:#A9AEB9"></i><b>--ink-dim <em>#A9AEB9</em></b></div>
+  </div>
+
+  <h2>Status (stamps carry status; never tenant-colored)</h2>
+  <div>
+    <span class="stamp" style="color:var(--ok)">PAID</span>
+    <span class="stamp" style="color:var(--bad)">DUE</span>
+    <span class="stamp" style="color:var(--warn)">PENDING</span>
+    <span class="stamp" style="color:var(--ink-dim)">CANCELLED</span>
+  </div>
+  <div class="row" style="margin-top:10px">
+    <div class="sw"><i style="background:#4E9B6B"></i><b>--ok <em>#4E9B6B</em></b></div>
+    <div class="sw"><i style="background:#C9A227"></i><b>--warn <em>#C9A227</em></b></div>
+    <div class="sw"><i style="background:#C4554D"></i><b>--bad <em>#C4554D</em></b></div>
+  </div>
+
+  <h2>Tenant accent — one token, whole personality (WCAG-checked on save, both modes)</h2>
+  <div class="tenants">
+    <div class="tcard" style="--tenant:#C9503B;--tenant-ink:#FFF3EC">
+      <h3>IRONWORKS BJJ</h3>
+      <div class="cap">--tenant: #C9503B · ember</div>
+      <span class="btn" style="background:var(--tenant);color:var(--tenant-ink)">CHECK IN</span>
+      <span class="chip" style="border-color:var(--tenant);color:var(--tenant)">no-gi</span>
+      <span class="stamp" style="color:var(--tenant)">COVERED—ANA</span>
+    </div>
+    <div class="tcard" style="--tenant:#3E8E9E;--tenant-ink:#F0FAFC">
+      <h3>COASTLINE GRAPPLING</h3>
+      <div class="cap">--tenant: #3E8E9E · gulf teal</div>
+      <span class="btn" style="background:var(--tenant);color:var(--tenant-ink)">CHECK IN</span>
+      <span class="chip" style="border-color:var(--tenant);color:var(--tenant)">no-gi</span>
+      <span class="stamp" style="color:var(--tenant)">COVERED—ANA</span>
+    </div>
+  </div>
+
+  <div class="light">
+    <h2>Light mode — the paper ledger</h2>
+    <div class="row">
+      <div class="sw"><i style="background:#EFEAE0"></i><b>--bg <em>#EFEAE0 · ledger paper</em></b></div>
+      <div class="sw"><i style="background:#E9E3D6"></i><b>--panel <em>#E9E3D6</em></b></div>
+      <div class="sw"><i style="background:#F7F4EC"></i><b>--surface <em>#F7F4EC · card stock</em></b></div>
+      <div class="sw"><i style="background:#C9C2B2"></i><b>--edge <em>#C9C2B2 · rule</em></b></div>
+      <div class="sw"><i style="background:#26241F"></i><b>--ink <em>#26241F · iron-gall</em></b></div>
+      <div class="sw"><i style="background:#5C594F"></i><b>--ink-dim <em>#5C594F</em></b></div>
+    </div>
+    <div style="margin-top:14px">
+      <span class="stamp" style="color:#3F7D5C">PAID</span>
+      <span class="stamp" style="color:#B23B34">DUE</span>
+      <span class="stamp" style="color:#33608C">PENDING</span>
+      <span style="font:11px/1.4 var(--font-mono);color:#8D897C">rubber-stamp ink: faded green / red / blue</span>
+    </div>
+  </div>
+</body>
+</html>

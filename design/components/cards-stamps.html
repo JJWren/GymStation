@@ -1,0 +1,93 @@
+<!-- @dsCard group="Components" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roster cards & stamps — both modes</title>
+<style>
+  :root{
+    --bg:#171B21; --panel:#1C222A; --surface:#232B36; --edge:#3A4656;
+    --ink:#F1EDE3; --ink-dim:#A9AEB9; --ink-faint:#707886;
+    --tenant:#C9503B; --ok:#4E9B6B; --warn:#C9A227; --bad:#C4554D;
+    --font-display:"Archivo Black","Arial Black",sans-serif;
+    --font-body:"Public Sans","Segoe UI",-apple-system,sans-serif;
+    --font-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+    --belt-purple:#5C3D93; --belt-blue:#2456A6; --belt-white:#E9E6DC; --tape:#F2EEE3; --belt-black:#17181A;
+  }
+  *{margin:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--font-body);padding:32px;
+    background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.015) 0 2px,transparent 2px 6px),
+      repeating-linear-gradient(-45deg,rgba(0,0,0,.06) 0 2px,transparent 2px 6px)}
+  h2{font:600 12px/1 var(--font-mono);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-dim);margin:0 0 14px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;max-width:860px}
+  /* patch card (dark) */
+  .patch{background:var(--surface);border-radius:12px;padding:16px;position:relative}
+  .patch::after{content:"";position:absolute;inset:5px;border:1.5px dashed rgba(120,135,155,.35);border-radius:8px;pointer-events:none}
+  .id{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+  .avatar{width:44px;height:44px;border-radius:8px;background:linear-gradient(180deg,#2E3945,#232B36);position:relative;overflow:hidden;flex:none}
+  .avatar::before{content:"";position:absolute;left:50%;top:9px;width:14px;height:14px;border-radius:50%;background:#4A5666;transform:translateX(-50%)}
+  .avatar::after{content:"";position:absolute;left:50%;top:24px;width:26px;height:18px;border-radius:8px 8px 0 0;background:#4A5666;transform:translateX(-50%)}
+  .nm{font:700 15px/1.2 var(--font-body)}
+  .meta{font:10px/1.5 var(--font-mono);color:var(--ink-faint);letter-spacing:.06em}
+  .belt{display:flex;height:8px;border-radius:2px;overflow:hidden;margin:10px 0}
+  .belt .band{flex:1}
+  .belt .bar{width:26%;min-width:40px;background:var(--belt-black);display:flex;gap:3px;justify-content:center;padding:0 4px}
+  .belt .bar i{width:4px;background:var(--tape)}
+  .stats{display:flex;gap:14px;font:600 12px/1.3 var(--font-mono);color:var(--ink-dim)}
+  .stats b{display:block;color:var(--ink);font-size:15px}
+  .stamp{position:absolute;top:12px;right:12px;font:700 10px/1 var(--font-mono);letter-spacing:.12em;padding:4px 7px;border:1.5px solid currentColor;border-radius:3px;transform:rotate(3deg)}
+  /* light section */
+  .lightwrap{background:#EFEAE0;border-radius:12px;padding:24px;margin-top:26px;color:#26241F;
+    background-image:repeating-linear-gradient(0deg,rgba(90,110,130,.10) 0 1px,transparent 1px 26px)}
+  .lightwrap h2{color:#5C594F}
+  .ledger{background:#F7F4EC;border:1px solid #C9C2B2;border-radius:8px;padding:14px 16px;position:relative;max-width:420px;
+    box-shadow:0 1px 2px rgba(60,50,30,.12)}
+  .ledger .nm{color:#26241F}
+  .ledger .meta{color:#8D897C}
+  .ledger .stats{color:#5C594F}
+  .ledger .stats b{color:#26241F}
+  .stampset{margin-top:20px}
+  .stamp2{display:inline-block;font:700 11px/1 var(--font-mono);letter-spacing:.12em;padding:5px 9px;border:1.5px solid currentColor;border-radius:3px;transform:rotate(-2deg);margin:0 10px 8px 0}
+</style>
+</head>
+<body>
+  <h2>Roster cards — dark base: stitched patches on the gi</h2>
+  <div class="grid">
+    <div class="patch">
+      <span class="stamp" style="color:var(--ok)">PAID</span>
+      <div class="id"><div class="avatar" role="img" aria-label="Portrait placeholder"></div><div><div class="nm">Ana Reyes</div><div class="meta">MEMBER · ADULT · JOINED 2021</div></div></div>
+      <div class="belt"><span class="band" style="background:var(--belt-purple)"></span><span class="bar"><i></i><i></i></span></div>
+      <div class="stats"><span><b>2y 3m</b>at belt</span><span><b>3.2</b>/wk avg</span><span><b>$0</b>balance</span></div>
+    </div>
+    <div class="patch">
+      <span class="stamp" style="color:var(--bad)">DUE</span>
+      <div class="id"><div class="avatar" role="img" aria-label="Portrait placeholder"></div><div><div class="nm">Marcus Webb</div><div class="meta">MEMBER · ADULT · JOINED 2024</div></div></div>
+      <div class="belt"><span class="band" style="background:var(--belt-blue)"></span><span class="bar"><i></i><i></i><i></i></span></div>
+      <div class="stats"><span><b>11m</b>at belt</span><span><b>1.8</b>/wk avg</span><span><b>$85</b>balance</span></div>
+    </div>
+    <div class="patch">
+      <div class="id"><div class="avatar" role="img" aria-label="Portrait placeholder"></div><div><div class="nm">Prof. Rui Silva</div><div class="meta">INSTRUCTOR + MEMBER · HEAD COACH</div></div></div>
+      <div class="belt"><span class="band" style="background:var(--belt-black)"></span><span class="bar" style="background:#A31D26"><i></i><i></i></span></div>
+      <div class="stats"><span><b>2°</b>degree</span><span><b>6</b>classes/wk</span><span><b>12y</b>at gym</span></div>
+    </div>
+  </div>
+  <p class="meta" style="max-width:640px;margin-top:12px">Portrait placeholder is the neutral silhouette above — no photos required. Dual-role Persons show both roles in one card; there is never a second record.</p>
+
+  <div class="lightwrap">
+    <h2>Light mode — the same card as ledger stock</h2>
+    <div class="ledger">
+      <div class="id"><div class="avatar" style="background:#E2DCCB" role="img" aria-label="Portrait placeholder"></div><div><div class="nm">Ana Reyes</div><div class="meta">MEMBER · ADULT · JOINED 2021</div></div></div>
+      <div class="belt"><span class="band" style="background:var(--belt-purple)"></span><span class="bar"><i></i><i></i></span></div>
+      <div class="stats"><span><b>2y 3m</b>at belt</span><span><b>3.2</b>/wk avg</span><span><b>$0</b>balance</span></div>
+    </div>
+    <div class="stampset">
+      <span class="stamp2" style="color:#3F7D5C">PAID</span>
+      <span class="stamp2" style="color:#B23B34">DUE</span>
+      <span class="stamp2" style="color:#33608C">PENDING</span>
+      <span class="stamp2" style="color:#B23B34;border-style:dashed">CANCELLED</span>
+      <span class="stamp2" style="color:#8A5A2B">COVERED—ANA</span>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,65 @@
+<!-- @dsCard group="Public Page" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Public gym page — hero + live week strip</title>
+<style>
+  :root{
+    --bg:#171B21; --panel:#1C222A; --surface:#232B36; --edge:#3A4656;
+    --ink:#F1EDE3; --ink-dim:#A9AEB9; --ink-faint:#707886;
+    --tenant:#C9503B; --tenant-ink:#FFF3EC;
+    --font-display:"Archivo Black","Arial Black",sans-serif;
+    --font-body:"Public Sans","Segoe UI",-apple-system,sans-serif;
+    --font-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  }
+  *{margin:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--font-body)}
+  .hero{position:relative;min-height:340px;display:flex;flex-direction:column;justify-content:flex-end;padding:28px;
+    background:
+      radial-gradient(ellipse 90% 70% at 50% 20%, rgba(201,80,59,.14), transparent 60%),
+      linear-gradient(180deg, #232B36 0%, #1A2028 55%, #14181E 100%);
+    background-blend-mode:normal;overflow:hidden}
+  .hero::before{content:"";position:absolute;inset:0;
+    background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.02) 0 2px,transparent 2px 7px),
+      repeating-linear-gradient(-45deg,rgba(0,0,0,.10) 0 2px,transparent 2px 7px)}
+  .slot{position:absolute;top:14px;right:14px;font:600 9px/1 var(--font-mono);letter-spacing:.14em;color:var(--ink-faint);border:1px dashed var(--edge);border-radius:4px;padding:5px 8px}
+  .crest{width:52px;height:52px;border-radius:12px;background:var(--tenant);margin-bottom:14px;position:relative;z-index:1}
+  h1{font:44px/1 var(--font-display);letter-spacing:.01em;position:relative;z-index:1}
+  .tag{font:600 11px/1 var(--font-mono);letter-spacing:.2em;color:var(--ink-dim);margin:8px 0 18px;position:relative;z-index:1}
+  .cta{display:inline-block;width:max-content;font:700 13px/1 var(--font-mono);letter-spacing:.1em;background:var(--tenant);color:var(--tenant-ink);border:none;border-radius:8px;padding:14px 22px;position:relative;z-index:1}
+  /* live week strip */
+  .strip{background:var(--panel);border-top:1px solid var(--edge);border-bottom:1px solid var(--edge);padding:16px 22px}
+  .strip h2{font:600 11px/1 var(--font-mono);letter-spacing:.2em;color:var(--ink-dim);margin-bottom:12px}
+  .days{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
+  .d{flex:none;background:var(--surface);border-radius:10px;padding:10px 12px;min-width:118px}
+  .d b{font:600 10px/1 var(--font-mono);letter-spacing:.14em;color:var(--tenant);display:block;margin-bottom:6px}
+  .d span{display:block;font:600 11px/1.6 var(--font-mono);color:var(--ink-dim)}
+  .more{align-self:center;flex:none;font:600 11px/1 var(--font-mono);color:var(--tenant);letter-spacing:.08em;padding:0 8px}
+  .below{display:flex;gap:14px;padding:18px 22px;color:var(--ink-faint);font:600 10px/1 var(--font-mono);letter-spacing:.16em}
+</style>
+</head>
+<body>
+  <header class="hero">
+    <span class="slot">TENANT HERO PHOTO SLOT</span>
+    <div class="crest" role="img" aria-label="Gym crest"></div>
+    <h1>IRONWORKS BJJ</h1>
+    <div class="tag">BRAZILIAN JIU-JITSU · FUNDAMENTALS TO COMPETITION · ALL AGES</div>
+    <a class="cta" href="#">BOOK A FREE TRIAL</a>
+  </header>
+  <section class="strip">
+    <h2>THIS WEEK AT IRONWORKS — LIVE</h2>
+    <div class="days">
+      <div class="d"><b>MON</b><span>06:00 FUND · GI</span><span>18:00 ADV GI</span></div>
+      <div class="d"><b>TUE</b><span>12:00 NO-GI</span><span>18:00 NO-GI</span></div>
+      <div class="d"><b>WED</b><span>17:00 KIDS</span><span>18:00 ADV GI</span></div>
+      <div class="d"><b>THU</b><span>18:00 FUND · GI</span></div>
+      <div class="d"><b>FRI</b><span>18:00 OPEN MAT</span></div>
+      <div class="d"><b>SAT</b><span>10:00 COMP</span><span>11:30 OPEN MAT</span></div>
+      <span class="more">FULL SCHEDULE →</span>
+    </div>
+  </section>
+  <div class="below"><span>INSTRUCTORS ↓</span><span>·</span><span>VISIT US ↓</span><span>·</span><span>CONTACT ↓</span></div>
+</body>
+</html>

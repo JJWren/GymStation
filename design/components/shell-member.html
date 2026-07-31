@@ -1,0 +1,76 @@
+<!-- @dsCard group="Navigation" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Member shell — mobile bottom tabs</title>
+<style>
+  :root{
+    --bg:#171B21; --panel:#1C222A; --surface:#232B36; --edge:#3A4656;
+    --ink:#F1EDE3; --ink-dim:#A9AEB9; --ink-faint:#707886;
+    --tenant:#C9503B; --tenant-ink:#FFF3EC;
+    --font-display:"Archivo Black","Arial Black",sans-serif;
+    --font-body:"Public Sans","Segoe UI",-apple-system,sans-serif;
+    --font-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+    --belt-purple:#5C3D93; --belt-black:#17181A; --tape:#F2EEE3;
+  }
+  *{margin:0;box-sizing:border-box}
+  body{background:var(--bg);display:flex;justify-content:center;padding:26px;font-family:var(--font-body);
+    background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.015) 0 2px,transparent 2px 6px),
+      repeating-linear-gradient(-45deg,rgba(0,0,0,.06) 0 2px,transparent 2px 6px)}
+  .phone{width:360px;height:600px;background:var(--bg);border:1px solid var(--edge);border-radius:24px;color:var(--ink);display:flex;flex-direction:column;overflow:hidden}
+  .top{display:flex;justify-content:space-between;align-items:center;padding:16px 16px 12px}
+  .top b{font:700 14px/1 var(--font-display)}
+  .top i{font:9px/1 var(--font-mono);color:var(--ink-faint);letter-spacing:.14em;font-style:normal}
+  .bell{width:30px;height:30px;border:1px solid var(--edge);border-radius:8px;display:grid;place-items:center;color:var(--ink-dim);font-size:13px;position:relative}
+  .bell::after{content:"";position:absolute;top:5px;right:5px;width:6px;height:6px;border-radius:50%;background:var(--tenant)}
+  .content{flex:1;padding:8px 16px;overflow:hidden}
+  .hero{background:var(--surface);border-radius:14px;padding:16px;position:relative}
+  .hero::after{content:"";position:absolute;inset:5px;border:1.5px dashed rgba(120,135,155,.25);border-radius:10px}
+  .hi{font:700 17px/1.25 var(--font-body)}
+  .belt{display:flex;height:10px;border-radius:2px;overflow:hidden;margin:12px 0 8px}
+  .belt .band{flex:1;background:var(--belt-purple)}
+  .belt .bar{width:26%;background:var(--belt-black);display:flex;gap:3px;justify-content:center;padding:0 4px}
+  .belt .bar i{width:4px;background:var(--tape)}
+  .stats{display:flex;gap:16px;font:600 11px/1.4 var(--font-mono);color:var(--ink-dim)}
+  .stats b{display:block;font-size:16px;color:var(--ink)}
+  .next{margin-top:12px;background:var(--surface);border-radius:14px;padding:14px 16px}
+  .next .l{font:9px/1 var(--font-mono);letter-spacing:.16em;color:var(--ink-faint);margin-bottom:8px}
+  .next .n{font:700 15px/1.2}
+  .next .c{font:10px/1.5 var(--font-mono);color:var(--ink-faint)}
+  .cta{display:block;width:100%;margin-top:10px;text-align:center;font:700 13px/1 var(--font-mono);letter-spacing:.1em;background:var(--tenant);color:var(--tenant-ink);border:none;border-radius:8px;padding:13px 0}
+  /* bottom tabs */
+  .tabs{display:flex;border-top:1px solid var(--edge);background:var(--panel)}
+  .tabs a{flex:1;text-align:center;padding:11px 0 13px;color:var(--ink-faint);text-decoration:none}
+  .tabs a b{display:block;font:16px/1.2 var(--font-body)}
+  .tabs a span{font:8px/1 var(--font-mono);letter-spacing:.12em}
+  .tabs a.on{color:var(--ink)}
+  .tabs a.on b{color:var(--tenant)}
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="top"><div><b>IRONWORKS BJJ</b><br><i>ANA REYES · MEMBER</i></div><div class="bell" aria-label="Notifications">▲</div></div>
+    <div class="content">
+      <div class="hero">
+        <div class="hi">Tuesday, Ana. Two sessions on the mat today.</div>
+        <div class="belt" aria-label="Purple belt, two stripes"><span class="band"></span><span class="bar"><i></i><i></i></span></div>
+        <div class="stats"><span><b>127</b>MAT HRS</span><span><b>3.2</b>/WK AVG</span><span><b>2y 3m</b>AT BELT</span></div>
+      </div>
+      <div class="next">
+        <div class="l">NEXT UP</div>
+        <div class="n">No-Gi · 18:00</div>
+        <div class="c">COACH ANA (COVERING) · 90 MIN</div>
+        <button class="cta">CHECK IN</button>
+      </div>
+    </div>
+    <nav class="tabs" aria-label="Member navigation">
+      <a class="on" href="#"><b>▦</b><span>SCHEDULE</span></a>
+      <a href="#"><b>✓</b><span>CHECK-IN</span></a>
+      <a href="#"><b>▤</b><span>DIARY</span></a>
+      <a href="#"><b>▲</b><span>PROGRESS</span></a>
+    </nav>
+  </div>
+</body>
+</html>

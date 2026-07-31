@@ -1,0 +1,77 @@
+<!-- @dsCard group="Navigation" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin shell — ledger index-tab rail</title>
+<style>
+  :root{
+    --bg:#171B21; --panel:#1C222A; --surface:#232B36; --edge:#3A4656;
+    --ink:#F1EDE3; --ink-dim:#A9AEB9; --ink-faint:#707886;
+    --tenant:#C9503B; --warn:#C9A227; --bad:#C4554D; --ok:#4E9B6B;
+    --font-display:"Archivo Black","Arial Black",sans-serif;
+    --font-body:"Public Sans","Segoe UI",-apple-system,sans-serif;
+    --font-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  }
+  *{margin:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font:13px/1.45 var(--font-body);padding:26px;display:flex;justify-content:center;
+    background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.015) 0 2px,transparent 2px 6px),
+      repeating-linear-gradient(-45deg,rgba(0,0,0,.06) 0 2px,transparent 2px 6px)}
+  .frame{display:flex;width:100%;max-width:960px;min-height:480px;border:1px solid var(--edge);border-radius:14px;overflow:hidden;background:var(--bg)}
+  /* rail = ledger index tabs */
+  .rail{width:190px;background:var(--panel);padding:16px 0 16px 12px;display:flex;flex-direction:column;gap:2px}
+  .brand{display:flex;align-items:center;gap:8px;padding:0 10px 18px}
+  .crest{width:26px;height:26px;border-radius:6px;background:var(--tenant)}
+  .brand b{font:700 13px/1.1 var(--font-display);letter-spacing:.02em}
+  .brand i{display:block;font:9px/1 var(--font-mono);color:var(--ink-faint);letter-spacing:.14em;font-style:normal;margin-top:3px}
+  .tab{font:600 11px/1 var(--font-mono);letter-spacing:.14em;color:var(--ink-dim);padding:12px 12px;border-radius:8px 0 0 8px;position:relative;display:flex;justify-content:space-between;align-items:center}
+  .tab--on{background:var(--bg);color:var(--ink)}
+  .tab--on::before{content:"";position:absolute;left:0;top:9px;bottom:9px;width:3px;border-radius:2px;background:var(--tenant)}
+  .badge{font:700 9px/1 var(--font-mono);background:var(--bad);color:#fff;border-radius:99px;padding:3px 6px}
+  .badge--warn{background:var(--warn);color:#241d05}
+  .rail .foot{margin-top:auto;padding:10px 12px;font:9px/1.5 var(--font-mono);color:var(--ink-faint);letter-spacing:.08em}
+  /* content: attention queue */
+  .main{flex:1;padding:22px 24px}
+  h1{font:20px/1 var(--font-display);margin-bottom:4px}
+  .sub{font:10px/1 var(--font-mono);letter-spacing:.16em;color:var(--ink-faint);margin-bottom:18px}
+  .kpis{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+  .kpi{background:var(--surface);border-radius:10px;padding:10px 14px;min-width:118px}
+  .kpi b{font:700 20px/1.1 var(--font-mono)}
+  .kpi span{display:block;font:8.5px/1.4 var(--font-mono);letter-spacing:.14em;color:var(--ink-faint)}
+  .q{background:var(--surface);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+  .q .l{font:600 13px/1.3 var(--font-body)}
+  .q .l i{display:block;font:9px/1.4 var(--font-mono);color:var(--ink-faint);font-style:normal;letter-spacing:.08em}
+  .stamp{font:700 9px/1 var(--font-mono);letter-spacing:.1em;padding:4px 7px;border:1.5px solid currentColor;border-radius:3px;transform:rotate(-2deg)}
+</style>
+</head>
+<body>
+  <div class="frame">
+    <nav class="rail" aria-label="Admin sections">
+      <div class="brand"><div class="crest"></div><div><b>IRONWORKS</b><i>GYMSTATION</i></div></div>
+      <div class="tab tab--on">TODAY</div>
+      <div class="tab">ROSTER</div>
+      <div class="tab">SCHEDULE <span class="badge badge--warn">1</span></div>
+      <div class="tab">DUES <span class="badge">6</span></div>
+      <div class="tab">RANKS</div>
+      <div class="tab">EVENTS</div>
+      <div class="tab">REPORTS</div>
+      <div class="tab">SETTINGS</div>
+      <div class="foot">OWNER · J. TORRES<br>WK 31 · 2026</div>
+    </nav>
+    <main class="main">
+      <h1>TODAY</h1>
+      <div class="sub">TUE 30 JUL · 4 SESSIONS · ATTENTION QUEUE FIRST</div>
+      <div class="kpis">
+        <div class="kpi"><b>87</b><span>ACTIVE MEMBERS</span></div>
+        <div class="kpi"><b>212</b><span>CHECK-INS · 7D</span></div>
+        <div class="kpi"><b>$7.4k</b><span>COLLECTED · JUL</span></div>
+        <div class="kpi"><b>$510</b><span>OUTSTANDING</span></div>
+      </div>
+      <div class="q"><div class="l">Thu 12:00 No-Gi has no instructor<i>OPEN SUBSTITUTION · UNFILLED · ESCALATED T-24H</i></div><span class="stamp" style="color:var(--warn)">UNFILLED</span></div>
+      <div class="q"><div class="l">6 members over 30 days behind<i>DUES · $510 TOTAL OUTSTANDING</i></div><span class="stamp" style="color:var(--bad)">DUE</span></div>
+      <div class="q"><div class="l">Marcus Webb — 4th week at 3+ sessions<i>RANKS · STRIPE PACE SIGNAL</i></div><span class="stamp" style="color:var(--ok)">REVIEW</span></div>
+    </main>
+  </div>
+</body>
+</html>

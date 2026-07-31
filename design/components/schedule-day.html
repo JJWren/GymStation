@@ -1,0 +1,71 @@
+<!-- @dsCard group="Schedule" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Schedule — mobile day list</title>
+<style>
+  :root{
+    --bg:#171B21; --panel:#1C222A; --surface:#232B36; --edge:#3A4656;
+    --ink:#F1EDE3; --ink-dim:#A9AEB9; --ink-faint:#707886;
+    --tenant:#C9503B; --tenant-ink:#FFF3EC; --ok:#4E9B6B;
+    --font-display:"Archivo Black","Arial Black",sans-serif;
+    --font-body:"Public Sans","Segoe UI",-apple-system,sans-serif;
+    --font-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  }
+  *{margin:0;box-sizing:border-box}
+  body{background:var(--bg);display:flex;justify-content:center;padding:26px;font-family:var(--font-body);
+    background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.015) 0 2px,transparent 2px 6px),
+      repeating-linear-gradient(-45deg,rgba(0,0,0,.06) 0 2px,transparent 2px 6px)}
+  .phone{width:360px;background:var(--bg);border:1px solid var(--edge);border-radius:24px;padding:18px 14px;color:var(--ink)}
+  .daynav{display:flex;justify-content:space-between;align-items:center;font:700 13px/1 var(--font-mono);letter-spacing:.12em;padding:4px 6px 14px}
+  .daynav .arrow{color:var(--ink-faint);font-size:16px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;padding:0 2px 14px}
+  .chip{font:600 10px/1 var(--font-mono);letter-spacing:.06em;border:1px solid var(--edge);color:var(--ink-dim);border-radius:99px;padding:6px 10px}
+  .chip--on{border-color:var(--tenant);color:var(--tenant)}
+  .ses{background:var(--surface);border-radius:12px;padding:14px;margin-bottom:10px;position:relative}
+  .ses::after{content:"";position:absolute;inset:4px;border:1.5px dashed rgba(120,135,155,.25);border-radius:9px;pointer-events:none}
+  .row{display:flex;justify-content:space-between;align-items:baseline}
+  .t{font:700 14px/1 var(--font-mono)}
+  .tag{font:600 9px/1 var(--font-mono);letter-spacing:.08em;border:1px solid var(--edge);color:var(--ink-dim);border-radius:99px;padding:3px 7px}
+  .n{font:700 16px/1.2 var(--font-body);margin:6px 0 3px}
+  .c{font:10px/1.4 var(--font-mono);color:var(--ink-faint);letter-spacing:.05em}
+  .cta{display:block;width:100%;margin-top:12px;text-align:center;font:700 13px/1 var(--font-mono);letter-spacing:.1em;
+       background:var(--tenant);color:var(--tenant-ink);border:none;border-radius:8px;padding:13px 0;position:relative;z-index:1}
+  .cta--done{background:transparent;color:var(--ok);border:1.5px solid var(--ok)}
+  .cta--wait{background:transparent;color:var(--ink-faint);border:1.5px solid var(--edge)}
+  .win{font:9px/1.4 var(--font-mono);color:var(--ink-faint);text-align:center;margin-top:6px;letter-spacing:.06em}
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="daynav"><span class="arrow">◀</span><span>TUE · 30 JUL</span><span class="arrow">▶</span></div>
+    <div class="chips">
+      <span class="chip chip--on">no-gi</span><span class="chip">gi</span><span class="chip">kids</span><span class="chip">open-mat</span><span class="chip">ANY COACH ▾</span>
+    </div>
+
+    <div class="ses">
+      <div class="row"><span class="t">12:00</span><span class="tag">no-gi</span></div>
+      <div class="n">No-Gi Lunch</div>
+      <div class="c">COACH ANA · 60 MIN</div>
+      <button class="cta cta--done">✓ CHECKED IN · PENDING ROLL</button>
+    </div>
+
+    <div class="ses">
+      <div class="row"><span class="t">18:00</span><span class="tag">no-gi</span></div>
+      <div class="n">No-Gi</div>
+      <div class="c">COACH ANA (COVERING) · 90 MIN</div>
+      <button class="cta">CHECK IN</button>
+      <div class="win">WINDOW OPEN · CLOSES 19:30</div>
+    </div>
+
+    <div class="ses" style="opacity:.75">
+      <div class="row"><span class="t">20:00</span><span class="tag">gi</span></div>
+      <div class="n">Adv Gi</div>
+      <div class="c">PROF. SILVA · 60 MIN</div>
+      <button class="cta cta--wait">OPENS 19:00</button>
+    </div>
+  </div>
+</body>
+</html>
