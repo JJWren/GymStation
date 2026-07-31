@@ -13,6 +13,13 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
 {
     private readonly ITenantContext _tenant = tenant;
 
+    /// <summary>
+    /// Referenced by the query filters below. EF parameterizes DbContext instance members
+    /// per query against the *current* context instance (the model cache stores the
+    /// expression, not a value), so every context sees its own tenant.
+    /// </summary>
+    public Guid? CurrentGymId => _tenant.CurrentGymId;
+
     public DbSet<Gym> Gyms => Set<Gym>();
     public DbSet<GymSettings> GymSettings => Set<GymSettings>();
     public DbSet<Person> Persons => Set<Person>();
@@ -35,7 +42,7 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
         {
             e.HasKey(s => s.GymId);
             e.Property(s => s.AccentColorHex).HasMaxLength(9);
-            e.HasQueryFilter(s => _tenant.CurrentGymId != null && s.GymId == _tenant.CurrentGymId);
+            e.HasQueryFilter(s => CurrentGymId != null && s.GymId == CurrentGymId);
         });
 
         builder.Entity<Person>(e =>
@@ -44,14 +51,14 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
             e.Property(p => p.LastName).HasMaxLength(80);
             // One roster record per User per gym; unlimited login-less Persons.
             e.HasIndex(p => new { p.GymId, p.UserId }).IsUnique().HasFilter("\"UserId\" IS NOT NULL");
-            e.HasQueryFilter(p => _tenant.CurrentGymId != null && p.GymId == _tenant.CurrentGymId);
+            e.HasQueryFilter(p => CurrentGymId != null && p.GymId == CurrentGymId);
         });
 
         builder.Entity<GuardianLink>(e =>
         {
             e.HasIndex(l => new { l.GuardianUserId, l.ChildPersonId }).IsUnique();
             e.HasOne(l => l.ChildPerson).WithMany().HasForeignKey(l => l.ChildPersonId).OnDelete(DeleteBehavior.Cascade);
-            e.HasQueryFilter(l => _tenant.CurrentGymId != null && l.GymId == _tenant.CurrentGymId);
+            e.HasQueryFilter(l => CurrentGymId != null && l.GymId == CurrentGymId);
         });
     }
 
