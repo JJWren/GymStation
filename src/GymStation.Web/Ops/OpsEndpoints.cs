@@ -59,6 +59,8 @@ public static class OpsEndpoints
                 }
             }
 
+            // Ids are client-generated, so gym + settings + owner Person commit in ONE
+            // SaveChanges — tenant creation is atomic (no half-created gyms).
             var gym = new Gym
             {
                 Id = Guid.NewGuid(),
@@ -67,7 +69,6 @@ public static class OpsEndpoints
                 TimeZoneId = request.TimeZoneId,
             };
             db.Gyms.Add(gym);
-            await db.SaveChangesAsync();
 
             // Tenant-owned rows (settings, the owner's Person) are written as the new gym.
             tenant.SetGym(gym.Id);

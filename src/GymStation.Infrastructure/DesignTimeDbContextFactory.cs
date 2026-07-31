@@ -10,7 +10,7 @@ public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<GymStation
     public GymStationDbContext CreateDbContext(string[] args)
     {
         var options = new DbContextOptionsBuilder<GymStationDbContext>()
-            .UseNpgsql("Host=localhost;Database=gymstation;Username=postgres;Password=postgres")
+            .UseNpgsql("Host=localhost;Database=gymstation;Username=postgres")
             .Options;
 
         return new GymStationDbContext(options, new TenantContext());

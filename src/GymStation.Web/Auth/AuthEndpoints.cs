@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using GymStation.Infrastructure.Identity;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Mvc;
 using GymStation.Infrastructure.Tenancy;
 using GymStation.Web.Tenancy;
@@ -11,7 +12,23 @@ public static class AuthEndpoints
 {
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/auth");
+        // Explicit antiforgery validation for every form post in the group — including
+        // /logout, which binds no form fields and would miss the automatic validation
+        // that only form-binding endpoints receive.
+        var group = app.MapGroup("/auth").AddEndpointFilter(async (ctx, next) =>
+        {
+            var antiforgery = ctx.HttpContext.RequestServices.GetRequiredService<IAntiforgery>();
+            try
+            {
+                await antiforgery.ValidateRequestAsync(ctx.HttpContext);
+            }
+            catch (AntiforgeryValidationException)
+            {
+                return Results.BadRequest("Invalid antiforgery token.");
+            }
+
+            return await next(ctx);
+        });
 
         group.MapPost("/login", async (
             [FromForm] string email,

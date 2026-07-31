@@ -10,6 +10,11 @@
     <h1>CHOOSE YOUR GYM</h1>
     <p class="tagline">YOU BELONG TO @_gyms.Count GYMS</p>
 
+    @if (Failed)
+    {
+        <p class="auth-error" role="alert">That gym isn't on your list. Pick one of the gyms below.</p>
+    }
+
     @foreach (var gym in _gyms)
     {
         <form method="post" action="/auth/pick-gym" class="gym-choice">
@@ -28,6 +33,11 @@
 @code {
     [CascadingParameter]
     public HttpContext? HttpContext { get; set; }
+
+    [SupplyParameterFromQuery(Name = "failed")]
+    public int? FailedFlag { get; set; }
+
+    private bool Failed => FailedFlag == 1;
 
     private IReadOnlyList<GymMembership> _gyms = [];
 
