@@ -1,0 +1,52 @@
+@page "/pick-gym"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using System.Security.Claims
+@using GymStation.Infrastructure.Tenancy
+@inject GymMembershipService Memberships
+
+<PageTitle>Choose your gym · GymStation</PageTitle>
+
+<main class="auth-shell">
+    <h1>CHOOSE YOUR GYM</h1>
+    <p class="tagline">YOU BELONG TO @_gyms.Count GYMS</p>
+
+    @if (Failed)
+    {
+        <p class="auth-error" role="alert">That gym isn't on your list. Pick one of the gyms below.</p>
+    }
+
+    @foreach (var gym in _gyms)
+    {
+        <form method="post" action="/auth/pick-gym" class="gym-choice">
+            <AntiforgeryToken />
+            <input type="hidden" name="gymId" value="@gym.GymId" />
+            <button type="submit">@gym.GymName</button>
+        </form>
+    }
+
+    @if (_gyms.Count == 0)
+    {
+        <p class="auth-note">No gym has added you to its roster yet. Ask your gym to link your email.</p>
+    }
+</main>
+
+@code {
+    [CascadingParameter]
+    public HttpContext? HttpContext { get; set; }
+
+    [SupplyParameterFromQuery(Name = "failed")]
+    public int? FailedFlag { get; set; }
+
+    private bool Failed => FailedFlag == 1;
+
+    private IReadOnlyList<GymMembership> _gyms = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (Guid.TryParse(raw, out var userId))
+        {
+            _gyms = await Memberships.GetGymsForUserAsync(userId);
+        }
+    }
+}
