@@ -15,11 +15,17 @@ public class LocalFileStore(string root) : IFileStore
 {
     private string Resolve(string relativePath)
     {
-        var full = Path.GetFullPath(Path.Combine(root, relativePath));
         var rootFull = Path.GetFullPath(root);
-        return full.StartsWith(rootFull, StringComparison.Ordinal)
-            ? full
-            : throw new InvalidOperationException("Path escapes the file store root.");
+        var full = Path.GetFullPath(Path.Combine(rootFull, relativePath));
+
+        // Relative-path containment (not a prefix check, which "/root" vs "/root2" would bypass).
+        var rel = Path.GetRelativePath(rootFull, full);
+        if (rel == ".." || rel.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) || Path.IsPathRooted(rel))
+        {
+            throw new InvalidOperationException("Path escapes the file store root.");
+        }
+
+        return full;
     }
 
     public async Task<string> SaveAsync(Stream content, string relativePath, CancellationToken ct = default)

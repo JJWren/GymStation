@@ -126,8 +126,12 @@
 
         if (!string.IsNullOrWhiteSpace(Q))
         {
-            var term = Q.Trim();
-            query = query.Where(p => (p.FirstName + " " + p.LastName).ToLower().Contains(term.ToLower()));
+            // Postgres ILIKE: culture-safe case-insensitivity; escape LIKE wildcards in user input.
+            var pattern = "%" + Q.Trim()
+                .Replace(@"\", @"\\")
+                .Replace("%", @"\%")
+                .Replace("_", @"\_") + "%";
+            query = query.Where(p => EF.Functions.ILike(p.FirstName + " " + p.LastName, pattern));
         }
 
         query = Role switch
