@@ -1,0 +1,96 @@
+<!-- @dsCard group="Public Page" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Public gym page — full</title>
+<style>
+  :root{
+    --bg:#171B21; --panel:#1C222A; --surface:#232B36; --edge:#3A4656;
+    --ink:#F1EDE3; --ink-dim:#A9AEB9; --ink-faint:#707886;
+    --tenant:#C9503B; --tenant-ink:#FFF3EC;
+    --font-display:"Archivo Black","Arial Black",sans-serif;
+    --font-body:"Public Sans","Segoe UI",-apple-system,sans-serif;
+    --font-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+    --belt-black:#17181A; --belt-red:#A31D26; --belt-brown:#7A5230; --tape:#F2EEE3;
+  }
+  *{margin:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--font-body)}
+  .hero{position:relative;min-height:300px;display:flex;flex-direction:column;justify-content:flex-end;padding:26px;
+    background:radial-gradient(ellipse 90% 70% at 50% 20%, rgba(201,80,59,.14), transparent 60%),
+      linear-gradient(180deg,#232B36 0%,#1A2028 55%,#14181E 100%);overflow:hidden}
+  .hero::before{content:"";position:absolute;inset:0;
+    background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.02) 0 2px,transparent 2px 7px),
+      repeating-linear-gradient(-45deg,rgba(0,0,0,.10) 0 2px,transparent 2px 7px)}
+  .slot{position:absolute;top:12px;right:12px;font:600 8px/1 var(--font-mono);letter-spacing:.14em;color:var(--ink-faint);border:1px dashed var(--edge);border-radius:4px;padding:4px 7px}
+  .crest{width:46px;height:46px;border-radius:11px;background:var(--tenant);margin-bottom:12px;position:relative;z-index:1}
+  h1{font:38px/1 var(--font-display);position:relative;z-index:1}
+  .tag{font:600 10px/1 var(--font-mono);letter-spacing:.2em;color:var(--ink-dim);margin:8px 0 16px;position:relative;z-index:1}
+  .cta{display:inline-block;width:max-content;font:700 12px/1 var(--font-mono);letter-spacing:.1em;background:var(--tenant);color:var(--tenant-ink);border-radius:8px;padding:13px 20px;position:relative;z-index:1;text-decoration:none}
+  .strip{background:var(--panel);border-top:1px solid var(--edge);border-bottom:1px solid var(--edge);padding:14px 20px}
+  .strip h2{font:600 10px/1 var(--font-mono);letter-spacing:.2em;color:var(--ink-dim);margin-bottom:10px}
+  .days{display:flex;gap:8px;overflow-x:auto}
+  .d{flex:none;background:var(--surface);border-radius:9px;padding:9px 11px;min-width:106px}
+  .d b{font:600 9px/1 var(--font-mono);letter-spacing:.14em;color:var(--tenant);display:block;margin-bottom:5px}
+  .d span{display:block;font:600 10px/1.6 var(--font-mono);color:var(--ink-dim)}
+  section{padding:22px 20px;max-width:900px;margin:0 auto}
+  section h2{font:600 11px/1 var(--font-mono);letter-spacing:.2em;color:var(--ink-dim);margin-bottom:14px}
+  .coaches{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+  .coach{background:var(--surface);border-radius:12px;padding:14px;position:relative}
+  .coach::after{content:"";position:absolute;inset:4px;border:1.5px dashed rgba(120,135,155,.22);border-radius:9px}
+  .avatar{width:52px;height:52px;border-radius:10px;background:linear-gradient(180deg,#2E3945,#232B36);position:relative;overflow:hidden;margin-bottom:8px}
+  .avatar::before{content:"";position:absolute;left:50%;top:10px;width:16px;height:16px;border-radius:50%;background:#4A5666;transform:translateX(-50%)}
+  .avatar::after{content:"";position:absolute;left:50%;top:28px;width:30px;height:22px;border-radius:9px 9px 0 0;background:#4A5666;transform:translateX(-50%)}
+  .coach b{font:700 14px/1.2}
+  .coach i{display:block;font:9px/1.6 var(--font-mono);color:var(--ink-faint);font-style:normal;letter-spacing:.06em;margin:2px 0 8px}
+  .belt{display:flex;height:8px;border-radius:2px;overflow:hidden}
+  .belt .band{flex:1}
+  .belt .bar{width:28%;background:var(--belt-black);display:flex;gap:3px;justify-content:center;padding:0 4px}
+  .belt .bar i{width:4px;background:var(--tape)}
+  .visit{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:640px){.visit{grid-template-columns:1fr}}
+  .vbox{background:var(--surface);border-radius:12px;padding:14px;font:600 11px/1.9 var(--font-mono);color:var(--ink-dim);letter-spacing:.04em}
+  .vbox b{color:var(--ink)}
+  .map{border:1.5px dashed var(--edge);border-radius:12px;display:grid;place-items:center;font:600 9px/1 var(--font-mono);color:var(--ink-faint);letter-spacing:.14em;min-height:110px}
+  footer{border-top:1px solid var(--edge);padding:16px 20px;display:flex;justify-content:space-between;font:600 9px/1 var(--font-mono);color:var(--ink-faint);letter-spacing:.12em;flex-wrap:wrap;gap:8px}
+  footer a{color:var(--ink-dim);text-decoration:none}
+</style>
+</head>
+<body>
+  <header class="hero">
+    <span class="slot">TENANT HERO PHOTO SLOT</span>
+    <div class="crest" role="img" aria-label="Ironworks BJJ crest"></div>
+    <h1>IRONWORKS BJJ</h1>
+    <div class="tag">BRAZILIAN JIU-JITSU · FUNDAMENTALS TO COMPETITION · ALL AGES</div>
+    <a class="cta" href="#">BOOK A FREE TRIAL</a>
+  </header>
+  <div class="strip">
+    <h2>THIS WEEK AT IRONWORKS — LIVE</h2>
+    <div class="days">
+      <div class="d"><b>MON</b><span>06:00 FUND</span><span>18:00 ADV GI</span></div>
+      <div class="d"><b>TUE</b><span>12:00 NO-GI</span><span>18:00 NO-GI</span></div>
+      <div class="d"><b>WED</b><span>17:00 KIDS</span><span>18:00 ADV GI</span></div>
+      <div class="d"><b>THU</b><span>18:00 FUND</span></div>
+      <div class="d"><b>FRI</b><span>18:00 OPEN MAT</span></div>
+      <div class="d"><b>SAT</b><span>10:00 COMP</span><span>11:30 OPEN MAT</span></div>
+    </div>
+  </div>
+  <section>
+    <h2>INSTRUCTORS</h2>
+    <div class="coaches">
+      <div class="coach"><div class="avatar" role="img" aria-label="Portrait placeholder"></div><b>Prof. Rui Silva</b><i>HEAD COACH · 2ND DEGREE BLACK · 20+ YRS ON THE MAT</i><div class="belt"><span class="band" style="background:var(--belt-black)"></span><span class="bar" style="background:var(--belt-red)"><i></i><i></i></span></div></div>
+      <div class="coach"><div class="avatar" role="img" aria-label="Portrait placeholder"></div><b>Coach Ana Duarte</b><i>NO-GI PROGRAM · 1ST DEGREE BLACK</i><div class="belt"><span class="band" style="background:var(--belt-black)"></span><span class="bar" style="background:var(--belt-red)"><i></i></span></div></div>
+      <div class="coach"><div class="avatar" role="img" aria-label="Portrait placeholder"></div><b>Coach Dana Okafor</b><i>KIDS PROGRAM · BROWN BELT</i><div class="belt"><span class="band" style="background:var(--belt-brown)"></span><span class="bar"><i></i></span></div></div>
+    </div>
+  </section>
+  <section>
+    <h2>VISIT US</h2>
+    <div class="visit">
+      <div class="vbox"><b>1420 FOUNDRY AVE</b><br>UNIT C · YOUR CITY<br><br><b>MON–FRI</b> 06:00–21:00<br><b>SAT</b> 09:00–13:00<br><br>HELLO@IRONWORKSBJJ.COM</div>
+      <div class="map">MAP EMBED SLOT</div>
+    </div>
+  </section>
+  <footer><span>© 2026 IRONWORKS BJJ</span><span>INSTAGRAM · YOUTUBE</span><a href="#">MEMBER SIGN-IN</a><span>POWERED BY GYMSTATION</span></footer>
+</body>
+</html>

@@ -1,0 +1,104 @@
+<!-- @dsCard group="Admin Views" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin · Gym settings + theme</title>
+<style>
+  :root{
+    --bg:#171B21; --panel:#1C222A; --surface:#232B36; --edge:#3A4656;
+    --ink:#F1EDE3; --ink-dim:#A9AEB9; --ink-faint:#707886;
+    --tenant:#C9503B; --ok:#4E9B6B; --warn:#C9A227;
+    --font-display:"Archivo Black","Arial Black",sans-serif;
+    --font-body:"Public Sans","Segoe UI",-apple-system,sans-serif;
+    --font-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  }
+  *{margin:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font:13px/1.45 var(--font-body);padding:24px;
+    background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.015) 0 2px,transparent 2px 6px),
+      repeating-linear-gradient(-45deg,rgba(0,0,0,.06) 0 2px,transparent 2px 6px)}
+  .page{max-width:960px;margin:0 auto}
+  h1{font:24px/1 var(--font-display);margin-bottom:4px}
+  .sub{font:10px/1 var(--font-mono);letter-spacing:.16em;color:var(--ink-faint);margin-bottom:16px}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+  @media(max-width:860px){.cols{grid-template-columns:1fr}}
+  h2{font:600 10px/1 var(--font-mono);letter-spacing:.18em;color:var(--ink-dim);margin-bottom:10px;text-transform:uppercase}
+  .box{background:var(--surface);border-radius:12px;padding:16px;margin-bottom:16px}
+  .set{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px dashed #2c3440;gap:12px}
+  .set:last-child{border:none}
+  .set .l{font:600 12px/1.35}
+  .set .l i{display:block;font:9px/1.5 var(--font-mono);color:var(--ink-faint);font-style:normal;letter-spacing:.06em}
+  .seg{display:flex;border:1px solid var(--edge);border-radius:7px;overflow:hidden;flex:none}
+  .seg span{font:600 9px/1 var(--font-mono);letter-spacing:.08em;padding:8px 10px;color:var(--ink-faint)}
+  .seg .on{background:var(--tenant);color:#FFF3EC}
+  .tgl{width:38px;height:20px;border-radius:99px;background:var(--ok);position:relative;flex:none}
+  .tgl::after{content:"";position:absolute;right:3px;top:3px;width:14px;height:14px;border-radius:50%;background:#fff}
+  .tgl--off{background:var(--edge)}
+  .tgl--off::after{right:auto;left:3px}
+  .val{font:600 11px/1 var(--font-mono);color:var(--ink)}
+  .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .tag{font:600 10px/1 var(--font-mono);border:1px solid var(--edge);color:var(--ink-dim);border-radius:99px;padding:6px 10px}
+  .tag--add{border-style:dashed;color:var(--ink-faint)}
+  .swatches{display:flex;gap:8px;align-items:center;margin:8px 0 4px}
+  .swb{width:34px;height:34px;border-radius:8px;border:2px solid transparent}
+  .swb--on{border-color:var(--ink)}
+  .slot{border:1.5px dashed var(--edge);border-radius:10px;padding:14px;text-align:center;font:600 9px/1.5 var(--font-mono);color:var(--ink-faint);letter-spacing:.12em;margin-top:8px}
+  .prev{display:flex;gap:8px;margin-top:10px}
+  .pv{flex:1;border-radius:8px;padding:10px;font:600 9px/1.4 var(--font-mono);letter-spacing:.08em}
+  .pv--d{background:#14181E;color:#F1EDE3;border:1px solid var(--edge)}
+  .pv--l{background:#EFEBE0;color:#26241F}
+  .pv .b{display:inline-block;background:var(--tenant);color:#FFF3EC;border-radius:4px;padding:4px 7px;margin-top:6px}
+  .ok9{font:600 9px/1 var(--font-mono);color:var(--ok)}
+  .cap{font:9px/1.6 var(--font-mono);color:var(--ink-faint);letter-spacing:.05em;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>SETTINGS</h1>
+  <div class="sub">GYM SETTINGS — WORKFLOW · CLASS TAGS · EXPENSE CATEGORIES · THEME</div>
+  <div class="cols">
+    <section>
+      <h2>Workflow</h2>
+      <div class="box">
+        <div class="set"><div class="l">Substitution mode<i>WHO FINALIZES AN ACCEPTED SWAP</i></div><div class="seg"><span>AUTO-APPLY</span><span class="on">ADMIN-GATE</span></div></div>
+        <div class="set"><div class="l">Open claims<i>"ANYONE COVER TUESDAY?" REQUESTS ANY INSTRUCTOR CAN CLAIM</i></div><div class="tgl" role="switch" aria-checked="true" tabindex="0" aria-label="Open claims"></div></div>
+        <div class="set"><div class="l">Self check-in window<i>BEFORE SESSION START → SESSION END</i></div><span class="val">60 MIN</span></div>
+        <div class="set"><div class="l">Timezone<i>ALL SESSION TIMES RENDER IN GYM TIME</i></div><span class="val">AMERICA/CHICAGO</span></div>
+      </div>
+      <h2>Class tags (class types)</h2>
+      <div class="box">
+        <div class="tags"><span class="tag" style="border-color:var(--tenant);color:var(--tenant)">gi</span><span class="tag" style="border-color:#7FBF9B;color:#7FBF9B">kids</span><span class="tag">no-gi</span><span class="tag">fundamentals</span><span class="tag" style="border-color:var(--warn);color:var(--warn)">competition</span><span class="tag">open-mat</span><span class="tag tag--add">+ CUSTOM TAG</span></div>
+        <p class="cap">TAG COLOR IS PER-GYM DATA · FILTERS EVERYWHERE USE THESE</p>
+      </div>
+      <h2>Expense categories</h2>
+      <div class="box">
+        <div class="tags"><span class="tag">RENT</span><span class="tag">INSURANCE</span><span class="tag">SOFTWARE</span><span class="tag">UTILITIES</span><span class="tag">MARKETING</span><span class="tag tag--add">+ CATEGORY</span></div>
+      </div>
+    </section>
+    <section>
+      <h2>Theme — your brand on the GymStation frame</h2>
+      <div class="box">
+        <div class="set" style="border:none"><div class="l">Tenant accent<i>SHADES DERIVED · WCAG-CHECKED IN BOTH MODES ON SAVE</i></div><span class="ok9">✓ AA BOTH MODES</span></div>
+        <div class="swatches">
+          <div class="swb swb--on" style="background:#C9503B"></div>
+          <div class="swb" style="background:#3E8E9E"></div>
+          <div class="swb" style="background:#5B8C46"></div>
+          <div class="swb" style="background:#8A5AA8"></div>
+          <div class="swb" style="background:#B08D2E"></div>
+          <span class="val" style="color:var(--ink-faint)">#C9503B</span>
+        </div>
+        <div class="set"><div class="l">Default mode<i>MEMBERS CAN OVERRIDE PER DEVICE</i></div><div class="seg"><span class="on">DARK · MAT</span><span>LIGHT · LEDGER</span></div></div>
+        <div class="set" style="border:none"><div class="l">Logo & hero image</div></div>
+        <div class="slot">LOGO.SVG — UPLOADED · HERO.JPG — UPLOAD SLOT (PUBLIC PAGE)</div>
+        <div class="prev">
+          <div class="pv pv--d">DARK PREVIEW<br><span class="b">CHECK IN</span></div>
+          <div class="pv pv--l">LIGHT PREVIEW<br><span class="b">CHECK IN</span></div>
+        </div>
+        <p class="cap">BELT COLORS ARE NOT THEMEABLE — RANK RENDERING IS IDENTICAL IN EVERY GYM. DISPLAY-LABEL CUSTOMIZATION ("PROFESSOR"/"STUDENT"): FUTURE BOARD.</p>
+      </div>
+    </section>
+  </div>
+</div>
+</body>
+</html>

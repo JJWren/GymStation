@@ -1,0 +1,120 @@
+<!-- @dsCard group="Admin Views" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin · Member profile</title>
+<style>
+  :root{
+    --bg:#171B21; --panel:#1C222A; --surface:#232B36; --surface-2:#2A3441; --edge:#3A4656;
+    --ink:#F1EDE3; --ink-dim:#A9AEB9; --ink-faint:#707886;
+    --tenant:#C9503B; --ok:#4E9B6B; --warn:#C9A227; --bad:#C4554D;
+    --font-display:"Archivo Black","Arial Black",sans-serif;
+    --font-body:"Public Sans","Segoe UI",-apple-system,sans-serif;
+    --font-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+    --belt-blue:#2456A6; --belt-purple:#5C3D93; --belt-black:#17181A; --tape:#F2EEE3;
+  }
+  *{margin:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font:13px/1.45 var(--font-body);padding:24px;
+    background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.015) 0 2px,transparent 2px 6px),
+      repeating-linear-gradient(-45deg,rgba(0,0,0,.06) 0 2px,transparent 2px 6px)}
+  .page{max-width:920px;margin:0 auto}
+  .crumb{font:600 9px/1 var(--font-mono);letter-spacing:.16em;color:var(--ink-faint);margin-bottom:14px}
+  .idcard{background:var(--surface);border-radius:14px;padding:20px;position:relative;display:flex;gap:18px;align-items:center}
+  .idcard::after{content:"";position:absolute;inset:6px;border:1.5px dashed rgba(120,135,155,.3);border-radius:10px;pointer-events:none}
+  .avatar{width:76px;height:76px;border-radius:12px;background:linear-gradient(180deg,#2E3945,#232B36);position:relative;overflow:hidden;flex:none}
+  .avatar::before{content:"";position:absolute;left:50%;top:16px;width:24px;height:24px;border-radius:50%;background:#4A5666;transform:translateX(-50%)}
+  .avatar::after{content:"";position:absolute;left:50%;top:43px;width:46px;height:30px;border-radius:12px 12px 0 0;background:#4A5666;transform:translateX(-50%)}
+  h1{font:24px/1.05 var(--font-display)}
+  .meta{font:10px/1.7 var(--font-mono);color:var(--ink-faint);letter-spacing:.08em;margin-top:4px}
+  .belt{display:flex;height:16px;border-radius:3px;overflow:hidden;margin-top:10px;max-width:360px}
+  .belt .band{flex:1;background:var(--belt-purple)}
+  .belt .bar{width:26%;background:var(--belt-black);display:flex;gap:4px;justify-content:center;padding:0 5px}
+  .belt .bar i{width:5px;background:var(--tape)}
+  .stamp{position:absolute;top:14px;right:16px;font:700 10px/1 var(--font-mono);letter-spacing:.12em;padding:5px 8px;border:1.5px solid var(--ok);color:var(--ok);border-radius:3px;transform:rotate(3deg)}
+  .tabs{display:flex;gap:2px;margin:18px 0 14px;border-bottom:1px solid var(--edge)}
+  .tb{font:600 10px/1 var(--font-mono);letter-spacing:.16em;color:var(--ink-faint);padding:10px 14px;border-bottom:2px solid transparent}
+  .tb--on{color:var(--ink);border-color:var(--tenant)}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:760px){.cols{grid-template-columns:1fr}}
+  h2{font:600 10px/1 var(--font-mono);letter-spacing:.18em;color:var(--ink-dim);margin-bottom:10px;text-transform:uppercase}
+  .box{background:var(--surface);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+  .stat{display:flex;justify-content:space-between;font:600 12px/2 var(--font-mono);color:var(--ink-dim);border-bottom:1px dashed #2c3440}
+  .stat b{color:var(--ink)}
+  .bars{display:flex;gap:3px;align-items:flex-end;height:44px;margin-top:10px}
+  .bars i{flex:1;background:var(--tenant);opacity:.75;border-radius:2px 2px 0 0}
+  .cap{font:9px/1.5 var(--font-mono);color:var(--ink-faint);margin-top:6px;letter-spacing:.06em}
+  .led{width:100%;border-collapse:collapse;font:600 11px/1.4 var(--font-mono)}
+  .led td{padding:8px 6px;border-bottom:1px dashed #2c3440;color:var(--ink-dim)}
+  .led td:last-child{text-align:right;color:var(--ink)}
+  .bal{display:flex;justify-content:space-between;align-items:baseline;padding-top:10px;font:700 13px/1 var(--font-mono)}
+  .bal span{font-size:9px;letter-spacing:.16em;color:var(--ink-faint)}
+  .tl .ev{display:grid;grid-template-columns:86px 1fr;gap:12px;align-items:center;padding:8px 0;border-bottom:1px dashed #2c3440}
+  .tl .d{font:600 10px/1.2 var(--font-mono);color:var(--ink-faint);text-align:right}
+  .tl .beltS{display:flex;height:7px;border-radius:2px;overflow:hidden;max-width:180px}
+  .tl .beltS .band{flex:1}
+  .tl .beltS .bar{width:30%;background:var(--belt-black);display:flex;gap:2.5px;justify-content:center;padding:0 3px}
+  .tl .beltS .bar i{width:3.5px;background:var(--tape)}
+  .tl .who{font:9px/1.4 var(--font-mono);color:var(--ink-faint);margin-top:3px;letter-spacing:.06em}
+  .act{font:700 10px/1 var(--font-mono);letter-spacing:.1em;border:1.5px solid var(--tenant);color:var(--tenant);background:transparent;border-radius:6px;padding:8px 12px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="crumb">ROSTER → ANA REYES</div>
+  <header class="idcard">
+    <span class="stamp">PAID</span>
+    <div class="avatar" role="img" aria-label="Portrait placeholder"></div>
+    <div style="flex:1">
+      <h1>ANA REYES</h1>
+      <div class="meta">MEMBER · ADULT (IBJJF: ADULT, DERIVED B.1996) · JOINED MAR 2021 · PLAN: ADULT UNLIMITED $85/MO</div>
+      <div class="belt" aria-label="Purple belt, two stripes"><span class="band"></span><span class="bar"><i></i><i></i></span></div>
+    </div>
+  </header>
+  <nav class="tabs"><span class="tb tb--on">OVERVIEW</span><span class="tb">ATTENDANCE</span><span class="tb">LEDGER</span><span class="tb">RANKS</span><span class="tb">NOTES</span></nav>
+  <div class="cols">
+    <section>
+      <h2>Attendance</h2>
+      <div class="box">
+        <div class="stat"><span>THIS WEEK</span><b>3 SESSIONS</b></div>
+        <div class="stat"><span>AVG /WK · 3 MO</span><b>3.2</b></div>
+        <div class="stat"><span>AVG /WK · 12 MO</span><b>2.9</b></div>
+        <div class="stat" style="border:none"><span>GYM-VERIFIED MAT HOURS</span><b>127</b></div>
+        <div class="bars" aria-label="12-week attendance">
+          <i style="height:60%"></i><i style="height:75%"></i><i style="height:45%"></i><i style="height:90%"></i><i style="height:70%"></i><i style="height:80%"></i><i style="height:30%"></i><i style="height:85%"></i><i style="height:75%"></i><i style="height:95%"></i><i style="height:65%"></i><i style="height:80%"></i>
+        </div>
+        <div class="cap">LAST 12 WEEKS · CONFIRMED ATTENDANCE RECORDS ONLY</div>
+      </div>
+      <h2>Rank history</h2>
+      <div class="box tl">
+        <div class="ev"><span class="d">14 JUN 2026</span><div><div class="beltS"><span class="band" style="background:var(--belt-purple)"></span><span class="bar"><i></i><i></i></span></div><div class="who">STRIPE · PROF. SILVA</div></div></div>
+        <div class="ev"><span class="d">02 DEC 2024</span><div><div class="beltS"><span class="band" style="background:var(--belt-purple)"></span><span class="bar"></span></div><div class="who">PROMOTION · PROF. SILVA</div></div></div>
+        <div class="ev" style="border:none"><span class="d">21 MAR 2021</span><div><div class="beltS"><span class="band" style="background:var(--belt-blue)"></span><span class="bar"></span></div><div class="who">SELF-REPORTED · PRE-APP</div></div></div>
+        <button class="act">+ RECORD RANK AWARD</button>
+      </div>
+    </section>
+    <section>
+      <h2>Ledger — recent</h2>
+      <div class="box">
+        <table class="led">
+          <tr><td>01 JUL · CHARGE · ADULT UNLIMITED</td><td>+$85.00</td></tr>
+          <tr><td>03 JUL · PAYMENT · RECORDED BY J. TORRES</td><td>−$85.00</td></tr>
+          <tr><td>01 JUN · CHARGE · ADULT UNLIMITED</td><td>+$85.00</td></tr>
+          <tr><td>01 JUN · PAYMENT · RECORDED BY J. TORRES</td><td>−$85.00</td></tr>
+        </table>
+        <div class="bal"><span>BALANCE · DERIVED, NEVER EDITED</span>$0.00</div>
+        <button class="act">+ RECORD PAYMENT</button>
+      </div>
+      <h2>Account & family</h2>
+      <div class="box">
+        <div class="stat"><span>LOGIN</span><b>ana.reyes@… · ACTIVE</b></div>
+        <div class="stat"><span>ROLES</span><b>MEMBER</b></div>
+        <div class="stat" style="border:none"><span>LINKED PERSONS</span><b>NONE</b></div>
+      </div>
+      <div class="cap">EMERGENCY CONTACT + WAIVERS: FUTURE BOARD · DIARY IS PRIVATE TO THE MEMBER AND NEVER VISIBLE HERE</div>
+    </section>
+  </div>
+</div>
+</body>
+</html>
