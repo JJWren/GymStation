@@ -1,0 +1,33 @@
+@page "/login"
+
+<PageTitle>Sign in · GymStation</PageTitle>
+
+<main class="auth-shell">
+    <h1>GYMSTATION</h1>
+    <p class="tagline">SIGN IN</p>
+
+    @if (Failed)
+    {
+        <p class="auth-error" role="alert">That email and password combination didn't work. Check both and try again.</p>
+    }
+
+    <form method="post" action="/auth/login">
+        <AntiforgeryToken />
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" required autocomplete="username" />
+
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" required autocomplete="current-password" />
+
+        <button type="submit">Sign in</button>
+    </form>
+
+    <p class="auth-note">One login, every gym you train at. Single-gym users skip the gym picker entirely.</p>
+</main>
+
+@code {
+    [SupplyParameterFromQuery(Name = "failed")]
+    public int? FailedFlag { get; set; }
+
+    private bool Failed => FailedFlag == 1;
+}
