@@ -1,0 +1,83 @@
+@page "/notifications"
+@attribute [Authorize]
+@using System.Security.Claims
+@using GymStation.Domain.Notifications
+@inject GymStationDbContext Db
+@inject NavigationManager Nav
+
+<PageTitle>Notifications · GymStation</PageTitle>
+
+<main class="member-shell">
+    <div class="head-row">
+        <h1 class="page-title" style="font-size:20px">NOTIFICATIONS</h1>
+        @if (_items.Any(n => n.ReadUtc == null))
+        {
+            <EditForm FormName="mark-read" Model="Marker" OnValidSubmit="MarkAllReadAsync">
+                <button class="btn btn--ghost btn--xs" type="submit">MARK ALL READ</button>
+            </EditForm>
+        }
+    </div>
+
+    @if (_items.Count == 0)
+    {
+        <p class="cap">NOTHING YET. CANCELLATIONS, SUBSTITUTIONS, AND PROMOTIONS LAND HERE (AND IN EMAIL).</p>
+    }
+    @foreach (var item in _items)
+    {
+        <div class="form-card" style="margin-bottom:8px;@(item.ReadUtc == null ? "border-left:3px solid var(--tenant)" : "opacity:.72")">
+            <b>@item.Title</b>
+            <p style="margin:4px 0">@item.Body</p>
+            <p class="cap">
+                @item.CreatedUtc.ToLocalTime().ToString("ddd dd MMM HH:mm").ToUpperInvariant()
+                @if (item.LinkPath is not null)
+                {
+                    <text> · </text><a href="@item.LinkPath">OPEN</a>
+                }
+            </p>
+        </div>
+    }
+</main>
+
+@code {
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+
+    [SupplyParameterFromForm(FormName = "mark-read")]
+    public MarkerModel? PostedMarker { get; set; }
+
+    private MarkerModel Marker => PostedMarker ??= new();
+
+    public class MarkerModel;
+
+    private List<Notification> _items = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(raw, out var userId))
+        {
+            return;
+        }
+
+        _items = await Db.Notifications
+            .Where(n => n.RecipientUserId == userId)
+            .OrderByDescending(n => n.CreatedUtc)
+            .Take(50)
+            .ToListAsync();
+    }
+
+    private async Task MarkAllReadAsync()
+    {
+        var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (Guid.TryParse(raw, out var userId))
+        {
+            var unread = await Db.Notifications.Where(n => n.RecipientUserId == userId && n.ReadUtc == null).ToListAsync();
+            foreach (var notification in unread)
+            {
+                notification.ReadUtc = DateTimeOffset.UtcNow;
+            }
+            await Db.SaveChangesAsync();
+        }
+
+        Nav.NavigateTo("/notifications");
+    }
+}

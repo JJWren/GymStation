@@ -1,0 +1,79 @@
+@page "/schedule"
+@attribute [Authorize]
+@using GymStation.Domain.Scheduling
+@inject GymStationDbContext Db
+@inject GymStation.Infrastructure.Scheduling.ScheduleService Schedule
+
+<PageTitle>Schedule · GymStation</PageTitle>
+
+<main class="member-shell">
+    <div class="daynav">
+        <a href="/schedule?date=@_date.AddDays(-1):yyyy-MM-dd" aria-label="Previous day">◀</a>
+        <span>@_date.ToString("ddd · dd MMM").ToUpperInvariant()</span>
+        <a href="/schedule?date=@_date.AddDays(1):yyyy-MM-dd" aria-label="Next day">▶</a>
+    </div>
+
+    <div class="filters">
+        <a class="chip @(Type is null ? "active" : null)" href="/schedule?date=@_date:yyyy-MM-dd">all</a>
+        @foreach (var type in _types)
+        {
+            <a class="chip @(Type == type.Name ? "active" : null)"
+               href="/schedule?date=@_date:yyyy-MM-dd&type=@type.Name"
+               style="@(Type == type.Name ? $"border-color:{type.ColorHex};color:{type.ColorHex}" : null)">@type.Name</a>
+        }
+    </div>
+
+    @if (_sessions.Count == 0)
+    {
+        <p class="cap">NO SESSIONS ON THIS DAY@(Type is null ? null : " FOR THAT TAG").</p>
+    }
+    @foreach (var session in _sessions)
+    {
+        <div class="ses @(session.Status == SessionStatus.Cancelled ? "ses--cancelled" : null)" style="margin-bottom:10px">
+            <div class="head-row">
+                <span class="t">@session.StartTime.ToString("HH\\:mm")</span>
+                <span>
+                    @foreach (var type in session.ClassTypes)
+                    {
+                        <span class="tag" style="border-color:@type.ColorHex;color:@type.ColorHex">@type.Name</span>
+                    }
+                </span>
+            </div>
+            <div class="n" style="font-size:16px">@session.Name</div>
+            <div class="c">@(_names.GetValueOrDefault(session.InstructorPersonId ?? Guid.Empty, "UNASSIGNED").ToUpperInvariant()) · @session.DurationMinutes MIN</div>
+            @if (session.Status == SessionStatus.Cancelled)
+            {
+                <span class="stamp stamp--bad">CANCELLED</span>
+            }
+        </div>
+    }
+    <p class="cap">CHECK-IN ARRIVES WITH PHASE 4 — THIS LIST GETS THE WINDOW-AWARE BUTTON THEN.</p>
+</main>
+
+@code {
+    [SupplyParameterFromQuery(Name = "date")] public string? DateRaw { get; set; }
+    [SupplyParameterFromQuery(Name = "type")] public string? Type { get; set; }
+
+    private DateOnly _date;
+    private List<ClassSession> _sessions = [];
+    private List<ClassType> _types = [];
+    private Dictionary<Guid, string> _names = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _date = DateOnly.TryParse(DateRaw, out var parsed) ? parsed : DateOnly.FromDateTime(DateTime.Today);
+
+        var diff = ((int)_date.DayOfWeek + 6) % 7;
+        var sessions = (await Schedule.GetWeekAsync(_date.AddDays(-diff))).Where(s => s.Date == _date);
+
+        _types = await Db.ClassTypes.Where(t => !t.Archived).OrderBy(t => t.Name).ToListAsync();
+
+        _sessions = sessions
+            .Where(s => Type == null || s.ClassTypes.Any(t => t.Name == Type))
+            .OrderBy(s => s.StartTime)
+            .ToList();
+
+        var ids = _sessions.Where(s => s.InstructorPersonId != null).Select(s => s.InstructorPersonId!.Value).Distinct().ToList();
+        _names = await Db.Persons.Where(p => ids.Contains(p.Id)).ToDictionaryAsync(p => p.Id, p => p.DisplayName);
+    }
+}
