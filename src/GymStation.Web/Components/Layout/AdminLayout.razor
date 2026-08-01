@@ -5,10 +5,17 @@
 @inject GymStationDbContext Db
 @inject ITenantContext Tenant
 
-<div class="app-frame">
+<div class="app-frame @(_dark ? null : "theme-light")" style="--tenant:@_accent">
     <nav class="rail" aria-label="Admin sections">
         <div class="brand">
-            <div class="crest"></div>
+            @if (_logoPath is { } logo)
+            {
+                <img class="crest" src="/media/@logo" alt="" style="object-fit:cover" />
+            }
+            else
+            {
+                <div class="crest"></div>
+            }
             <div><b>@(_gymName ?? "GYMSTATION")</b><i>GYMSTATION</i></div>
         </div>
         <NavLink class="tab" href="/" Match="NavLinkMatch.All">TODAY</NavLink>
@@ -19,8 +26,8 @@
         <NavLink class="tab" href="/notifications">INBOX</NavLink>
         <NavLink class="tab" href="/admin/dues">DUES</NavLink>
         <NavLink class="tab" href="/admin/events">EVENTS</NavLink>
-        <span class="tab tab--soon" title="Phase 7">REPORTS</span>
-        <span class="tab tab--soon" title="Phase 7">SETTINGS</span>
+        <NavLink class="tab" href="/admin/reports">REPORTS</NavLink>
+        <NavLink class="tab" href="/admin/settings">SETTINGS</NavLink>
         <div class="foot">
             GYMSTATION · V1
             <form method="post" action="/auth/logout">
@@ -42,12 +49,27 @@
 
 @code {
     private string? _gymName;
+    private string _accent = "#C9503B";
+    private bool _dark = true;
+    private string? _logoPath;
 
     protected override async Task OnInitializedAsync()
     {
         if (Tenant.CurrentGymId is { } gymId)
         {
             _gymName = (await Db.Gyms.SingleOrDefaultAsync(g => g.Id == gymId))?.Name.ToUpperInvariant();
+
+            var settings = await Db.GymSettings.SingleOrDefaultAsync();
+            if (settings is not null)
+            {
+                if (GymStation.Domain.Tenancy.ThemeMath.TryParseHexColor(settings.AccentColorHex, out _))
+                {
+                    _accent = settings.AccentColorHex;
+                }
+
+                _dark = settings.DefaultThemeDark;
+                _logoPath = settings.LogoPath;
+            }
         }
     }
 }

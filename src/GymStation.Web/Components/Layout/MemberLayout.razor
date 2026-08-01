@@ -5,7 +5,7 @@
 @inject GymStationDbContext Db
 @inject ITenantContext Tenant
 
-<div class="member-frame">
+<div class="member-frame @(_dark ? null : "theme-light")" style="--tenant:@_accent">
     <header class="member-top">
         <div><b>@(_gymName ?? "GYMSTATION")</b><i>MEMBER</i></div>
         <a class="bell" href="/notifications" aria-label="Notifications">▲</a>
@@ -29,12 +29,25 @@
 
 @code {
     private string? _gymName;
+    private string _accent = "#C9503B";
+    private bool _dark = true;
 
     protected override async Task OnInitializedAsync()
     {
         if (Tenant.CurrentGymId is { } gymId)
         {
             _gymName = (await Db.Gyms.SingleOrDefaultAsync(g => g.Id == gymId))?.Name.ToUpperInvariant();
+
+            var settings = await Db.GymSettings.SingleOrDefaultAsync();
+            if (settings is not null)
+            {
+                if (GymStation.Domain.Tenancy.ThemeMath.TryParseHexColor(settings.AccentColorHex, out _))
+                {
+                    _accent = settings.AccentColorHex;
+                }
+
+                _dark = settings.DefaultThemeDark;
+            }
         }
     }
 }

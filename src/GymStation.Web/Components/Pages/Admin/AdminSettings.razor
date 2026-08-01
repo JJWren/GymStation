@@ -1,0 +1,159 @@
+@page "/admin/settings"
+@attribute [Authorize(Policy = "GymStaff")]
+@layout AdminLayout
+@using GymStation.Domain.Tenancy
+@inject GymStationDbContext Db
+@inject NavigationManager Nav
+
+<PageTitle>Settings · GymStation</PageTitle>
+
+<h1 class="page-title">SETTINGS</h1>
+<p class="page-sub">WORKFLOW · THEME · MEDIA — SWAP MODE AND CLASS TAGS LIVE ON THE SCHEDULE PAGE</p>
+
+@if (Failed)
+{
+    <p class="auth-error" role="alert">That change was rejected — check the file type/size or the values and try again.</p>
+}
+
+<div class="detail-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start">
+    <section>
+        <h2 class="section-h">Gym settings</h2>
+        <EditForm class="form-card" FormName="gym-settings" Model="Form" OnValidSubmit="SaveAsync">
+            <div class="form-grid">
+                <div>
+                    <label for="swin">Self check-in window (minutes before start)</label>
+                    <InputNumber id="swin" @bind-Value="Form.CheckInWindowMinutes" />
+                </div>
+                <div>
+                    <label for="stz">Timezone (IANA)</label>
+                    <InputText id="stz" @bind-Value="Form.TimeZoneId" />
+                </div>
+            </div>
+            <label for="sacc">Tenant accent — #rrggbb, WCAG-checked against BOTH modes</label>
+            <InputText id="sacc" @bind-Value="Form.AccentColorHex" />
+            <div class="check-row" style="margin-top:10px">
+                <label><InputCheckbox @bind-Value="Form.DefaultThemeDark" /> DARK (MAT) AS THE GYM'S DEFAULT MODE — UNCHECK FOR PAPER LEDGER</label>
+            </div>
+            @if (_error is not null)
+            {
+                <p class="validation-message">@_error</p>
+            }
+            <p style="margin-top:12px"><button class="btn" type="submit">SAVE SETTINGS</button></p>
+            <p class="cap">BELT COLORS ARE NOT THEMEABLE — RANK RENDERING IS IDENTICAL IN EVERY GYM.</p>
+        </EditForm>
+    </section>
+
+    <section>
+        <h2 class="section-h">Logo &amp; hero image</h2>
+        <div class="form-card">
+            <div class="row-form" style="align-items:center">
+                @if (_settings?.LogoPath is { } logo)
+                {
+                    <img src="/media/@logo" alt="Gym logo" style="width:44px;height:44px;border-radius:8px;object-fit:cover" />
+                }
+                else
+                {
+                    <span class="crest" style="width:44px;height:44px;border-radius:8px;background:var(--tenant);display:inline-block"></span>
+                }
+                <form method="post" action="/admin/actions/upload-media" enctype="multipart/form-data" class="row-form" style="margin:0">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="kind" value="logo" />
+                    <input type="file" name="file" accept=".png,.jpg,.jpeg,.webp" aria-label="Logo file" />
+                    <button class="btn btn--ghost btn--xs" type="submit">UPLOAD LOGO</button>
+                </form>
+            </div>
+            <div class="row-form" style="align-items:center;margin-top:14px">
+                @if (_settings?.HeroPath is { } hero)
+                {
+                    <img src="/media/@hero" alt="Public page hero" style="width:96px;height:44px;border-radius:8px;object-fit:cover" />
+                }
+                else
+                {
+                    <span class="cap" style="margin:0">HERO: MAT-TEXTURE GRADIENT (NO IMAGE YET)</span>
+                }
+                <form method="post" action="/admin/actions/upload-media" enctype="multipart/form-data" class="row-form" style="margin:0">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="kind" value="hero" />
+                    <input type="file" name="file" accept=".png,.jpg,.jpeg,.webp" aria-label="Hero file" />
+                    <button class="btn btn--ghost btn--xs" type="submit">UPLOAD HERO</button>
+                </form>
+            </div>
+            <p class="cap">PNG/JPG/WEBP · MAX 2 MB · SHOWN ON THE RAIL, MEMBER TOP BAR, AND THE PUBLIC PAGE AT /@_gymSlug</p>
+        </div>
+    </section>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "failed")] public int? FailedFlag { get; set; }
+    private bool Failed => FailedFlag == 1;
+
+    [SupplyParameterFromForm(FormName = "gym-settings")]
+    public SettingsForm? PostedForm { get; set; }
+
+    private SettingsForm Form => PostedForm ??= new();
+
+    private GymSettings? _settings;
+    private string? _gymSlug;
+    private string? _error;
+
+    public class SettingsForm
+    {
+        public int CheckInWindowMinutes { get; set; } = 60;
+        public string TimeZoneId { get; set; } = "America/Chicago";
+        public string AccentColorHex { get; set; } = "#C9503B";
+        public bool DefaultThemeDark { get; set; } = true;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _settings = await Db.GymSettings.SingleOrDefaultAsync();
+        var gym = await Db.Gyms.SingleOrDefaultAsync(g => g.Id == Db.CurrentGymId);
+        _gymSlug = gym?.Slug;
+
+        if (_settings is not null && HttpContext?.Request.Method != "POST")
+        {
+            Form.CheckInWindowMinutes = _settings.CheckInWindowMinutes;
+            Form.TimeZoneId = gym?.TimeZoneId ?? "America/Chicago";
+            Form.AccentColorHex = _settings.AccentColorHex;
+            Form.DefaultThemeDark = _settings.DefaultThemeDark;
+        }
+    }
+
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+
+    private async Task SaveAsync()
+    {
+        if (_settings is null)
+        {
+            return;
+        }
+
+        if (!ThemeMath.IsAccessibleAccent(Form.AccentColorHex))
+        {
+            _error = $"'{Form.AccentColorHex}' fails the 3:1 contrast check against {ThemeMath.DarkBackground} (mat) or {ThemeMath.LightBackground} (paper). Pick a stronger mid-tone.";
+            return;
+        }
+
+        if (Form.CheckInWindowMinutes is < 0 or > 24 * 60)
+        {
+            _error = "Check-in window must be between 0 and 1440 minutes.";
+            return;
+        }
+
+        if (!TimeZoneInfo.TryFindSystemTimeZoneById(Form.TimeZoneId, out _))
+        {
+            _error = $"Unknown timezone '{Form.TimeZoneId}'. Use an IANA id like America/Chicago.";
+            return;
+        }
+
+        _settings.CheckInWindowMinutes = Form.CheckInWindowMinutes;
+        _settings.AccentColorHex = Form.AccentColorHex;
+        _settings.DefaultThemeDark = Form.DefaultThemeDark;
+
+        var gym = await Db.Gyms.SingleAsync(g => g.Id == Db.CurrentGymId);
+        gym.TimeZoneId = Form.TimeZoneId;
+
+        await Db.SaveChangesAsync();
+        Nav.NavigateTo("/admin/settings");
+    }
+}

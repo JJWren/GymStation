@@ -75,5 +75,6 @@ app.MapOpsEndpoints();
 app.MapAdminActionEndpoints();
 app.MapInstructorActionEndpoints();
 app.MapMemberActionEndpoints();
+app.MapMediaEndpoints();
 
 app.Run();

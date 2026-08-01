@@ -1,0 +1,134 @@
+@page "/{Slug}"
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+@using GymStation.Domain.People
+@using GymStation.Domain.Scheduling
+@using GymStation.Domain.Tenancy
+@using GymStation.Infrastructure.Tenancy
+@inject GymStationDbContext Db
+@inject TenantContext Tenant
+
+@if (_gym is null)
+{
+    <PageTitle>GymStation</PageTitle>
+    <main class="auth-shell">
+        <h1>GYMSTATION</h1>
+        <p class="tagline">NO GYM AT THIS ADDRESS</p>
+        <p class="auth-note">Check the link your gym gave you, or <a href="/login">sign in</a>.</p>
+    </main>
+}
+else
+{
+    <PageTitle>@_gym.Name — Schedule &amp; Instructors</PageTitle>
+    <HeadContent>
+        <meta name="description" content="@($"{_gym.Name}: weekly schedule, instructors, and how to visit.")" />
+    </HeadContent>
+
+    @* Tenant accent AND the gym's default mode apply to the public face too. *@
+    <div class="@(_dark ? null : "theme-light")" style="--tenant:@_accent">
+        <header class="pub-hero" style="@(_settings?.HeroPath is { } hero ? $"background-image:url('/media/{hero}')" : null)">
+            <div class="pub-hero-scrim">
+                @if (_settings?.LogoPath is { } logo)
+                {
+                    <img class="pub-crest" src="/media/@logo" alt="@_gym.Name logo" />
+                }
+                else
+                {
+                    <div class="pub-crest" role="img" aria-label="@_gym.Name crest" style="background:var(--tenant)"></div>
+                }
+                <h1>@_gym.Name.ToUpperInvariant()</h1>
+                <p class="pub-tag">SCHEDULE · INSTRUCTORS · VISIT</p>
+                <a class="btn" href="/login">MEMBER SIGN-IN</a>
+            </div>
+        </header>
+
+        <section class="pub-strip">
+            <h2>THIS WEEK AT @_gym.Name.ToUpperInvariant() — LIVE</h2>
+            <div class="pub-days">
+                @foreach (var day in _week)
+                {
+                    <div class="pub-day">
+                        <b>@day.Key.ToString().ToUpperInvariant()[..3]</b>
+                        @foreach (var template in day.Value)
+                        {
+                            <span>@template.StartTime.ToString("HH\\:mm") @template.Name.ToUpperInvariant()</span>
+                        }
+                        @if (day.Value.Count == 0)
+                        {
+                            <span style="color:var(--ink-faint)">—</span>
+                        }
+                    </div>
+                }
+            </div>
+        </section>
+
+        <section class="pub-section">
+            <h2>INSTRUCTORS</h2>
+            <div class="pub-coaches">
+                @foreach (var (person, experience) in _instructors)
+                {
+                    <div class="patch">
+                        <div class="avatar" role="img" aria-label="Portrait placeholder"></div>
+                        <b style="display:block;margin-top:8px">@person.DisplayName</b>
+                        @if (experience is not null)
+                        {
+                            <i style="display:block;font:9px/1.6 var(--font-mono);color:var(--ink-faint);font-style:normal;letter-spacing:.06em">@experience.ToUpperInvariant()</i>
+                        }
+                    </div>
+                }
+            </div>
+        </section>
+
+        <footer class="pub-foot">
+            <span>© @DateTime.Today.Year @_gym.Name.ToUpperInvariant()</span>
+            <span>POWERED BY GYMSTATION</span>
+        </footer>
+    </div>
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+
+    private Gym? _gym;
+    private GymSettings? _settings;
+    private string _accent = "#C9503B";
+    private bool _dark = true;
+    private List<KeyValuePair<DayOfWeek, List<ClassTemplate>>> _week = [];
+    private List<(Person Person, string? Experience)> _instructors = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _gym = await Db.Gyms.SingleOrDefaultAsync(g => g.Slug == Slug.ToLowerInvariant());
+        if (_gym is null)
+        {
+            return;
+        }
+
+        // Anonymous request: no claim hydrated the tenant — the slug is the tenant here.
+        Tenant.SetGym(_gym.Id);
+
+        _settings = await Db.GymSettings.SingleOrDefaultAsync();
+        if (_settings is not null)
+        {
+            if (ThemeMath.TryParseHexColor(_settings.AccentColorHex, out _))
+            {
+                _accent = _settings.AccentColorHex;
+            }
+
+            _dark = _settings.DefaultThemeDark;
+        }
+
+        var templates = await Db.ClassTemplates.Where(t => t.Active).OrderBy(t => t.StartTime).ToListAsync();
+        _week = Enum.GetValues<DayOfWeek>()
+            .OrderBy(d => ((int)d + 6) % 7) // Monday first
+            .Select(d => new KeyValuePair<DayOfWeek, List<ClassTemplate>>(d, templates.Where(t => t.Day == d).ToList()))
+            .ToList();
+
+        // Bios only — pay data has no public representation anywhere.
+        var instructorPersons = await Db.Persons
+            .Where(p => !p.Archived && p.Roles.HasFlag(PersonRoles.Instructor))
+            .OrderBy(p => p.FirstName)
+            .ToListAsync();
+        var profiles = await Db.InstructorProfiles.ToDictionaryAsync(p => p.PersonId, p => p.ExperienceSummary);
+        _instructors = instructorPersons.Select(p => (p, profiles.GetValueOrDefault(p.Id))).ToList();
+    }
+}

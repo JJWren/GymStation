@@ -1,16 +1,20 @@
 @page "/"
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @layout GymStation.Web.Components.Layout.AdminLayout
+@using GymStation.Domain.Attendance
+@using GymStation.Domain.Scheduling
 @using GymStation.Infrastructure
+@using GymStation.Infrastructure.Money
 @using GymStation.Infrastructure.Tenancy
 @using Microsoft.EntityFrameworkCore
 @inject GymStationDbContext Db
+@inject LedgerService Ledger
 @inject ITenantContext Tenant
 
 <PageTitle>Today · GymStation</PageTitle>
 
 <h1 class="page-title">TODAY</h1>
-<p class="page-sub">@DateOnly.FromDateTime(DateTime.Today).ToString("ddd dd MMM yyyy").ToUpperInvariant()</p>
+<p class="page-sub">@DateOnly.FromDateTime(DateTime.Today).ToString("ddd dd MMM yyyy").ToUpperInvariant() · ATTENTION QUEUE FIRST</p>
 
 @if (Tenant.CurrentGymId is null)
 {
@@ -22,21 +26,83 @@ else
 {
     <div class="filters">
         <span class="chip chip--on">@_activeMembers ACTIVE MEMBERS</span>
-        <span class="chip">@_instructors INSTRUCTORS</span>
+        <span class="chip">@_weekCheckins CHECK-INS · 7D</span>
+        <span class="chip">$@_collected.ToString("N0") COLLECTED · @DateTime.Today.ToString("MMM").ToUpperInvariant()</span>
+        <span class="chip">$@_outstanding.ToString("N0") OUTSTANDING</span>
     </div>
-    <p class="cap">THE ATTENTION QUEUE, SESSIONS, AND KPIS ARRIVE WITH SCHEDULING (PHASE 3) AND ATTENDANCE (PHASE 4). ROSTER AND RANKS ARE LIVE IN THE RAIL.</p>
+
+    <h2 class="section-h">Needs attention</h2>
+    @if (_behindCount == 0 && _unfilledSwaps == 0 && _pendingApprovals == 0)
+    {
+        <p class="cap">NOTHING IN THE QUEUE. STAMP IT [PAID].</p>
+    }
+    @if (_unfilledSwaps > 0)
+    {
+        <div class="form-card" style="margin-bottom:8px"><div class="head-row"><b><a href="/admin/schedule">@_unfilledSwaps session(s) need cover</a></b><span class="stamp stamp--warn">UNFILLED</span></div></div>
+    }
+    @if (_pendingApprovals > 0)
+    {
+        <div class="form-card" style="margin-bottom:8px"><div class="head-row"><b><a href="/admin/schedule">@_pendingApprovals substitution(s) await approval</a></b><span class="stamp stamp--warn">APPROVE</span></div></div>
+    }
+    @if (_behindCount > 0)
+    {
+        <div class="form-card" style="margin-bottom:8px"><div class="head-row"><b><a href="/admin/dues">@_behindCount member(s) behind on dues</a></b><span class="stamp stamp--bad">DUE $@_outstanding.ToString("N0")</span></div></div>
+    }
+
+    <h2 class="section-h">Today's sessions</h2>
+    @foreach (var session in _today)
+    {
+        var (confirmed, pending) = _counts.GetValueOrDefault(session.Id);
+        <div class="ses @(session.Status == SessionStatus.Cancelled ? "ses--cancelled" : null)" style="max-width:520px">
+            <div class="head-row">
+                <span class="t">@session.StartTime.ToString("HH\\:mm") · @session.Name</span>
+                <a class="chip" href="/instructor/roll/@session.Id">ROLL →</a>
+            </div>
+            <div class="c">@confirmed CONFIRMED · @pending PENDING</div>
+        </div>
+    }
+    @if (_today.Count == 0)
+    {
+        <p class="cap">NO SESSIONS TODAY.</p>
+    }
 }
 
 @code {
     private int _activeMembers;
-    private int _instructors;
+    private int _weekCheckins;
+    private decimal _collected;
+    private decimal _outstanding;
+    private int _behindCount;
+    private int _unfilledSwaps;
+    private int _pendingApprovals;
+    private List<ClassSession> _today = [];
+    private Dictionary<Guid, (int Confirmed, int Pending)> _counts = [];
 
     protected override async Task OnInitializedAsync()
     {
-        if (Tenant.CurrentGymId is not null)
+        if (Tenant.CurrentGymId is null)
         {
-            _activeMembers = await Db.Persons.CountAsync(p => !p.Archived);
-            _instructors = await Db.Persons.CountAsync(p => !p.Archived && p.Roles.HasFlag(GymStation.Domain.People.PersonRoles.Instructor));
+            return;
         }
+
+        var today = DateOnly.FromDateTime(DateTime.Today);
+
+        _activeMembers = await Db.Persons.CountAsync(p => !p.Archived);
+        _weekCheckins = await Db.AttendanceRecords.CountAsync(a => a.Session.Date >= today.AddDays(-7) && a.Status != AttendanceStatus.Removed);
+
+        var summary = await Ledger.MonthSummaryAsync(today);
+        _collected = summary.CollectedInMonth;
+        _outstanding = summary.Outstanding;
+        _behindCount = summary.MembersBehind;
+
+        _unfilledSwaps = await Db.SubstitutionRequests.CountAsync(r => r.Status == SubstitutionStatus.Requested);
+        _pendingApprovals = await Db.SubstitutionRequests.CountAsync(r => r.Status == SubstitutionStatus.PendingApproval);
+
+        _today = await Db.ClassSessions.Where(s => s.Date == today).OrderBy(s => s.StartTime).ToListAsync();
+        var ids = _today.Select(s => s.Id).ToList();
+        var records = await Db.AttendanceRecords.Where(a => ids.Contains(a.SessionId)).ToListAsync();
+        _counts = records.GroupBy(a => a.SessionId).ToDictionary(
+            g => g.Key,
+            g => (g.Count(a => a.Status == AttendanceStatus.Confirmed), g.Count(a => a.Status == AttendanceStatus.Pending)));
     }
 }

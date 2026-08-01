@@ -27,7 +27,17 @@ public class SmtpEmailDeliverer(EmailOptions options) : IEmailDeliverer
             client.EnableSsl = true;
         }
 
+        // Multipart: plain-text body for HTML-disabled clients + a minimal branded HTML view.
+        var html = $"""
+            <div style="background:#171B21;color:#F1EDE3;padding:24px;font-family:'Segoe UI',sans-serif">
+              <p style="font-family:Consolas,monospace;font-size:11px;letter-spacing:2px;color:#A9AEB9">GYMSTATION</p>
+              <h2 style="margin:0 0 12px">{System.Net.WebUtility.HtmlEncode(subject)}</h2>
+              <p style="color:#A9AEB9;line-height:1.6">{System.Net.WebUtility.HtmlEncode(body)}</p>
+            </div>
+            """;
+
         using var message = new MailMessage(options.From, toEmail, subject, body);
+        message.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(html, null, "text/html"));
         await client.SendMailAsync(message, ct);
     }
 }
