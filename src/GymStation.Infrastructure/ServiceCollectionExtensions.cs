@@ -1,4 +1,5 @@
 using GymStation.Infrastructure.Attendance;
+using GymStation.Infrastructure.Money;
 using GymStation.Infrastructure.Notifications;
 using GymStation.Infrastructure.Ranks;
 using GymStation.Infrastructure.Scheduling;
@@ -21,6 +22,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ScheduleService>();
         services.AddScoped<SubstitutionService>();
         services.AddScoped<AttendanceService>();
+        services.AddScoped<LedgerService>();
         services.AddSingleton<IFileStore>(new LocalFileStore(storageRoot));
         services.AddDbContext<GymStationDbContext>(o => o.UseNpgsql(connectionString));
         return services;
@@ -47,6 +49,7 @@ public static class ServiceCollectionExtensions
         services.AddHostedService<NotificationDispatcher>();
         services.AddHostedService<EscalationWorker>();
         services.AddHostedService<AutoConfirmWorker>();
+        services.AddHostedService<ChargeCycleWorker>();
         return services;
     }
 }

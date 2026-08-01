@@ -73,6 +73,12 @@ public static class OpsEndpoints
             // Tenant-owned rows (settings, the owner's Person) are written as the new gym.
             tenant.SetGym(gym.Id);
             db.GymSettings.Add(new GymSettings { GymId = gym.Id });
+
+            // Starter expense taxonomy — fully editable per gym (owner-configurable principle).
+            foreach (var name in new[] { "RENT", "INSURANCE", "SOFTWARE", "UTILITIES", "MARKETING" })
+            {
+                db.ExpenseCategories.Add(new Domain.Money.ExpenseCategory { Id = Guid.NewGuid(), GymId = gym.Id, Name = name });
+            }
             db.Persons.Add(new Person
             {
                 Id = Guid.NewGuid(),

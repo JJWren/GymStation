@@ -28,6 +28,9 @@ public class Person : ITenantOwned
     /// <summary>Stored path in the file store; null renders the silhouette placeholder.</summary>
     public string? PortraitPath { get; set; }
 
+    /// <summary>The MembershipPlan this Person is on; null = no automatic charges.</summary>
+    public Guid? MembershipPlanId { get; set; }
+
     public bool Archived { get; set; }
 
     public bool HasRole(PersonRoles role) => role != PersonRoles.None && (Roles & role) == role;

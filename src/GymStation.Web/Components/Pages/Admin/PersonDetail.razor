@@ -145,6 +145,40 @@ else
                 </EditForm>
             }
 
+            <h2 class="section-h">Membership &amp; ledger</h2>
+            <div class="form-card">
+                <form method="post" action="/admin/actions/assign-plan" class="row-form" style="margin:0 0 10px">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="personId" value="@PersonId" />
+                    <select name="planId" aria-label="Membership plan">
+                        <option value="">— no plan (no automatic charges) —</option>
+                        @foreach (var plan in _plans)
+                        {
+                            <option value="@plan.Id" selected="@(plan.Id == _person.MembershipPlanId)">@plan.Name · $@plan.Price.ToString("N0")</option>
+                        }
+                    </select>
+                    <button class="btn btn--ghost btn--xs" type="submit">SET PLAN</button>
+                </form>
+                @foreach (var line in _ledgerLines)
+                {
+                    <div class="head-row" style="border-bottom:1px dashed #2c3440;padding:5px 0">
+                        <span class="mono">@line.When.ToString("dd MMM").ToUpperInvariant() · @line.Label</span>
+                        <span class="mono" style="color:@(line.IsCharge ? "var(--ink)" : "var(--ok)")">@(line.IsCharge ? "+" : "−")$@line.Amount.ToString("N2")</span>
+                    </div>
+                }
+                <div class="head-row" style="padding:8px 0">
+                    <span class="cap">BALANCE · DERIVED, NEVER EDITED</span>
+                    <b class="mono" style="color:@(_balance > 0 ? "var(--bad)" : "var(--ink)")">$@_balance.ToString("N2")</b>
+                </div>
+                <form method="post" action="/admin/actions/record-payment" class="row-form">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="personId" value="@PersonId" />
+                    <input type="hidden" name="back" value="person" />
+                    <input type="number" name="amount" value="@(_balance > 0 ? _balance : null)" step="0.01" min="0.01" aria-label="Payment amount" style="width:110px" />
+                    <button class="btn btn--xs" type="submit">RECORD PAYMENT</button>
+                </form>
+            </div>
+
             <h2 class="section-h">Guardians</h2>
             <div class="form-card">
                 @if (_guardianEmails.Count == 0)
@@ -192,6 +226,9 @@ else
     private double _avgPerWeek;
     private int _verifiedHours;
     private List<int> _weeklyCounts = [];
+    private List<GymStation.Domain.Money.MembershipPlan> _plans = [];
+    private List<(DateOnly When, string Label, decimal Amount, bool IsCharge)> _ledgerLines = [];
+    private decimal _balance;
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
 
     public class RecordAwardForm
@@ -227,6 +264,17 @@ else
         var awarderIds = _awards.Where(a => a.AwardedByPersonId is not null).Select(a => a.AwardedByPersonId!.Value).Distinct().ToList();
         _names = await Db.Persons.Where(p => awarderIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, p => p.DisplayName);
+
+        _plans = await Db.MembershipPlans.Where(p => !p.Archived).OrderBy(p => p.Price).ToListAsync();
+
+        var charges = await Db.Charges.Where(c => c.PersonId == PersonId).ToListAsync();
+        var payments = await Db.Payments.Where(p => p.PersonId == PersonId).ToListAsync();
+        _balance = GymStation.Domain.Money.LedgerMath.Balance(charges, payments);
+        _ledgerLines = charges.Select(c => (c.RaisedOn, "CHARGE · " + c.Description.ToUpperInvariant(), c.Amount, true))
+            .Concat(payments.Select(p => (p.ReceivedOn, "PAYMENT", p.Amount, false)))
+            .OrderByDescending(l => l.Item1)
+            .Take(8)
+            .ToList();
 
         var guardianUserIds = await Db.GuardianLinks.Where(l => l.ChildPersonId == PersonId)
             .Select(l => l.GuardianUserId).ToListAsync();

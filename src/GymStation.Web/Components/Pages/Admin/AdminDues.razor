@@ -1,0 +1,208 @@
+@page "/admin/dues"
+@attribute [Authorize(Policy = "GymStaff")]
+@layout AdminLayout
+@using GymStation.Domain.Money
+@using GymStation.Infrastructure.Money
+@inject GymStationDbContext Db
+@inject LedgerService Ledger
+@inject NavigationManager Nav
+
+<PageTitle>Dues · GymStation</PageTitle>
+
+<div class="head-row">
+    <h1 class="page-title">DUES</h1>
+    <form method="post" action="/admin/actions/run-cycle">
+        <AntiforgeryToken />
+        <button class="btn btn--ghost" type="submit">RAISE THIS MONTH'S CHARGES</button>
+    </form>
+</div>
+<p class="page-sub">BALANCES ARE DERIVED (ΣCHARGES − ΣPAYMENTS) · GYMSTATION TRACKS MONEY, IT DOES NOT MOVE IT</p>
+
+@if (Failed)
+{
+    <p class="auth-error" role="alert">That payment couldn't be recorded — the amount must be positive.</p>
+}
+
+<div class="filters">
+    <span class="chip chip--on">$@_summary.CollectedInMonth.ToString("N0") COLLECTED · @_month.ToString("MMM").ToUpperInvariant()</span>
+    <span class="chip">$@_summary.Outstanding.ToString("N0") OUTSTANDING</span>
+    <span class="chip">@_summary.MembersCurrent CURRENT · @_summary.MembersBehind BEHIND</span>
+</div>
+
+<div class="detail-cols" style="display:grid;grid-template-columns:1.3fr 1fr;gap:18px;align-items:start">
+    <section>
+        <h2 class="section-h">Behind on dues — oldest first</h2>
+        @if (_dues.Count == 0)
+        {
+            <p class="cap">EVERYONE IS CURRENT. STAMP IT [PAID].</p>
+        }
+        @foreach (var row in _dues)
+        {
+            <div class="form-card" style="margin-bottom:8px">
+                <div class="head-row">
+                    <b><a href="/admin/people/@row.PersonId">@row.Name</a></b>
+                    <span class="stamp stamp--bad">DUE $@row.Balance.ToString("N0")</span>
+                </div>
+                <p class="cap" style="margin:4px 0 8px">BEHIND SINCE @row.OldestUnpaidSince.ToString("dd MMM yyyy").ToUpperInvariant() · @((DateOnly.FromDateTime(DateTime.Today).DayNumber - row.OldestUnpaidSince.DayNumber)) DAYS</p>
+                <form method="post" action="/admin/actions/record-payment" class="row-form">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="personId" value="@row.PersonId" />
+                    <input type="number" name="amount" value="@row.Balance" step="0.01" min="0.01" aria-label="Payment amount" style="width:110px" />
+                    <button class="btn btn--xs" type="submit">RECORD PAYMENT</button>
+                </form>
+            </div>
+        }
+    </section>
+
+    <section>
+        <h2 class="section-h">Membership plans</h2>
+        @foreach (var plan in _plans)
+        {
+            <div class="form-card" style="margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+                <span><b>@plan.Name</b><br /><span class="cap">@plan.Cadence.ToString().ToUpperInvariant() · @_planCounts.GetValueOrDefault(plan.Id) MEMBERS</span></span>
+                <span class="mono" style="color:var(--ink)">$@plan.Price.ToString("N0")</span>
+            </div>
+        }
+        <EditForm class="form-card" FormName="add-plan" Model="PlanForm" OnValidSubmit="AddPlanAsync">
+            <div class="form-grid">
+                <div>
+                    <label for="pname">Plan name</label>
+                    <InputText id="pname" @bind-Value="PlanForm.Name" />
+                </div>
+                <div>
+                    <label for="pprice">Monthly price</label>
+                    <InputNumber id="pprice" @bind-Value="PlanForm.Price" />
+                </div>
+            </div>
+            <p style="margin-top:12px"><button class="btn btn--ghost" type="submit">+ PLAN</button></p>
+        </EditForm>
+
+        <h2 class="section-h">Expenses — @_month.ToString("MMMM").ToUpperInvariant()</h2>
+        <div class="form-card">
+            @foreach (var expense in _expenses)
+            {
+                <div class="head-row" style="border-bottom:1px dashed #2c3440;padding:6px 0">
+                    <span class="mono">@expense.SpentOn.ToString("dd MMM").ToUpperInvariant() · @expense.Category.Name.ToUpperInvariant()</span>
+                    <span class="mono" style="color:var(--ink)">$@expense.Amount.ToString("N0")</span>
+                </div>
+            }
+            <div class="head-row" style="padding:8px 0 0">
+                <span class="cap">TOTAL</span>
+                <b class="mono" style="color:var(--ink)">$@_expenses.Sum(x => x.Amount).ToString("N0")</b>
+            </div>
+        </div>
+        <EditForm class="form-card" FormName="add-expense" Model="ExpenseForm" OnValidSubmit="AddExpenseAsync" style="margin-top:10px">
+            <div class="form-grid">
+                <div>
+                    <label for="ecat">Category (yours to define)</label>
+                    <InputSelect id="ecat" @bind-Value="ExpenseForm.CategoryId">
+                        <option value="">— category —</option>
+                        @foreach (var category in _categories)
+                        {
+                            <option value="@category.Id">@category.Name</option>
+                        }
+                    </InputSelect>
+                </div>
+                <div>
+                    <label for="eamt">Amount</label>
+                    <InputNumber id="eamt" @bind-Value="ExpenseForm.Amount" />
+                </div>
+                <div>
+                    <label for="eon">Spent on</label>
+                    <InputDate id="eon" @bind-Value="ExpenseForm.SpentOn" />
+                </div>
+                <div>
+                    <label for="enew">…or a new category name</label>
+                    <InputText id="enew" @bind-Value="ExpenseForm.NewCategory" />
+                </div>
+            </div>
+            <p style="margin-top:12px"><button class="btn btn--ghost" type="submit">+ EXPENSE</button></p>
+        </EditForm>
+    </section>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "failed")] public int? FailedFlag { get; set; }
+    private bool Failed => FailedFlag == 1;
+
+    [SupplyParameterFromForm(FormName = "add-plan")]
+    public AddPlanForm? PostedPlanForm { get; set; }
+
+    [SupplyParameterFromForm(FormName = "add-expense")]
+    public AddExpenseForm? PostedExpenseForm { get; set; }
+
+    private AddPlanForm PlanForm => PostedPlanForm ??= new();
+    private AddExpenseForm ExpenseForm => PostedExpenseForm ??= new();
+
+    private DateOnly _month = DateOnly.FromDateTime(DateTime.Today);
+    private (decimal CollectedInMonth, decimal Outstanding, int MembersCurrent, int MembersBehind) _summary;
+    private List<DuesRow> _dues = [];
+    private List<MembershipPlan> _plans = [];
+    private Dictionary<Guid, int> _planCounts = [];
+    private List<Expense> _expenses = [];
+    private List<ExpenseCategory> _categories = [];
+
+    public class AddPlanForm
+    {
+        public string Name { get; set; } = "";
+        public decimal Price { get; set; }
+    }
+
+    public class AddExpenseForm
+    {
+        public Guid? CategoryId { get; set; }
+        public decimal Amount { get; set; }
+        public DateOnly SpentOn { get; set; } = DateOnly.FromDateTime(DateTime.Today);
+        public string? NewCategory { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _summary = await Ledger.MonthSummaryAsync(_month);
+        _dues = await Ledger.DuesAsync();
+        _plans = await Db.MembershipPlans.Where(p => !p.Archived).OrderBy(p => p.Price).ToListAsync();
+
+        var counts = await Db.Persons.Where(p => !p.Archived && p.MembershipPlanId != null)
+            .GroupBy(p => p.MembershipPlanId!.Value)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToListAsync();
+        _planCounts = counts.ToDictionary(x => x.Key, x => x.Count);
+
+        var monthStart = new DateOnly(_month.Year, _month.Month, 1);
+        _expenses = await Db.Expenses.Include(x => x.Category)
+            .Where(x => x.SpentOn >= monthStart)
+            .OrderByDescending(x => x.SpentOn)
+            .ToListAsync();
+        _categories = await Db.ExpenseCategories.Where(c => !c.Archived).OrderBy(c => c.Name).ToListAsync();
+    }
+
+    private async Task AddPlanAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(PlanForm.Name) && PlanForm.Price > 0)
+        {
+            Db.MembershipPlans.Add(new MembershipPlan { Id = Guid.NewGuid(), Name = PlanForm.Name.Trim(), Price = PlanForm.Price });
+            await Db.SaveChangesAsync();
+        }
+
+        Nav.NavigateTo("/admin/dues");
+    }
+
+    private async Task AddExpenseAsync()
+    {
+        var categoryId = ExpenseForm.CategoryId;
+        if (!string.IsNullOrWhiteSpace(ExpenseForm.NewCategory))
+        {
+            var category = new ExpenseCategory { Id = Guid.NewGuid(), Name = ExpenseForm.NewCategory.Trim().ToUpperInvariant() };
+            Db.ExpenseCategories.Add(category);
+            categoryId = category.Id;
+        }
+
+        if (categoryId is { } id && ExpenseForm.Amount > 0)
+        {
+            Db.Expenses.Add(new Expense { Id = Guid.NewGuid(), CategoryId = id, Amount = ExpenseForm.Amount, SpentOn = ExpenseForm.SpentOn });
+            await Db.SaveChangesAsync();
+        }
+
+        Nav.NavigateTo("/admin/dues");
+    }
+}
