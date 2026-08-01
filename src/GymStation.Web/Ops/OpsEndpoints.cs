@@ -94,6 +94,57 @@ public static class OpsEndpoints
             return Results.Created($"/{gym.Slug}", new { gym.Id, gym.Slug });
         });
 
+        // Pitch-demo tenant: full cast, 12 weeks of data. Same ops-key guard; the given
+        // password is applied to the key demo logins listed in docs/pitch-walkthrough.md.
+        app.MapPost("/ops/seed-demo", async (
+            SeedDemoRequest request,
+            HttpContext http,
+            IConfiguration config,
+            GymStation.Infrastructure.Seeding.DemoSeeder seeder,
+            UserManager<AppUser> users) =>
+        {
+            var opsKey = config["Ops:ApiKey"];
+            if (string.IsNullOrWhiteSpace(opsKey))
+            {
+                return Results.NotFound();
+            }
+
+            if (http.Request.Headers["X-Ops-Key"] != opsKey)
+            {
+                return Results.Unauthorized();
+            }
+
+            var slug = (request.Slug ?? "ironworks-bjj").ToLowerInvariant();
+            var name = request.Name ?? "Ironworks BJJ";
+
+            Guid gymId;
+            try
+            {
+                gymId = await seeder.SeedAsync(slug, name);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { error = ex.Message });
+            }
+
+            foreach (var handle in new[] { "jordan.torres", "rui.silva", "ana.duarte", "ana.reyes", "sarah.hale" })
+            {
+                var user = await users.FindByEmailAsync($"{handle}@{slug}.demo");
+                if (user is not null)
+                {
+                    var added = await users.AddPasswordAsync(user, request.DemoPassword);
+                    if (!added.Succeeded)
+                    {
+                        return Results.BadRequest(new { error = $"Password rejected: {string.Join("; ", added.Errors.Select(e => e.Description))}" });
+                    }
+                }
+            }
+
+            return Results.Created($"/{slug}", new { gymId, slug });
+        });
+
         return app;
     }
 }
+
+public record SeedDemoRequest(string? Slug, string? Name, string DemoPassword);

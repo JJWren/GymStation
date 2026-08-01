@@ -1,0 +1,48 @@
+# GymStation home-lab deploy (Z:\docker\gymstation behind NPM).
+# Migrations apply on startup is NOT automatic — run them once against the db:
+#   dotnet dotnet-ef database update -p src/GymStation.Infrastructure -s src/GymStation.Infrastructure
+#   (with ConnectionStrings__Default pointed at this postgres)
+# Then seed the demo tenant:
+#   curl -X POST http://<host>:8620/ops/seed-demo -H "X-Ops-Key: $OPS_KEY" \
+#     -H "Content-Type: application/json" -d '{"demoPassword":"<pick-one>"}'
+
+services:
+  gymstation:
+    image: ghcr.io/jjwren/gymstation-web:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_URLS: http://0.0.0.0:8080
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=gymstation;Username=gymstation;Password=${POSTGRES_PASSWORD:?set in .env}
+      Ops__ApiKey: ${OPS_API_KEY:?set in .env}
+      Storage__Root: /data/media
+      Email__Host: ${SMTP_HOST:-}
+      Email__Port: ${SMTP_PORT:-587}
+      Email__Username: ${SMTP_USER:-}
+      Email__Password: ${SMTP_PASS:-}
+      Email__From: ${SMTP_FROM:-gymstation@localhost}
+    volumes:
+      - gymstation-media:/data/media
+    ports:
+      - "8620:8080"
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gymstation
+      POSTGRES_USER: gymstation
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+    volumes:
+      - gymstation-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gymstation -d gymstation"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  gymstation-media:
+  gymstation-pgdata:
