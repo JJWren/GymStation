@@ -38,13 +38,16 @@
 
     <h2 class="section-h">Sessions / week — last 12</h2>
     <div class="form-card">
-        <div style="display:flex;gap:3px;align-items:flex-end;height:52px" aria-label="Weekly confirmed sessions">
+        <div style="display:flex;gap:3px;height:60px" aria-label="Confirmed sessions per week, last 12 weeks, oldest to newest">
             @foreach (var count in _weekly)
             {
-                <i style="flex:1;background:var(--tenant);opacity:.75;border-radius:2px 2px 0 0;height:@(Math.Min(count * 20, 100))%"></i>
+                <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:1px;height:100%">
+                    <span style="font:600 7.5px/1 var(--font-mono);color:var(--ink-faint);text-align:center">@count</span>
+                    <i style="display:block;background:var(--tenant);opacity:.75;border-radius:2px 2px 0 0;height:@(_weeklyPeak == 0 ? 0 : Math.Max(count > 0 ? 3 : 0, count * 80 / _weeklyPeak))%"></i>
+                </div>
             }
         </div>
-        <p class="cap" style="margin-top:6px">AVG @_avg /WK</p>
+        <p class="cap" style="margin-top:6px">YOUR CONFIRMED CHECK-INS PER WEEK · OLDEST LEFT → THIS WEEK RIGHT · AVG @_avg /WK</p>
     </div>
 
     <h2 class="section-h">Promotion history</h2>
@@ -76,6 +79,7 @@
     private TwoTierHours _hours = new(0, 0);
     private double _avg;
     private List<int> _weekly = [];
+    private int _weeklyPeak;
     private string? _ageGroup;
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
 
@@ -99,5 +103,6 @@
         _awards = await Ranks.GetAwardsForPersonAsync(me.Id);
         _hours = await Diary.HoursAsync(userId);
         (_avg, _, _weekly) = await Attendance.StatsAsync(me.Id, Today);
+        _weeklyPeak = _weekly.Count == 0 ? 0 : _weekly.Max();
     }
 }
