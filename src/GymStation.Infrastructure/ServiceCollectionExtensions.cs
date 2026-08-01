@@ -25,6 +25,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<LedgerService>();
         services.AddScoped<Training.TrainingDiaryService>();
         services.AddScoped<Reports.ReportService>();
+        services.AddScoped<Seeding.DemoSeeder>();
         services.AddSingleton<IFileStore>(new LocalFileStore(storageRoot));
         services.AddDbContext<GymStationDbContext>(o => o.UseNpgsql(connectionString));
         return services;

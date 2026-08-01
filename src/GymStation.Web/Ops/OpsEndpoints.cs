@@ -94,6 +94,67 @@ public static class OpsEndpoints
             return Results.Created($"/{gym.Slug}", new { gym.Id, gym.Slug });
         });
 
+        // Pitch-demo tenant: full cast, 12 weeks of data. Same ops-key guard; the given
+        // password is applied to the key demo logins listed in docs/pitch-walkthrough.md.
+        app.MapPost("/ops/seed-demo", async (
+            SeedDemoRequest request,
+            HttpContext http,
+            IConfiguration config,
+            GymStation.Infrastructure.Seeding.DemoSeeder seeder,
+            UserManager<AppUser> users) =>
+        {
+            var opsKey = config["Ops:ApiKey"];
+            if (string.IsNullOrWhiteSpace(opsKey))
+            {
+                return Results.NotFound();
+            }
+
+            if (http.Request.Headers["X-Ops-Key"] != opsKey)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (string.IsNullOrWhiteSpace(request.DemoPassword) || request.DemoPassword.Length < 10)
+            {
+                return Results.BadRequest(new { error = "demoPassword is required (min 10 chars) — it activates the walkthrough logins." });
+            }
+
+            var slug = (request.Slug ?? "ironworks-bjj").ToLowerInvariant();
+            var name = request.Name ?? "Ironworks BJJ";
+
+            if (!System.Text.RegularExpressions.Regex.IsMatch(slug, "^[a-z0-9-]{3,60}$") || name.Length is < 2 or > 120)
+            {
+                return Results.BadRequest(new { error = "slug must be 3–60 chars of [a-z0-9-]; name must be 2–120 chars." });
+            }
+
+            Guid gymId;
+            try
+            {
+                gymId = await seeder.SeedAsync(slug, name);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { error = ex.Message });
+            }
+
+            foreach (var handle in new[] { "jordan.torres", "rui.silva", "ana.duarte", "ana.reyes", "sarah.hale" })
+            {
+                var user = await users.FindByEmailAsync($"{handle}@{slug}.demo");
+                if (user is not null)
+                {
+                    var added = await users.AddPasswordAsync(user, request.DemoPassword);
+                    if (!added.Succeeded)
+                    {
+                        return Results.BadRequest(new { error = $"Password rejected: {string.Join("; ", added.Errors.Select(e => e.Description))}" });
+                    }
+                }
+            }
+
+            return Results.Created($"/{slug}", new { gymId, slug });
+        });
+
         return app;
     }
 }
+
+public record SeedDemoRequest(string? Slug, string? Name, string DemoPassword);
