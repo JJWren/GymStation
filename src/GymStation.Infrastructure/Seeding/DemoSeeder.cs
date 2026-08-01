@@ -12,8 +12,9 @@ namespace GymStation.Infrastructure.Seeding;
 
 /// <summary>
 /// Builds the pitch-demo tenant: a realistic fictional academy with a full cast, twelve
-/// weeks of attendance, a live ledger, and events. Deterministic (fixed Random seed) so
-/// every demo run tells the same story. Refuses to run if the slug already exists.
+/// weeks of attendance, a live ledger, and events. The cast and story are deterministic
+/// (fixed Random seed) relative to the seeding date — dates anchor to "today" so the demo
+/// always looks current. Refuses to run if the slug already exists.
 /// </summary>
 public class DemoSeeder(GymStationDbContext db, TenantContext tenant)
 {

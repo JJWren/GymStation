@@ -1,6 +1,6 @@
 # GymStation home-lab deploy (Z:\docker\gymstation behind NPM).
 # Migrations apply on startup is NOT automatic — run them once against the db:
-#   dotnet dotnet-ef database update -p src/GymStation.Infrastructure -s src/GymStation.Infrastructure
+#   dotnet tool run dotnet-ef -- database update -p src/GymStation.Infrastructure -s src/GymStation.Infrastructure
 #   (with ConnectionStrings__Default pointed at this postgres)
 # Then seed the demo tenant:
 #   curl -X POST http://<host>:8620/ops/seed-demo -H "X-Ops-Key: $OPS_KEY" \

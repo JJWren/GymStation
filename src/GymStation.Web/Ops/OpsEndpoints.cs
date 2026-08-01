@@ -114,8 +114,18 @@ public static class OpsEndpoints
                 return Results.Unauthorized();
             }
 
+            if (string.IsNullOrWhiteSpace(request.DemoPassword) || request.DemoPassword.Length < 10)
+            {
+                return Results.BadRequest(new { error = "demoPassword is required (min 10 chars) — it activates the walkthrough logins." });
+            }
+
             var slug = (request.Slug ?? "ironworks-bjj").ToLowerInvariant();
             var name = request.Name ?? "Ironworks BJJ";
+
+            if (!System.Text.RegularExpressions.Regex.IsMatch(slug, "^[a-z0-9-]{3,60}$") || name.Length is < 2 or > 120)
+            {
+                return Results.BadRequest(new { error = "slug must be 3–60 chars of [a-z0-9-]; name must be 2–120 chars." });
+            }
 
             Guid gymId;
             try
