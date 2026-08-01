@@ -1,0 +1,8 @@
+@page "/admin/inbox"
+@attribute [Authorize(Policy = "GymStaff")]
+@layout AdminLayout
+
+<PageTitle>Inbox · GymStation</PageTitle>
+
+@* Same notifications, admin shell — staff shouldn't be teleported into the member frame. *@
+<NotificationsPanel ReturnPath="/admin/inbox" />

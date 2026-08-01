@@ -173,4 +173,25 @@ public class SchedulingTests(PostgresFixture fixture)
         // Second pass is a no-op.
         Assert.Equal(0, await subs.EscalateDueAsync(nowUtc.AddMinutes(10)));
     }
+
+    [Fact]
+    public async Task ReopenSession_RestoresScheduledAndNotifies()
+    {
+        var (_, tenant, coach, _, _) = await SeedGymAsync();
+        var session = await SeedWeekWithTemplateAsync(tenant, coach.Id);
+
+        await using var context = fixture.CreateContext(tenant);
+        var schedule = new ScheduleService(context, new NotificationService(context));
+        await schedule.CancelSessionAsync(session.Id, "Flooded mats");
+        await schedule.ReopenSessionAsync(session.Id);
+
+        var reloaded = await context.ClassSessions.SingleAsync(s => s.Id == session.Id);
+        Assert.Equal(SessionStatus.Scheduled, reloaded.Status);
+        Assert.Null(reloaded.CancelledReason);
+        Assert.Contains(await context.Notifications.ToListAsync(), n => n.Title.StartsWith("Back on:"));
+
+        // Reopening a session that isn't cancelled is a no-op.
+        await schedule.ReopenSessionAsync(session.Id);
+        Assert.Equal(SessionStatus.Scheduled, (await context.ClassSessions.SingleAsync(s => s.Id == session.Id)).Status);
+    }
 }

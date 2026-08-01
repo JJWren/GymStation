@@ -1,0 +1,13 @@
+@page "/denied"
+@attribute [Authorize]
+
+<PageTitle>No access · GymStation</PageTitle>
+
+<main class="auth-shell">
+    <h1>GYMSTATION</h1>
+    <p class="tagline">THAT AREA BELONGS TO GYM STAFF</p>
+    <p class="auth-note">
+        You're signed in, but that page needs an Admin or Owner role.
+        <a href="/schedule">Back to your schedule</a> · <a href="/">Home</a>
+    </p>
+</main>

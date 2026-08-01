@@ -17,10 +17,15 @@
     </form>
 </div>
 <p class="page-sub">BALANCES ARE DERIVED (ΣCHARGES − ΣPAYMENTS) · GYMSTATION TRACKS MONEY, IT DOES NOT MOVE IT</p>
+<p class="cap">RAISE = CREATE THIS MONTH'S CHARGE FOR EVERYONE ON A MONTHLY PLAN. SAFE TO REPEAT — ALREADY-CHARGED MEMBERS ARE SKIPPED, AND THE CYCLE ALSO RUNS ITSELF ON THE 1ST.</p>
 
 @if (Failed)
 {
     <p class="auth-error" role="alert">That payment couldn't be recorded — the amount must be positive.</p>
+}
+@if (Raised is { } raisedCount)
+{
+    <p class="cap" role="status" style="color:var(--ok)">@(raisedCount > 0 ? $"RAISED {raisedCount} CHARGE(S) FOR {_month.ToString("MMMM").ToUpperInvariant()}." : "NOTHING TO RAISE — THIS MONTH'S CHARGES ALREADY EXIST FOR EVERY PLANNED MEMBER.")</p>
 }
 
 <div class="filters">
@@ -67,13 +72,17 @@
             <div class="form-grid">
                 <div>
                     <label for="pname">Plan name</label>
-                    <InputText id="pname" @bind-Value="PlanForm.Name" />
+                    <InputText id="pname" @bind-Value="PlanForm!.Name" />
                 </div>
                 <div>
-                    <label for="pprice">Monthly price</label>
-                    <InputNumber id="pprice" @bind-Value="PlanForm.Price" />
+                    <label for="pprice">Monthly price (0 = comped, raises no charges)</label>
+                    <InputNumber id="pprice" @bind-Value="PlanForm!.Price" />
                 </div>
             </div>
+            @if (_planError is not null)
+            {
+                <p class="validation-message">@_planError</p>
+            }
             <p style="margin-top:12px"><button class="btn btn--ghost" type="submit">+ PLAN</button></p>
         </EditForm>
 
@@ -95,7 +104,7 @@
             <div class="form-grid">
                 <div>
                     <label for="ecat">Category (yours to define)</label>
-                    <InputSelect id="ecat" @bind-Value="ExpenseForm.CategoryId">
+                    <InputSelect id="ecat" @bind-Value="ExpenseForm!.CategoryId">
                         <option value="">— category —</option>
                         @foreach (var category in _categories)
                         {
@@ -105,17 +114,21 @@
                 </div>
                 <div>
                     <label for="eamt">Amount</label>
-                    <InputNumber id="eamt" @bind-Value="ExpenseForm.Amount" />
+                    <InputNumber id="eamt" @bind-Value="ExpenseForm!.Amount" />
                 </div>
                 <div>
                     <label for="eon">Spent on</label>
-                    <InputDate id="eon" @bind-Value="ExpenseForm.SpentOn" />
+                    <InputDate id="eon" @bind-Value="ExpenseForm!.SpentOn" />
                 </div>
                 <div>
                     <label for="enew">…or a new category name</label>
-                    <InputText id="enew" @bind-Value="ExpenseForm.NewCategory" />
+                    <InputText id="enew" @bind-Value="ExpenseForm!.NewCategory" />
                 </div>
             </div>
+            @if (_expenseError is not null)
+            {
+                <p class="validation-message">@_expenseError</p>
+            }
             <p style="margin-top:12px"><button class="btn btn--ghost" type="submit">+ EXPENSE</button></p>
         </EditForm>
     </section>
@@ -123,16 +136,22 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "failed")] public int? FailedFlag { get; set; }
+    [SupplyParameterFromQuery(Name = "raised")] public int? Raised { get; set; }
     private bool Failed => FailedFlag == 1;
 
+    // Parameter names must match the identifiers bound in markup — SSR input names come
+    // from the bind expression and the binder matches them to the parameter name.
     [SupplyParameterFromForm(FormName = "add-plan")]
-    public AddPlanForm? PostedPlanForm { get; set; }
+    public AddPlanForm? PlanForm { get; set; }
 
     [SupplyParameterFromForm(FormName = "add-expense")]
-    public AddExpenseForm? PostedExpenseForm { get; set; }
+    public AddExpenseForm? ExpenseForm { get; set; }
 
-    private AddPlanForm PlanForm => PostedPlanForm ??= new();
-    private AddExpenseForm ExpenseForm => PostedExpenseForm ??= new();
+    protected override void OnInitialized()
+    {
+        PlanForm ??= new();
+        ExpenseForm ??= new();
+    }
 
     private DateOnly _month = DateOnly.FromDateTime(DateTime.Today);
     private (decimal CollectedInMonth, decimal Outstanding, int MembersCurrent, int MembersBehind) _summary;
@@ -141,6 +160,8 @@
     private Dictionary<Guid, int> _planCounts = [];
     private List<Expense> _expenses = [];
     private List<ExpenseCategory> _categories = [];
+    private string? _planError;
+    private string? _expenseError;
 
     public class AddPlanForm
     {
@@ -180,27 +201,48 @@
 
     private async Task AddPlanAsync()
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        var name = PlanForm.Name.Trim();
-        if (!string.IsNullOrWhiteSpace(name) && PlanForm.Price > 0
-            && !await db.MembershipPlans.AnyAsync(p => p.Name == name))
+        var form = PlanForm!;
+        var name = form.Name.Trim();
+        if (string.IsNullOrWhiteSpace(name))
         {
-            db.MembershipPlans.Add(new MembershipPlan { Id = Guid.NewGuid(), Name = name, Price = PlanForm.Price });
-            await db.SaveChangesAsync();
+            _planError = "A plan name is required.";
+            return;
         }
 
+        if (form.Price < 0)
+        {
+            _planError = "Price can't be negative — use 0 for a comped plan (instructors, staff).";
+            return;
+        }
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        if (await db.MembershipPlans.AnyAsync(p => p.Name == name))
+        {
+            _planError = $"A plan named '{name}' already exists.";
+            return;
+        }
+
+        db.MembershipPlans.Add(new MembershipPlan { Id = Guid.NewGuid(), Name = name, Price = form.Price });
+        await db.SaveChangesAsync();
         Nav.NavigateTo("/admin/dues");
     }
 
     private async Task AddExpenseAsync()
     {
+        var form = ExpenseForm!;
+        if (form.Amount <= 0)
+        {
+            _expenseError = "The amount must be positive.";
+            return;
+        }
+
         await using var db = await DbFactory.CreateDbContextAsync();
-        var categoryId = ExpenseForm.CategoryId;
-        if (!string.IsNullOrWhiteSpace(ExpenseForm.NewCategory))
+        var categoryId = form.CategoryId;
+        if (!string.IsNullOrWhiteSpace(form.NewCategory))
         {
             // Reuse an existing category (incl. the seeded starters) instead of tripping
             // the unique (GymId, Name) index.
-            var name = ExpenseForm.NewCategory.Trim().ToUpperInvariant();
+            var name = form.NewCategory.Trim().ToUpperInvariant();
             var category = await db.ExpenseCategories.SingleOrDefaultAsync(c => c.Name == name);
             if (category is null)
             {
@@ -211,12 +253,14 @@
             categoryId = category.Id;
         }
 
-        if (categoryId is { } id && ExpenseForm.Amount > 0)
+        if (categoryId is not { } id)
         {
-            db.Expenses.Add(new Expense { Id = Guid.NewGuid(), CategoryId = id, Amount = ExpenseForm.Amount, SpentOn = ExpenseForm.SpentOn });
-            await db.SaveChangesAsync();
+            _expenseError = "Pick a category, or type a new category name.";
+            return;
         }
 
+        db.Expenses.Add(new Expense { Id = Guid.NewGuid(), CategoryId = id, Amount = form.Amount, SpentOn = form.SpentOn });
+        await db.SaveChangesAsync();
         Nav.NavigateTo("/admin/dues");
     }
 }

@@ -87,10 +87,11 @@ public class DemoSeeder(GymStationDbContext db, TenantContext tenant)
             generatedAdults.Add(person);
         }
 
+        var generatedKids = new List<Person>();
         for (var i = 0; i < 12; i++)
         {
-            Cast(FirstNames[29 - i], LastNames[i], PersonRoles.Member,
-                today.AddYears(-(6 + random.Next(9))), kidsPlan.Id, 2024 + random.Next(3), hasLogin: false);
+            generatedKids.Add(Cast(FirstNames[29 - i], LastNames[i], PersonRoles.Member,
+                today.AddYears(-(6 + random.Next(9))), kidsPlan.Id, 2024 + random.Next(3), hasLogin: false));
         }
 
         await db.SaveChangesAsync(ct);
@@ -114,6 +115,16 @@ public class DemoSeeder(GymStationDbContext db, TenantContext tenant)
         {
             var rank = adult[Math.Min(index / 8, 3)];
             Award(person, rank, random.Next(rank.MaxStripes + 1), today.AddDays(-random.Next(90, 900)));
+        }
+
+        // One kid per kids-ladder belt — the full 12-belt system shows on the ranks board.
+        // Own Random: consuming the shared sequence would shift every downstream draw
+        // and break the tuned ledger fiction (exactly $510 behind across 6 members).
+        var kidBeltRandom = new Random(7);
+        foreach (var (kid, index) in generatedKids.Select((p, i) => (p, i)))
+        {
+            var rank = kidsLadder[Math.Min(index, kidsLadder.Count - 1)];
+            Award(kid, rank, kidBeltRandom.Next(Math.Min(rank.MaxStripes, 4) + 1), today.AddDays(-kidBeltRandom.Next(60, 700)));
         }
 
         // Weekly grid (the design week).

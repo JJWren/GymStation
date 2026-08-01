@@ -44,11 +44,11 @@
         <h2 class="section-h">Publish event</h2>
         <EditForm class="form-card" FormName="add-event" Model="Form" OnValidSubmit="PublishAsync">
             <label for="etitle">Title</label>
-            <InputText id="etitle" @bind-Value="Form.Title" />
+            <InputText id="etitle" @bind-Value="Form!.Title" />
             <div class="form-grid">
                 <div>
                     <label for="ekind">Kind</label>
-                    <InputSelect id="ekind" @bind-Value="Form.Kind">
+                    <InputSelect id="ekind" @bind-Value="Form!.Kind">
                         @foreach (var kind in Enum.GetValues<GymEventKind>())
                         {
                             <option value="@kind">@kind</option>
@@ -57,19 +57,19 @@
                 </div>
                 <div>
                     <label for="eon">Date</label>
-                    <InputDate id="eon" @bind-Value="Form.StartsOn" />
+                    <InputDate id="eon" @bind-Value="Form!.StartsOn" />
                 </div>
                 <div>
                     <label for="etime">Time info</label>
-                    <InputText id="etime" @bind-Value="Form.TimeInfo" placeholder="11:00–14:00" />
+                    <InputText id="etime" @bind-Value="Form!.TimeInfo" placeholder="11:00–14:00" />
                 </div>
                 <div>
                     <label for="eloc">Location</label>
-                    <InputText id="eloc" @bind-Value="Form.Location" />
+                    <InputText id="eloc" @bind-Value="Form!.Location" />
                 </div>
             </div>
             <label for="edet">Details</label>
-            <InputTextArea id="edet" @bind-Value="Form.Details" rows="3" />
+            <InputTextArea id="edet" @bind-Value="Form!.Details" rows="3" />
             @if (_error is not null)
             {
                 <p class="validation-message">@_error</p>
@@ -82,10 +82,13 @@
 @code {
     [CascadingParameter] public HttpContext? HttpContext { get; set; }
 
+    // Parameter name MUST match the identifier bound in markup: SSR form inputs render
+    // names from the bind expression ("Form.Title"), and the binder matches them against
+    // the parameter's name. An alias property here silently breaks every submit.
     [SupplyParameterFromForm(FormName = "add-event")]
-    public EventForm? PostedForm { get; set; }
+    public EventForm? Form { get; set; }
 
-    private EventForm Form => PostedForm ??= new();
+    protected override void OnInitialized() => Form ??= new();
 
     private List<GymEvent> _events = [];
     private Dictionary<(Guid, RsvpStatus), int> _counts = [];
@@ -112,7 +115,8 @@
 
     private async Task PublishAsync()
     {
-        if (string.IsNullOrWhiteSpace(Form.Title))
+        var form = Form!;
+        if (string.IsNullOrWhiteSpace(form.Title))
         {
             _error = "A title is required.";
             return;
@@ -125,16 +129,16 @@
             publisherPersonId = (await Db.Persons.SingleOrDefaultAsync(p => p.UserId == userId))?.Id ?? Guid.Empty;
         }
 
-        var title = Form.Title.Trim();
+        var title = form.Title.Trim();
         Db.GymEvents.Add(new GymEvent
         {
             Id = Guid.NewGuid(),
             Title = title,
-            Kind = Form.Kind,
-            StartsOn = Form.StartsOn,
-            TimeInfo = Form.TimeInfo,
-            Location = Form.Location,
-            Details = Form.Details,
+            Kind = form.Kind,
+            StartsOn = form.StartsOn,
+            TimeInfo = form.TimeInfo,
+            Location = form.Location,
+            Details = form.Details,
             PublishedByPersonId = publisherPersonId,
         });
 
@@ -147,7 +151,7 @@
             memberUserIds,
             NotificationCategory.SessionChanged,
             $"New event: {title}",
-            $"{Form.Kind} on {Form.StartsOn:dddd dd MMMM}. RSVP from the Events tab.",
+            $"{form.Kind} on {form.StartsOn:dddd dd MMMM}. RSVP from the Events tab.",
             "/events",
             email: false);
 

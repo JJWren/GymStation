@@ -8,7 +8,13 @@
 <div class="member-frame @(_dark ? null : "theme-light")" style="--tenant:@_accent">
     <header class="member-top">
         <div><b>@(_gymName ?? "GYMSTATION")</b><i>MEMBER</i></div>
-        <a class="bell" href="/notifications" aria-label="Notifications">▲</a>
+        <div class="member-top-actions">
+            <a class="bell" href="/notifications" aria-label="Notifications">▲</a>
+            <form method="post" action="/auth/logout" class="signout">
+                <AntiforgeryToken />
+                <button type="submit">SIGN OUT</button>
+            </form>
+        </div>
     </header>
     <div class="member-body">
         @Body

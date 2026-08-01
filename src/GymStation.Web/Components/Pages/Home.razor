@@ -1,6 +1,7 @@
 @page "/"
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @layout GymStation.Web.Components.Layout.AdminLayout
+@using System.Security.Claims
 @using GymStation.Domain.Attendance
 @using GymStation.Domain.Scheduling
 @using GymStation.Infrastructure
@@ -10,6 +11,7 @@
 @inject IDbContextFactory<GymStationDbContext> DbFactory
 @inject LedgerService Ledger
 @inject ITenantContext Tenant
+@inject NavigationManager Nav
 
 <PageTitle>Today · GymStation</PageTitle>
 
@@ -68,6 +70,8 @@ else
 }
 
 @code {
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+
     private int _activeMembers;
     private int _weekCheckins;
     private decimal _collected;
@@ -88,6 +92,23 @@ else
         var today = DateOnly.FromDateTime(DateTime.Today);
 
         await using var db = await DbFactory.CreateDbContextAsync();
+
+        // "/" is the ADMIN Today screen. Members and instructors live in the member
+        // shell — send them to their schedule instead of rendering staff data.
+        var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (Guid.TryParse(raw, out var userId))
+        {
+            var isStaff = await db.Persons.AnyAsync(p =>
+                p.UserId == userId
+                && !p.Archived
+                && (p.Roles.HasFlag(PersonRoles.Admin) || p.Roles.HasFlag(PersonRoles.Owner)));
+            if (!isStaff)
+            {
+                Nav.NavigateTo("/schedule");
+                return;
+            }
+        }
+
         _activeMembers = await db.Persons.CountAsync(p => !p.Archived);
         _weekCheckins = await db.AttendanceRecords.CountAsync(a => a.Session.Date >= today.AddDays(-7) && a.Status != AttendanceStatus.Removed);
 

@@ -24,6 +24,12 @@ public static class AdminActionEndpoints
             return Results.Redirect("/admin/schedule");
         });
 
+        group.MapPost("/reopen-session", async ([FromForm] Guid sessionId, ScheduleService schedule) =>
+        {
+            await schedule.ReopenSessionAsync(sessionId);
+            return Results.Redirect("/admin/schedule");
+        });
+
         group.MapPost("/approve-sub", async ([FromForm] Guid requestId, SubstitutionService subs) =>
         {
             await subs.ApproveAsync(requestId);
@@ -96,8 +102,8 @@ public static class AdminActionEndpoints
             var gym = await db.Gyms.SingleAsync(g => g.Id == db.CurrentGymId);
             var zone = TimeZoneInfo.FindSystemTimeZoneById(gym.TimeZoneId);
             var gymToday = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, zone).DateTime);
-            await ledger.RaiseMonthlyChargesAsync(gymToday);
-            return Results.Redirect("/admin/dues");
+            var raised = await ledger.RaiseMonthlyChargesAsync(gymToday);
+            return Results.Redirect($"/admin/dues?raised={raised}");
         });
 
         group.MapPost("/assign-plan", async ([FromForm] Guid personId, [FromForm] Guid? planId, GymStationDbContext db) =>

@@ -122,4 +122,22 @@ public class LedgerTests(PostgresFixture fixture)
         await using var contextB = fixture.CreateContext(tenantB);
         Assert.Empty(await contextB.Charges.ToListAsync());
     }
+
+    [Fact]
+    public async Task ZeroPricePlans_AreCompedAndRaiseNothing()
+    {
+        var (tenant, planned, _, _) = await SeedAsync();
+
+        await using var context = fixture.CreateContext(tenant);
+        var comped = new MembershipPlan { Id = Guid.NewGuid(), Name = "Comped Instructors", Price = 0m };
+        context.MembershipPlans.Add(comped);
+        (await context.Persons.SingleAsync(p => p.Id == planned.Id)).MembershipPlanId = comped.Id;
+        await context.SaveChangesAsync();
+
+        var ledger = new LedgerService(context, new NotificationService(context));
+        var raised = await ledger.RaiseMonthlyChargesAsync(new DateOnly(2026, 9, 1));
+
+        Assert.Equal(0, raised);
+        Assert.Empty(await context.Charges.Where(c => c.CycleKey == "2026-09").ToListAsync());
+    }
 }
