@@ -4,7 +4,7 @@
 @using GymStation.Domain.Scheduling
 @using GymStation.Domain.Tenancy
 @using GymStation.Infrastructure.Tenancy
-@inject GymStationDbContext Db
+@inject IDbContextFactory<GymStationDbContext> DbFactory
 @inject TenantContext Tenant
 
 @if (_gym is null)
@@ -97,7 +97,8 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        _gym = await Db.Gyms.SingleOrDefaultAsync(g => g.Slug == Slug.ToLowerInvariant());
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _gym = await db.Gyms.SingleOrDefaultAsync(g => g.Slug == Slug.ToLowerInvariant());
         if (_gym is null)
         {
             return;
@@ -106,7 +107,7 @@ else
         // Anonymous request: no claim hydrated the tenant — the slug is the tenant here.
         Tenant.SetGym(_gym.Id);
 
-        _settings = await Db.GymSettings.SingleOrDefaultAsync();
+        _settings = await db.GymSettings.SingleOrDefaultAsync();
         if (_settings is not null)
         {
             if (ThemeMath.TryParseHexColor(_settings.AccentColorHex, out _))
@@ -117,18 +118,18 @@ else
             _dark = _settings.DefaultThemeDark;
         }
 
-        var templates = await Db.ClassTemplates.Where(t => t.Active).OrderBy(t => t.StartTime).ToListAsync();
+        var templates = await db.ClassTemplates.Where(t => t.Active).OrderBy(t => t.StartTime).ToListAsync();
         _week = Enum.GetValues<DayOfWeek>()
             .OrderBy(d => ((int)d + 6) % 7) // Monday first
             .Select(d => new KeyValuePair<DayOfWeek, List<ClassTemplate>>(d, templates.Where(t => t.Day == d).ToList()))
             .ToList();
 
         // Bios only — pay data has no public representation anywhere.
-        var instructorPersons = await Db.Persons
+        var instructorPersons = await db.Persons
             .Where(p => !p.Archived && p.Roles.HasFlag(PersonRoles.Instructor))
             .OrderBy(p => p.FirstName)
             .ToListAsync();
-        var profiles = await Db.InstructorProfiles.ToDictionaryAsync(p => p.PersonId, p => p.ExperienceSummary);
+        var profiles = await db.InstructorProfiles.ToDictionaryAsync(p => p.PersonId, p => p.ExperienceSummary);
         _instructors = instructorPersons.Select(p => (p, profiles.GetValueOrDefault(p.Id))).ToList();
     }
 }

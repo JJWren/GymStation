@@ -3,7 +3,7 @@
 @layout AdminLayout
 @using System.Security.Claims
 @using GymStation.Domain.Scheduling
-@inject GymStationDbContext Db
+@inject IDbContextFactory<GymStationDbContext> DbFactory
 @inject GymStation.Infrastructure.Scheduling.ScheduleService Schedule
 
 <PageTitle>Substitutions · GymStation</PageTitle>
@@ -106,7 +106,8 @@
             return;
         }
 
-        var me = await Db.Persons.SingleOrDefaultAsync(p => p.UserId == userId && !p.Archived);
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var me = await db.Persons.SingleOrDefaultAsync(p => p.UserId == userId && !p.Archived);
         if (me is null)
         {
             return;
@@ -118,13 +119,13 @@
         await Schedule.GetWeekAsync(MondayOf(today));
         await Schedule.GetWeekAsync(MondayOf(today).AddDays(7));
 
-        _mySessions = await Db.ClassSessions
+        _mySessions = await db.ClassSessions
             .Where(s => s.InstructorPersonId == _myPersonId && s.Status == SessionStatus.Scheduled
                 && s.Date >= today && s.Date <= today.AddDays(14))
             .OrderBy(s => s.Date).ThenBy(s => s.StartTime)
             .ToListAsync();
 
-        var open = await Db.SubstitutionRequests
+        var open = await db.SubstitutionRequests
             .Include(r => r.Session)
             .Where(r => r.Status == SubstitutionStatus.Requested || r.Status == SubstitutionStatus.PendingApproval)
             .OrderBy(r => r.Session.Date)
@@ -135,13 +136,13 @@
             && r.RequestedByPersonId != _myPersonId
             && (r.ProposedSubPersonId == null || r.ProposedSubPersonId == _myPersonId)).ToList();
 
-        var instructorPersons = await Db.Persons
+        var instructorPersons = await db.Persons
             .Where(p => !p.Archived && p.Id != _myPersonId && p.Roles.HasFlag(PersonRoles.Instructor))
             .OrderBy(p => p.FirstName).ToListAsync();
         _otherInstructors = instructorPersons.Select(p => (p.Id, p.DisplayName)).ToList();
 
         var nameIds = open.Select(r => r.RequestedByPersonId).Distinct().ToList();
-        _names = await Db.Persons.Where(p => nameIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id, p => p.DisplayName);
+        _names = await db.Persons.Where(p => nameIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id, p => p.DisplayName);
     }
 
     private static DateOnly MondayOf(DateOnly date)

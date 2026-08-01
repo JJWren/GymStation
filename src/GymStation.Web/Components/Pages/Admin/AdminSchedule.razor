@@ -4,7 +4,7 @@
 @using GymStation.Domain.Scheduling
 @using GymStation.Domain.Tenancy
 @using GymStation.Infrastructure.Scheduling
-@inject GymStationDbContext Db
+@inject IDbContextFactory<GymStationDbContext> DbFactory
 @inject ScheduleService Schedule
 @inject NavigationManager Nav
 
@@ -214,16 +214,17 @@
     protected override async Task OnInitializedAsync()
     {
         _weekStart = DateOnly.TryParse(StartRaw, out var parsed) ? parsed : MondayOf(DateOnly.FromDateTime(DateTime.Today));
-        _settings = await Db.GymSettings.SingleOrDefaultAsync();
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _settings = await db.GymSettings.SingleOrDefaultAsync();
         _sessions = await Schedule.GetWeekAsync(_weekStart);
-        _types = await Db.ClassTypes.Where(t => !t.Archived).OrderBy(t => t.Name).ToListAsync();
-        _requests = await Db.SubstitutionRequests
+        _types = await db.ClassTypes.Where(t => !t.Archived).OrderBy(t => t.Name).ToListAsync();
+        _requests = await db.SubstitutionRequests
             .Include(r => r.Session)
             .Where(r => r.Status == SubstitutionStatus.Requested || r.Status == SubstitutionStatus.PendingApproval)
             .OrderBy(r => r.Session.Date)
             .ToListAsync();
 
-        var instructorPersons = await Db.Persons
+        var instructorPersons = await db.Persons
             .Where(p => !p.Archived && p.Roles.HasFlag(PersonRoles.Instructor))
             .OrderBy(p => p.FirstName)
             .ToListAsync();
@@ -233,7 +234,7 @@
             .Concat(_requests.SelectMany(r => new[] { r.RequestedByPersonId, r.ProposedSubPersonId ?? Guid.Empty, r.AcceptedByPersonId ?? Guid.Empty }))
             .Where(id => id != Guid.Empty)
             .Distinct().ToList();
-        _personNames = await Db.Persons.Where(p => nameIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id, p => p.DisplayName);
+        _personNames = await db.Persons.Where(p => nameIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id, p => p.DisplayName);
     }
 
     private static DateOnly MondayOf(DateOnly date)
@@ -250,8 +251,9 @@
             return;
         }
 
-        var types = await Db.ClassTypes.Where(t => TemplateForm.TypeIds.Contains(t.Id)).ToListAsync();
-        Db.ClassTemplates.Add(new ClassTemplate
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var types = await db.ClassTypes.Where(t => TemplateForm.TypeIds.Contains(t.Id)).ToListAsync();
+        db.ClassTemplates.Add(new ClassTemplate
         {
             Id = Guid.NewGuid(),
             Name = TemplateForm.Name.Trim(),
@@ -261,7 +263,7 @@
             DefaultInstructorPersonId = TemplateForm.InstructorPersonId,
             ClassTypes = types,
         });
-        await Db.SaveChangesAsync();
+        await db.SaveChangesAsync();
         Nav.NavigateTo($"/admin/schedule?start={_weekStart:yyyy-MM-dd}");
     }
 
@@ -274,8 +276,9 @@
 
         if (!string.IsNullOrWhiteSpace(TypeForm.Name))
         {
-            Db.ClassTypes.Add(new ClassType { Id = Guid.NewGuid(), Name = TypeForm.Name.Trim().ToLowerInvariant(), ColorHex = color });
-            await Db.SaveChangesAsync();
+            await using var db = await DbFactory.CreateDbContextAsync();
+            db.ClassTypes.Add(new ClassType { Id = Guid.NewGuid(), Name = TypeForm.Name.Trim().ToLowerInvariant(), ColorHex = color });
+            await db.SaveChangesAsync();
         }
 
         Nav.NavigateTo($"/admin/schedule?start={_weekStart:yyyy-MM-dd}");

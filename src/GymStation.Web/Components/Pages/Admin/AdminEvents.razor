@@ -5,6 +5,9 @@
 @using GymStation.Domain.Events
 @using GymStation.Domain.Notifications
 @using GymStation.Infrastructure.Notifications
+@* Deliberately the scoped context, not IDbContextFactory: Notifications.Notify adds
+   outbox rows to the scoped context and relies on THIS page's SaveChanges to commit
+   them atomically with the event. Safe because the layout no longer shares it. *@
 @inject GymStationDbContext Db
 @inject NotificationService Notifications
 @inject NavigationManager Nav

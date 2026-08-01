@@ -3,7 +3,7 @@
 @layout AdminLayout
 @using GymStation.Domain.Money
 @using GymStation.Infrastructure.Money
-@inject GymStationDbContext Db
+@inject IDbContextFactory<GymStationDbContext> DbFactory
 @inject LedgerService Ledger
 @inject NavigationManager Nav
 
@@ -158,11 +158,12 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await using var db = await DbFactory.CreateDbContextAsync();
         _summary = await Ledger.MonthSummaryAsync(_month);
         _dues = await Ledger.DuesAsync();
-        _plans = await Db.MembershipPlans.Where(p => !p.Archived).OrderBy(p => p.Price).ToListAsync();
+        _plans = await db.MembershipPlans.Where(p => !p.Archived).OrderBy(p => p.Price).ToListAsync();
 
-        var counts = await Db.Persons.Where(p => !p.Archived && p.MembershipPlanId != null)
+        var counts = await db.Persons.Where(p => !p.Archived && p.MembershipPlanId != null)
             .GroupBy(p => p.MembershipPlanId!.Value)
             .Select(g => new { g.Key, Count = g.Count() })
             .ToListAsync();
@@ -170,21 +171,22 @@
 
         var monthStart = new DateOnly(_month.Year, _month.Month, 1);
         var monthEnd = monthStart.AddMonths(1).AddDays(-1);
-        _expenses = await Db.Expenses.Include(x => x.Category)
+        _expenses = await db.Expenses.Include(x => x.Category)
             .Where(x => x.SpentOn >= monthStart && x.SpentOn <= monthEnd)
             .OrderByDescending(x => x.SpentOn)
             .ToListAsync();
-        _categories = await Db.ExpenseCategories.Where(c => !c.Archived).OrderBy(c => c.Name).ToListAsync();
+        _categories = await db.ExpenseCategories.Where(c => !c.Archived).OrderBy(c => c.Name).ToListAsync();
     }
 
     private async Task AddPlanAsync()
     {
+        await using var db = await DbFactory.CreateDbContextAsync();
         var name = PlanForm.Name.Trim();
         if (!string.IsNullOrWhiteSpace(name) && PlanForm.Price > 0
-            && !await Db.MembershipPlans.AnyAsync(p => p.Name == name))
+            && !await db.MembershipPlans.AnyAsync(p => p.Name == name))
         {
-            Db.MembershipPlans.Add(new MembershipPlan { Id = Guid.NewGuid(), Name = name, Price = PlanForm.Price });
-            await Db.SaveChangesAsync();
+            db.MembershipPlans.Add(new MembershipPlan { Id = Guid.NewGuid(), Name = name, Price = PlanForm.Price });
+            await db.SaveChangesAsync();
         }
 
         Nav.NavigateTo("/admin/dues");
@@ -192,17 +194,18 @@
 
     private async Task AddExpenseAsync()
     {
+        await using var db = await DbFactory.CreateDbContextAsync();
         var categoryId = ExpenseForm.CategoryId;
         if (!string.IsNullOrWhiteSpace(ExpenseForm.NewCategory))
         {
             // Reuse an existing category (incl. the seeded starters) instead of tripping
             // the unique (GymId, Name) index.
             var name = ExpenseForm.NewCategory.Trim().ToUpperInvariant();
-            var category = await Db.ExpenseCategories.SingleOrDefaultAsync(c => c.Name == name);
+            var category = await db.ExpenseCategories.SingleOrDefaultAsync(c => c.Name == name);
             if (category is null)
             {
                 category = new ExpenseCategory { Id = Guid.NewGuid(), Name = name };
-                Db.ExpenseCategories.Add(category);
+                db.ExpenseCategories.Add(category);
             }
 
             categoryId = category.Id;
@@ -210,8 +213,8 @@
 
         if (categoryId is { } id && ExpenseForm.Amount > 0)
         {
-            Db.Expenses.Add(new Expense { Id = Guid.NewGuid(), CategoryId = id, Amount = ExpenseForm.Amount, SpentOn = ExpenseForm.SpentOn });
-            await Db.SaveChangesAsync();
+            db.Expenses.Add(new Expense { Id = Guid.NewGuid(), CategoryId = id, Amount = ExpenseForm.Amount, SpentOn = ExpenseForm.SpentOn });
+            await db.SaveChangesAsync();
         }
 
         Nav.NavigateTo("/admin/dues");
