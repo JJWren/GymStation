@@ -49,7 +49,7 @@
                 </div>
                 <p class="cap" style="margin:4px 0">
                     @gymEvent.StartsOn.ToString("ddd dd MMM yyyy").ToUpperInvariant()
-                    · @_counts.GetValueOrDefault((gymEvent.Id, RsvpStatus.Going)) WENT
+                    · @_counts.GetValueOrDefault((gymEvent.Id, RsvpStatus.Going)) GOING
                     · @_counts.GetValueOrDefault((gymEvent.Id, RsvpStatus.Interested)) INTERESTED
                 </p>
             </div>

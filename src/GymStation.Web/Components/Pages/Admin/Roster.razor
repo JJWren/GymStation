@@ -222,7 +222,7 @@
 
         if (!string.IsNullOrEmpty(Role))
         {
-            parts.Add($"role={Role}");
+            parts.Add($"role={Uri.EscapeDataString(Role)}");
         }
 
         if (RankFilter is { } rankId)
