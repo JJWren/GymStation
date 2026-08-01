@@ -4,6 +4,7 @@ using GymStation.Web.Admin;
 using GymStation.Web.Auth;
 using GymStation.Web.Components;
 using GymStation.Web.Instructor;
+using GymStation.Web.Member;
 using GymStation.Web.Ops;
 using GymStation.Web.Tenancy;
 using Microsoft.AspNetCore.Identity;
@@ -73,5 +74,6 @@ app.MapAuthEndpoints();
 app.MapOpsEndpoints();
 app.MapAdminActionEndpoints();
 app.MapInstructorActionEndpoints();
+app.MapMemberActionEndpoints();
 
 app.Run();

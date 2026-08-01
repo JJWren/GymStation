@@ -27,6 +27,7 @@
         {
             <div class="form-card" style="margin-bottom:10px">
                 <b>@session.Name · @session.Date.ToString("ddd dd MMM").ToUpperInvariant() @session.StartTime.ToString("HH\\:mm")</b>
+                <a class="chip" href="/instructor/roll/@session.Id" style="margin-left:8px">LIVE ROLL →</a>
                 <form method="post" action="/instructor/actions/request-sub" class="row-form" style="margin-top:8px">
                     <AntiforgeryToken />
                     <input type="hidden" name="sessionId" value="@session.Id" />

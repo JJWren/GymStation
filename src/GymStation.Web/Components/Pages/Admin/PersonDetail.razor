@@ -4,6 +4,7 @@
 @using System.Security.Claims
 @inject GymStationDbContext Db
 @inject RankService Ranks
+@inject GymStation.Infrastructure.Attendance.AttendanceService Attendance
 @inject NavigationManager Nav
 
 <PageTitle>@(_person?.DisplayName ?? "Person") · GymStation</PageTitle>
@@ -43,6 +44,21 @@ else
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start" class="detail-cols">
         <section>
+            <h2 class="section-h">Attendance — gym-verified</h2>
+            <div class="form-card">
+                <div class="filters" style="margin-bottom:8px">
+                    <span class="chip chip--on">@_avgPerWeek /WK · 12W</span>
+                    <span class="chip">@_verifiedHours VERIFIED HRS</span>
+                </div>
+                <div style="display:flex;gap:3px;align-items:flex-end;height:44px" aria-label="Weekly confirmed sessions, last 12 weeks">
+                    @foreach (var count in _weeklyCounts)
+                    {
+                        <i style="flex:1;background:var(--tenant);opacity:.75;border-radius:2px 2px 0 0;height:@(Math.Min(count * 20, 100))%"></i>
+                    }
+                </div>
+                <p class="cap">CONFIRMED ATTENDANCE RECORDS ONLY · SELF-REPORTED TRAINING NEVER APPEARS HERE</p>
+            </div>
+
             <h2 class="section-h">Rank history</h2>
             <div class="form-card tl">
                 @if (_awards.Count == 0)
@@ -173,6 +189,9 @@ else
     private List<string> _guardianEmails = [];
     private string? _ageGroup;
     private string? _awardError;
+    private double _avgPerWeek;
+    private int _verifiedHours;
+    private List<int> _weeklyCounts = [];
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
 
     public class RecordAwardForm
@@ -200,6 +219,7 @@ else
         }
 
         _ageGroup = IbjjfAgeGroup.FromBirthDate(_person.DateOfBirth, Today);
+        (_avgPerWeek, _verifiedHours, _weeklyCounts) = await Attendance.StatsAsync(PersonId, Today);
         _systems = await Ranks.GetVisibleSystemsAsync();
         _awards = await Ranks.GetAwardsForPersonAsync(PersonId);
         _current = (await Ranks.GetPrimaryRanksAsync([PersonId])).GetValueOrDefault(PersonId);
