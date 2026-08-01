@@ -58,11 +58,14 @@ public static class MediaEndpoints
             return Results.Redirect("/admin/settings");
         }).RequireAuthorization("GymStaff").ValidateAntiforgery();
 
-        // Public pages need logos/heroes without auth. Only tenant media paths are servable.
+        // Public pages need logos/heroes without auth. ONLY those two public asset kinds
+        // are servable — nothing else that may ever land in the file store (e.g. member
+        // portraits) is reachable through this endpoint.
         app.MapGet("/media/{**path}", async (string path, IFileStore store) =>
         {
-            var extension = Path.GetExtension(path);
-            if (!path.StartsWith("gyms/", StringComparison.Ordinal) || !AllowedTypes.TryGetValue(extension, out var contentType))
+            var match = System.Text.RegularExpressions.Regex.Match(
+                path, @"^gyms/[0-9a-fA-F-]{36}/(logo|hero)(\.[A-Za-z]+)$");
+            if (!match.Success || !AllowedTypes.TryGetValue(match.Groups[2].Value, out var contentType))
             {
                 return Results.NotFound();
             }

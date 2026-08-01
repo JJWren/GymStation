@@ -27,7 +27,7 @@ public class SmtpEmailDeliverer(EmailOptions options) : IEmailDeliverer
             client.EnableSsl = true;
         }
 
-        // Minimal Academy Ledger HTML wrapper; the plain body doubles as the text.
+        // Multipart: plain-text body for HTML-disabled clients + a minimal branded HTML view.
         var html = $"""
             <div style="background:#171B21;color:#F1EDE3;padding:24px;font-family:'Segoe UI',sans-serif">
               <p style="font-family:Consolas,monospace;font-size:11px;letter-spacing:2px;color:#A9AEB9">GYMSTATION</p>
@@ -36,7 +36,8 @@ public class SmtpEmailDeliverer(EmailOptions options) : IEmailDeliverer
             </div>
             """;
 
-        using var message = new MailMessage(options.From, toEmail, subject, html) { IsBodyHtml = true };
+        using var message = new MailMessage(options.From, toEmail, subject, body);
+        message.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(html, null, "text/html"));
         await client.SendMailAsync(message, ct);
     }
 }

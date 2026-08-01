@@ -13,8 +13,8 @@ public class ReportService(GymStationDbContext db)
     {
         var firstMonth = new DateOnly(today.Year, today.Month, 1).AddMonths(-(months - 1));
 
-        var payments = await db.Payments.Where(p => p.ReceivedOn >= firstMonth).ToListAsync(ct);
-        var expenses = await db.Expenses.Where(x => x.SpentOn >= firstMonth).ToListAsync(ct);
+        var payments = await db.Payments.AsNoTracking().Where(p => p.ReceivedOn >= firstMonth).ToListAsync(ct);
+        var expenses = await db.Expenses.AsNoTracking().Where(x => x.SpentOn >= firstMonth).ToListAsync(ct);
 
         var series = new List<MonthMoney>(months);
         for (var i = 0; i < months; i++)
@@ -34,7 +34,7 @@ public class ReportService(GymStationDbContext db)
     public async Task<List<int>> WeeklyCheckinsAsync(DateOnly today, int weeks = 12, CancellationToken ct = default)
     {
         var from = today.AddDays(-7 * weeks);
-        var confirmed = await db.AttendanceRecords
+        var confirmed = await db.AttendanceRecords.AsNoTracking()
             .Where(a => a.Status == AttendanceStatus.Confirmed && a.Session.Date >= from)
             .Select(a => a.Session.Date)
             .ToListAsync(ct);

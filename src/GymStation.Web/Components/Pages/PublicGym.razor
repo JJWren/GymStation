@@ -23,8 +23,8 @@ else
         <meta name="description" content="@($"{_gym.Name}: weekly schedule, instructors, and how to visit.")" />
     </HeadContent>
 
-    @* Tenant accent applies to the public face too. *@
-    <div style="--tenant:@_accent">
+    @* Tenant accent AND the gym's default mode apply to the public face too. *@
+    <div class="@(_dark ? null : "theme-light")" style="--tenant:@_accent">
         <header class="pub-hero" style="@(_settings?.HeroPath is { } hero ? $"background-image:url('/media/{hero}')" : null)">
             <div class="pub-hero-scrim">
                 @if (_settings?.LogoPath is { } logo)
@@ -91,6 +91,7 @@ else
     private Gym? _gym;
     private GymSettings? _settings;
     private string _accent = "#C9503B";
+    private bool _dark = true;
     private List<KeyValuePair<DayOfWeek, List<ClassTemplate>>> _week = [];
     private List<(Person Person, string? Experience)> _instructors = [];
 
@@ -106,9 +107,14 @@ else
         Tenant.SetGym(_gym.Id);
 
         _settings = await Db.GymSettings.SingleOrDefaultAsync();
-        if (_settings is not null && ThemeMath.TryParseHexColor(_settings.AccentColorHex, out _))
+        if (_settings is not null)
         {
-            _accent = _settings.AccentColorHex;
+            if (ThemeMath.TryParseHexColor(_settings.AccentColorHex, out _))
+            {
+                _accent = _settings.AccentColorHex;
+            }
+
+            _dark = _settings.DefaultThemeDark;
         }
 
         var templates = await Db.ClassTemplates.Where(t => t.Active).OrderBy(t => t.StartTime).ToListAsync();
