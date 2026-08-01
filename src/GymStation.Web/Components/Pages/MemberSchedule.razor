@@ -5,7 +5,7 @@
 @using GymStation.Domain.Attendance
 @using GymStation.Domain.Scheduling
 @using GymStation.Domain.Tenancy
-@inject GymStationDbContext Db
+@inject IDbContextFactory<GymStationDbContext> DbFactory
 @inject GymStation.Infrastructure.Scheduling.ScheduleService Schedule
 @inject ITenantContext Tenant
 
@@ -112,11 +112,12 @@
     protected override async Task OnInitializedAsync()
     {
         _date = DateOnly.TryParse(DateRaw, out var parsed) ? parsed : DateOnly.FromDateTime(DateTime.Today);
+        await using var db = await DbFactory.CreateDbContextAsync();
 
         var diff = ((int)_date.DayOfWeek + 6) % 7;
         var sessions = (await Schedule.GetWeekAsync(_date.AddDays(-diff))).Where(s => s.Date == _date);
 
-        _types = await Db.ClassTypes.Where(t => !t.Archived).OrderBy(t => t.Name).ToListAsync();
+        _types = await db.ClassTypes.Where(t => !t.Archived).OrderBy(t => t.Name).ToListAsync();
 
         _sessions = sessions
             .Where(s => Type == null || s.ClassTypes.Any(t => t.Name == Type))
@@ -124,14 +125,14 @@
             .ToList();
 
         var ids = _sessions.Where(s => s.InstructorPersonId != null).Select(s => s.InstructorPersonId!.Value).Distinct().ToList();
-        _names = await Db.Persons.Where(p => ids.Contains(p.Id)).ToDictionaryAsync(p => p.Id, p => p.DisplayName);
+        _names = await db.Persons.Where(p => ids.Contains(p.Id)).ToDictionaryAsync(p => p.Id, p => p.DisplayName);
 
-        var settings = await Db.GymSettings.SingleOrDefaultAsync();
+        var settings = await db.GymSettings.SingleOrDefaultAsync();
         _windowMinutes = settings?.CheckInWindowMinutes ?? 60;
 
         if (Tenant.CurrentGymId is { } gymId)
         {
-            var gym = await Db.Gyms.SingleAsync(g => g.Id == gymId);
+            var gym = await db.Gyms.SingleAsync(g => g.Id == gymId);
             var zone = TimeZoneInfo.FindSystemTimeZoneById(gym.TimeZoneId);
             _gymNow = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, zone).DateTime;
         }
@@ -139,14 +140,14 @@
         var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (Guid.TryParse(raw, out var userId))
         {
-            var mine = await Db.Persons.Where(p => p.UserId == userId && !p.Archived).ToListAsync();
-            var childIds = await Db.GuardianLinks.Where(l => l.GuardianUserId == userId).Select(l => l.ChildPersonId).ToListAsync();
-            var children = await Db.Persons.Where(p => childIds.Contains(p.Id) && !p.Archived).ToListAsync();
+            var mine = await db.Persons.Where(p => p.UserId == userId && !p.Archived).ToListAsync();
+            var childIds = await db.GuardianLinks.Where(l => l.GuardianUserId == userId).Select(l => l.ChildPersonId).ToListAsync();
+            var children = await db.Persons.Where(p => childIds.Contains(p.Id) && !p.Archived).ToListAsync();
             _checkable = [.. mine, .. children];
 
             var checkableIds = _checkable.Select(p => p.Id).ToList();
             var sessionIds = _sessions.Select(s => s.Id).ToList();
-            _records = await Db.AttendanceRecords
+            _records = await db.AttendanceRecords
                 .Where(a => sessionIds.Contains(a.SessionId) && checkableIds.Contains(a.PersonId))
                 .ToDictionaryAsync(a => ValueTuple.Create(a.SessionId, a.PersonId));
         }

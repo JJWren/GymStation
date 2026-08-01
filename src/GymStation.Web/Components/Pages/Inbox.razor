@@ -3,7 +3,7 @@
 @layout MemberLayout
 @using System.Security.Claims
 @using GymStation.Domain.Notifications
-@inject GymStationDbContext Db
+@inject IDbContextFactory<GymStationDbContext> DbFactory
 @inject NavigationManager Nav
 
 <PageTitle>Notifications · GymStation</PageTitle>
@@ -59,7 +59,8 @@
             return;
         }
 
-        _items = await Db.Notifications
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _items = await db.Notifications
             .Where(n => n.RecipientUserId == userId)
             .OrderByDescending(n => n.CreatedUtc)
             .Take(50)
@@ -71,12 +72,13 @@
         var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (Guid.TryParse(raw, out var userId))
         {
-            var unread = await Db.Notifications.Where(n => n.RecipientUserId == userId && n.ReadUtc == null).ToListAsync();
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var unread = await db.Notifications.Where(n => n.RecipientUserId == userId && n.ReadUtc == null).ToListAsync();
             foreach (var notification in unread)
             {
                 notification.ReadUtc = DateTimeOffset.UtcNow;
             }
-            await Db.SaveChangesAsync();
+            await db.SaveChangesAsync();
         }
 
         Nav.NavigateTo("/notifications");

@@ -5,7 +5,7 @@
 @using GymStation.Infrastructure.Attendance
 @using GymStation.Infrastructure.Ranks
 @using GymStation.Infrastructure.Training
-@inject GymStationDbContext Db
+@inject IDbContextFactory<GymStationDbContext> DbFactory
 @inject RankService Ranks
 @inject AttendanceService Attendance
 @inject TrainingDiaryService Diary
@@ -87,7 +87,8 @@
             return;
         }
 
-        var me = await Db.Persons.SingleOrDefaultAsync(p => p.UserId == userId && !p.Archived);
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var me = await db.Persons.SingleOrDefaultAsync(p => p.UserId == userId && !p.Archived);
         if (me is null)
         {
             return;

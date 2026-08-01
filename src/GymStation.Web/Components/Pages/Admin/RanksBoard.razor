@@ -1,7 +1,7 @@
 @page "/admin/ranks"
 @attribute [Authorize(Policy = "GymStaff")]
 @layout AdminLayout
-@inject GymStationDbContext Db
+@inject IDbContextFactory<GymStationDbContext> DbFactory
 @inject RankService Ranks
 
 <PageTitle>Ranks · GymStation</PageTitle>
@@ -62,9 +62,10 @@
         _systems = await Ranks.GetVisibleSystemsAsync();
         _selected = _systems.FirstOrDefault(s => s.Id == SystemId) ?? _systems.FirstOrDefault();
 
-        var awards = await Db.RankAwards.Include(a => a.Rank).ToListAsync();
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var awards = await db.RankAwards.Include(a => a.Rank).ToListAsync();
         var personIds = awards.Select(a => a.PersonId).Distinct().ToList();
-        var persons = await Db.Persons.Where(p => personIds.Contains(p.Id) && !p.Archived).ToDictionaryAsync(p => p.Id);
+        var persons = await db.Persons.Where(p => personIds.Contains(p.Id) && !p.Archived).ToDictionaryAsync(p => p.Id);
 
         foreach (var group in awards.GroupBy(a => a.PersonId))
         {

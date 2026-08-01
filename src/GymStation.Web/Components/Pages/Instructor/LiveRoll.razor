@@ -2,7 +2,7 @@
 @attribute [Authorize(Policy = "GymInstructor")]
 @using GymStation.Domain.Attendance
 @using GymStation.Domain.Scheduling
-@inject GymStationDbContext Db
+@inject IDbContextFactory<GymStationDbContext> DbFactory
 
 <PageTitle>Live roll · GymStation</PageTitle>
 
@@ -88,19 +88,20 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        _session = await Db.ClassSessions.SingleOrDefaultAsync(s => s.Id == SessionId);
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _session = await db.ClassSessions.SingleOrDefaultAsync(s => s.Id == SessionId);
         if (_session is null)
         {
             return;
         }
 
-        var gym = await Db.Gyms.SingleAsync(g => g.Id == _session.GymId);
+        var gym = await db.Gyms.SingleAsync(g => g.Id == _session.GymId);
         _zone = TimeZoneInfo.FindSystemTimeZoneById(gym.TimeZoneId);
 
-        _records = await Db.AttendanceRecords.Where(a => a.SessionId == SessionId).ToListAsync();
+        _records = await db.AttendanceRecords.Where(a => a.SessionId == SessionId).ToListAsync();
 
         var onRoll = _records.Select(r => r.PersonId).ToHashSet();
-        var people = await Db.Persons.Where(p => !p.Archived).OrderBy(p => p.FirstName).ToListAsync();
+        var people = await db.Persons.Where(p => !p.Archived).OrderBy(p => p.FirstName).ToListAsync();
         _names = people.ToDictionary(p => p.Id, p => p.DisplayName);
         _addable = people.Where(p => !onRoll.Contains(p.Id)).Select(p => (p.Id, p.DisplayName)).ToList();
     }

@@ -188,12 +188,14 @@ a { color: var(--ink); }
 
 /* ---- public gym page ---- */
 .pub-hero { min-height: 300px; background: radial-gradient(ellipse 90% 70% at 50% 20%, rgba(201,80,59,.14), transparent 60%), linear-gradient(180deg, #232B36 0%, #1A2028 55%, #14181E 100%); background-size: cover; background-position: center; display: flex; }
-.pub-hero-scrim { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; padding: 26px; background: linear-gradient(180deg, rgba(20,24,30,.15), rgba(20,24,30,.82)); }
+/* Hero/strip/foot backgrounds stay full-bleed, but their CONTENT aligns to the same
+   centered column as .pub-section: 430px = (900px − 2×20px padding) / 2. */
+.pub-hero-scrim { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; padding: 26px; padding-inline: max(20px, calc(50% - 430px)); background: linear-gradient(180deg, rgba(20,24,30,.15), rgba(20,24,30,.82)); }
 .pub-hero h1 { font: 38px/1 var(--font-display); }
 .pub-crest { width: 46px; height: 46px; border-radius: 11px; margin-bottom: 12px; object-fit: cover; }
 .pub-tag { font: 600 10px/1 var(--font-mono); letter-spacing: .2em; color: var(--ink-dim); margin: 8px 0 16px; }
 .pub-hero .btn { width: max-content; text-decoration: none; display: inline-block; }
-.pub-strip { background: var(--panel); border-top: 1px solid var(--edge); border-bottom: 1px solid var(--edge); padding: 14px 20px; }
+.pub-strip { background: var(--panel); border-top: 1px solid var(--edge); border-bottom: 1px solid var(--edge); padding: 14px 20px; padding-inline: max(20px, calc(50% - 430px)); }
 .pub-strip h2, .pub-section h2 { font: 600 10px/1 var(--font-mono); letter-spacing: .2em; color: var(--ink-dim); margin-bottom: 12px; }
 .pub-days { display: flex; gap: 8px; overflow-x: auto; }
 .pub-day { flex: none; background: var(--surface); border-radius: 9px; padding: 9px 11px; min-width: 106px; }
@@ -201,7 +203,7 @@ a { color: var(--ink); }
 .pub-day span { display: block; font: 600 10px/1.6 var(--font-mono); color: var(--ink-dim); }
 .pub-section { padding: 22px 20px; max-width: 900px; margin: 0 auto; }
 .pub-coaches { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
-.pub-foot { border-top: 1px solid var(--edge); padding: 16px 20px; display: flex; justify-content: space-between; font: 600 9px/1 var(--font-mono); color: var(--ink-faint); letter-spacing: .12em; flex-wrap: wrap; gap: 8px; }
+.pub-foot { border-top: 1px solid var(--edge); padding: 16px 20px; padding-inline: max(20px, calc(50% - 430px)); display: flex; justify-content: space-between; font: 600 9px/1 var(--font-mono); color: var(--ink-faint); letter-spacing: .12em; flex-wrap: wrap; gap: 8px; }
 
 /* ---- light mode (paper ledger) — applied via .theme-light wrapper ---- */
 .theme-light {

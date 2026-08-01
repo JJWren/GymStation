@@ -2,7 +2,7 @@
 @attribute [Authorize(Policy = "GymStaff")]
 @layout AdminLayout
 @using GymStation.Domain.Tenancy
-@inject GymStationDbContext Db
+@inject IDbContextFactory<GymStationDbContext> DbFactory
 @inject NavigationManager Nav
 
 <PageTitle>Settings · GymStation</PageTitle>
@@ -106,8 +106,9 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _settings = await Db.GymSettings.SingleOrDefaultAsync();
-        var gym = await Db.Gyms.SingleOrDefaultAsync(g => g.Id == Db.CurrentGymId);
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _settings = await db.GymSettings.SingleOrDefaultAsync();
+        var gym = await db.Gyms.SingleOrDefaultAsync(g => g.Id == db.CurrentGymId);
         _gymSlug = gym?.Slug;
 
         if (_settings is not null && HttpContext?.Request.Method != "POST")
@@ -123,11 +124,6 @@
 
     private async Task SaveAsync()
     {
-        if (_settings is null)
-        {
-            return;
-        }
-
         if (!ThemeMath.IsAccessibleAccent(Form.AccentColorHex))
         {
             _error = $"'{Form.AccentColorHex}' fails the 3:1 contrast check against {ThemeMath.DarkBackground} (mat) or {ThemeMath.LightBackground} (paper). Pick a stronger mid-tone.";
@@ -146,14 +142,23 @@
             return;
         }
 
-        _settings.CheckInWindowMinutes = Form.CheckInWindowMinutes;
-        _settings.AccentColorHex = Form.AccentColorHex;
-        _settings.DefaultThemeDark = Form.DefaultThemeDark;
+        // Entities loaded during OnInitializedAsync belong to a context that is already
+        // disposed — re-load inside this handler's own context so the changes track.
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var settings = await db.GymSettings.SingleOrDefaultAsync();
+        if (settings is null)
+        {
+            return;
+        }
 
-        var gym = await Db.Gyms.SingleAsync(g => g.Id == Db.CurrentGymId);
+        settings.CheckInWindowMinutes = Form.CheckInWindowMinutes;
+        settings.AccentColorHex = Form.AccentColorHex;
+        settings.DefaultThemeDark = Form.DefaultThemeDark;
+
+        var gym = await db.Gyms.SingleAsync(g => g.Id == db.CurrentGymId);
         gym.TimeZoneId = Form.TimeZoneId;
 
-        await Db.SaveChangesAsync();
+        await db.SaveChangesAsync();
         Nav.NavigateTo("/admin/settings");
     }
 }

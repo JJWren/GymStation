@@ -3,7 +3,7 @@
 @layout MemberLayout
 @using System.Security.Claims
 @using GymStation.Domain.Events
-@inject GymStationDbContext Db
+@inject IDbContextFactory<GymStationDbContext> DbFactory
 
 <PageTitle>Events · GymStation</PageTitle>
 
@@ -60,19 +60,20 @@
     protected override async Task OnInitializedAsync()
     {
         var today = DateOnly.FromDateTime(DateTime.Today);
-        _events = await Db.GymEvents
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _events = await db.GymEvents
             .Where(e => e.StartsOn >= today.AddDays(-1))
             .OrderBy(e => e.StartsOn)
             .ToListAsync();
 
         var eventIds = _events.Select(e => e.Id).ToList();
-        var rsvps = await Db.EventRsvps.Where(r => eventIds.Contains(r.EventId)).ToListAsync();
+        var rsvps = await db.EventRsvps.Where(r => eventIds.Contains(r.EventId)).ToListAsync();
         _counts = rsvps.GroupBy(r => (r.EventId, r.Status)).ToDictionary(g => g.Key, g => g.Count());
 
         var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (Guid.TryParse(raw, out var userId))
         {
-            var me = await Db.Persons.SingleOrDefaultAsync(p => p.UserId == userId && !p.Archived);
+            var me = await db.Persons.SingleOrDefaultAsync(p => p.UserId == userId && !p.Archived);
             if (me is not null)
             {
                 _myRsvps = rsvps.Where(r => r.PersonId == me.Id)

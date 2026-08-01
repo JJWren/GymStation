@@ -27,7 +27,15 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Reports.ReportService>();
         services.AddScoped<Seeding.DemoSeeder>();
         services.AddSingleton<IFileStore>(new LocalFileStore(storageRoot));
-        services.AddDbContext<GymStationDbContext>(o => o.UseNpgsql(connectionString));
+
+        // Scoped factory, and (via the same call) the context itself as a scoped service.
+        // Services share the scoped context — NotificationService relies on joining the
+        // caller's SaveChanges (transactional outbox). Blazor components must NOT: the
+        // renderer overlaps component inits within one request, and concurrent queries on
+        // one context throw. Components take IDbContextFactory and create their own.
+        services.AddDbContextFactory<GymStationDbContext>(
+            o => o.UseNpgsql(connectionString),
+            ServiceLifetime.Scoped);
         return services;
     }
 

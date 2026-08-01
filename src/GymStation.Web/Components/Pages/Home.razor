@@ -7,7 +7,7 @@
 @using GymStation.Infrastructure.Money
 @using GymStation.Infrastructure.Tenancy
 @using Microsoft.EntityFrameworkCore
-@inject GymStationDbContext Db
+@inject IDbContextFactory<GymStationDbContext> DbFactory
 @inject LedgerService Ledger
 @inject ITenantContext Tenant
 
@@ -87,20 +87,21 @@ else
 
         var today = DateOnly.FromDateTime(DateTime.Today);
 
-        _activeMembers = await Db.Persons.CountAsync(p => !p.Archived);
-        _weekCheckins = await Db.AttendanceRecords.CountAsync(a => a.Session.Date >= today.AddDays(-7) && a.Status != AttendanceStatus.Removed);
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _activeMembers = await db.Persons.CountAsync(p => !p.Archived);
+        _weekCheckins = await db.AttendanceRecords.CountAsync(a => a.Session.Date >= today.AddDays(-7) && a.Status != AttendanceStatus.Removed);
 
         var summary = await Ledger.MonthSummaryAsync(today);
         _collected = summary.CollectedInMonth;
         _outstanding = summary.Outstanding;
         _behindCount = summary.MembersBehind;
 
-        _unfilledSwaps = await Db.SubstitutionRequests.CountAsync(r => r.Status == SubstitutionStatus.Requested);
-        _pendingApprovals = await Db.SubstitutionRequests.CountAsync(r => r.Status == SubstitutionStatus.PendingApproval);
+        _unfilledSwaps = await db.SubstitutionRequests.CountAsync(r => r.Status == SubstitutionStatus.Requested);
+        _pendingApprovals = await db.SubstitutionRequests.CountAsync(r => r.Status == SubstitutionStatus.PendingApproval);
 
-        _today = await Db.ClassSessions.Where(s => s.Date == today).OrderBy(s => s.StartTime).ToListAsync();
+        _today = await db.ClassSessions.Where(s => s.Date == today).OrderBy(s => s.StartTime).ToListAsync();
         var ids = _today.Select(s => s.Id).ToList();
-        var records = await Db.AttendanceRecords.Where(a => ids.Contains(a.SessionId)).ToListAsync();
+        var records = await db.AttendanceRecords.Where(a => ids.Contains(a.SessionId)).ToListAsync();
         _counts = records.GroupBy(a => a.SessionId).ToDictionary(
             g => g.Key,
             g => (g.Count(a => a.Status == AttendanceStatus.Confirmed), g.Count(a => a.Status == AttendanceStatus.Pending)));

@@ -2,7 +2,7 @@
 @attribute [Authorize(Policy = "GymStaff")]
 @layout AdminLayout
 @using System.Security.Claims
-@inject GymStationDbContext Db
+@inject IDbContextFactory<GymStationDbContext> DbFactory
 @inject RankService Ranks
 @inject GymStation.Infrastructure.Attendance.AttendanceService Attendance
 @inject NavigationManager Nav
@@ -257,7 +257,8 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        _person = await Db.Persons.SingleOrDefaultAsync(p => p.Id == PersonId);
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _person = await db.Persons.SingleOrDefaultAsync(p => p.Id == PersonId);
         if (_person is null)
         {
             return;
@@ -270,13 +271,13 @@ else
         _current = (await Ranks.GetPrimaryRanksAsync([PersonId])).GetValueOrDefault(PersonId);
 
         var awarderIds = _awards.Where(a => a.AwardedByPersonId is not null).Select(a => a.AwardedByPersonId!.Value).Distinct().ToList();
-        _names = await Db.Persons.Where(p => awarderIds.Contains(p.Id))
+        _names = await db.Persons.Where(p => awarderIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, p => p.DisplayName);
 
-        _plans = await Db.MembershipPlans.Where(p => !p.Archived).OrderBy(p => p.Price).ToListAsync();
+        _plans = await db.MembershipPlans.Where(p => !p.Archived).OrderBy(p => p.Price).ToListAsync();
 
-        var charges = await Db.Charges.Where(c => c.PersonId == PersonId).ToListAsync();
-        var payments = await Db.Payments.Where(p => p.PersonId == PersonId).ToListAsync();
+        var charges = await db.Charges.Where(c => c.PersonId == PersonId).ToListAsync();
+        var payments = await db.Payments.Where(p => p.PersonId == PersonId).ToListAsync();
         _balance = GymStation.Domain.Money.LedgerMath.Balance(charges, payments);
         _ledgerLines = charges.Select(c => (c.RaisedOn, "CHARGE · " + c.Description.ToUpperInvariant(), c.Amount, true))
             .Concat(payments.Select(p => (p.ReceivedOn, "PAYMENT", p.Amount, false)))
@@ -284,12 +285,12 @@ else
             .Take(8)
             .ToList();
 
-        var guardianUserIds = await Db.GuardianLinks.Where(l => l.ChildPersonId == PersonId)
+        var guardianUserIds = await db.GuardianLinks.Where(l => l.ChildPersonId == PersonId)
             .Select(l => l.GuardianUserId).ToListAsync();
-        _guardianEmails = await Db.Users.Where(u => guardianUserIds.Contains(u.Id))
+        _guardianEmails = await db.Users.Where(u => guardianUserIds.Contains(u.Id))
             .Select(u => u.Email ?? u.UserName ?? "unknown").ToListAsync();
 
-        var profile = await Db.InstructorProfiles.SingleOrDefaultAsync(p => p.PersonId == PersonId);
+        var profile = await db.InstructorProfiles.SingleOrDefaultAsync(p => p.PersonId == PersonId);
         if (profile is not null && HttpContext?.Request.Method != "POST")
         {
             ProfileForm = new InstructorProfileForm
@@ -316,7 +317,8 @@ else
             Guid? awardedBy = null;
             if (!AwardForm.SelfReported && Guid.TryParse(raw, out var userId))
             {
-                awardedBy = (await Db.Persons.SingleOrDefaultAsync(p => p.UserId == userId))?.Id;
+                await using var db = await DbFactory.CreateDbContextAsync();
+                awardedBy = (await db.Persons.SingleOrDefaultAsync(p => p.UserId == userId))?.Id;
             }
 
             await Ranks.RecordAwardAsync(PersonId, rankId, AwardForm.Stripes, AwardForm.AwardedOn, awardedBy, AwardForm.SelfReported, null);
@@ -330,18 +332,19 @@ else
 
     private async Task SaveProfileAsync()
     {
-        var profile = await Db.InstructorProfiles.SingleOrDefaultAsync(p => p.PersonId == PersonId);
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var profile = await db.InstructorProfiles.SingleOrDefaultAsync(p => p.PersonId == PersonId);
         if (profile is null)
         {
             profile = new InstructorProfile { PersonId = PersonId };
-            Db.InstructorProfiles.Add(profile);
+            db.InstructorProfiles.Add(profile);
         }
 
         profile.ExperienceSummary = ProfileForm.ExperienceSummary;
         profile.Bio = ProfileForm.Bio;
         profile.PayRate = ProfileForm.PayRate;
         profile.PayRateUnit = ProfileForm.PayRateUnit;
-        await Db.SaveChangesAsync();
+        await db.SaveChangesAsync();
 
         Nav.NavigateTo($"/admin/people/{PersonId}");
     }

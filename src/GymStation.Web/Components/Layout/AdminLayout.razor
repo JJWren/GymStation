@@ -2,7 +2,7 @@
 @using GymStation.Infrastructure
 @using GymStation.Infrastructure.Tenancy
 @using Microsoft.EntityFrameworkCore
-@inject GymStationDbContext Db
+@inject IDbContextFactory<GymStationDbContext> DbFactory
 @inject ITenantContext Tenant
 
 <div class="app-frame @(_dark ? null : "theme-light")" style="--tenant:@_accent">
@@ -57,9 +57,10 @@
     {
         if (Tenant.CurrentGymId is { } gymId)
         {
-            _gymName = (await Db.Gyms.SingleOrDefaultAsync(g => g.Id == gymId))?.Name.ToUpperInvariant();
+            await using var db = await DbFactory.CreateDbContextAsync();
+            _gymName = (await db.Gyms.SingleOrDefaultAsync(g => g.Id == gymId))?.Name.ToUpperInvariant();
 
-            var settings = await Db.GymSettings.SingleOrDefaultAsync();
+            var settings = await db.GymSettings.SingleOrDefaultAsync();
             if (settings is not null)
             {
                 if (GymStation.Domain.Tenancy.ThemeMath.TryParseHexColor(settings.AccentColorHex, out _))

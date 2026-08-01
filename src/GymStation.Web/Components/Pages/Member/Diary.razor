@@ -4,7 +4,7 @@
 @using System.Security.Claims
 @using GymStation.Domain.Training
 @using GymStation.Infrastructure.Training
-@inject GymStationDbContext Db
+@inject IDbContextFactory<GymStationDbContext> DbFactory
 @inject TrainingDiaryService DiaryService
 @inject NavigationManager Nav
 
@@ -140,17 +140,18 @@
 
         _entries = await DiaryService.GetMineAsync(_userId);
 
-        var me = await Db.Persons.SingleOrDefaultAsync(p => p.UserId == _userId && !p.Archived);
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var me = await db.Persons.SingleOrDefaultAsync(p => p.UserId == _userId && !p.Archived);
         if (me is not null)
         {
             var cutoff = DateOnly.FromDateTime(DateTime.Today).AddDays(-7);
-            _recentSessions = await Db.AttendanceRecords
+            _recentSessions = await db.AttendanceRecords
                 .Where(a => a.PersonId == me.Id && a.Session.Date >= cutoff)
                 .Select(a => a.Session)
                 .OrderByDescending(s => s.Date)
                 .ToListAsync();
 
-            var partnerPersons = await Db.Persons
+            var partnerPersons = await db.Persons
                 .Where(p => !p.Archived && p.Id != me.Id)
                 .OrderBy(p => p.FirstName)
                 .ToListAsync();
