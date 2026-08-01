@@ -1,0 +1,154 @@
+@page "/admin/events"
+@attribute [Authorize(Policy = "GymStaff")]
+@layout AdminLayout
+@using System.Security.Claims
+@using GymStation.Domain.Events
+@using GymStation.Domain.Notifications
+@using GymStation.Infrastructure.Notifications
+@inject GymStationDbContext Db
+@inject NotificationService Notifications
+@inject NavigationManager Nav
+
+<PageTitle>Events · GymStation</PageTitle>
+
+<h1 class="page-title">EVENTS</h1>
+<p class="page-sub">TOURNAMENTS · SEMINARS · GRADINGS — PUBLISHED TO EVERY MEMBER'S FEED</p>
+
+<div class="detail-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start">
+    <section>
+        <h2 class="section-h">Upcoming</h2>
+        @foreach (var gymEvent in _events)
+        {
+            <div class="form-card" style="margin-bottom:8px">
+                <div class="head-row">
+                    <b>@gymEvent.Title</b>
+                    <span class="chip">@gymEvent.Kind.ToString().ToUpperInvariant()</span>
+                </div>
+                <p class="cap" style="margin:4px 0">
+                    @gymEvent.StartsOn.ToString("ddd dd MMM yyyy").ToUpperInvariant()
+                    · @_counts.GetValueOrDefault((gymEvent.Id, RsvpStatus.Going)) GOING
+                    · @_counts.GetValueOrDefault((gymEvent.Id, RsvpStatus.Interested)) INTERESTED
+                </p>
+            </div>
+        }
+        @if (_events.Count == 0)
+        {
+            <p class="cap">NO UPCOMING EVENTS.</p>
+        }
+    </section>
+
+    <section>
+        <h2 class="section-h">Publish event</h2>
+        <EditForm class="form-card" FormName="add-event" Model="Form" OnValidSubmit="PublishAsync">
+            <label for="etitle">Title</label>
+            <InputText id="etitle" @bind-Value="Form.Title" />
+            <div class="form-grid">
+                <div>
+                    <label for="ekind">Kind</label>
+                    <InputSelect id="ekind" @bind-Value="Form.Kind">
+                        @foreach (var kind in Enum.GetValues<GymEventKind>())
+                        {
+                            <option value="@kind">@kind</option>
+                        }
+                    </InputSelect>
+                </div>
+                <div>
+                    <label for="eon">Date</label>
+                    <InputDate id="eon" @bind-Value="Form.StartsOn" />
+                </div>
+                <div>
+                    <label for="etime">Time info</label>
+                    <InputText id="etime" @bind-Value="Form.TimeInfo" placeholder="11:00–14:00" />
+                </div>
+                <div>
+                    <label for="eloc">Location</label>
+                    <InputText id="eloc" @bind-Value="Form.Location" />
+                </div>
+            </div>
+            <label for="edet">Details</label>
+            <InputTextArea id="edet" @bind-Value="Form.Details" rows="3" />
+            @if (_error is not null)
+            {
+                <p class="validation-message">@_error</p>
+            }
+            <p style="margin-top:12px"><button class="btn" type="submit">PUBLISH — NOTIFIES MEMBERS</button></p>
+        </EditForm>
+    </section>
+</div>
+
+@code {
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+
+    [SupplyParameterFromForm(FormName = "add-event")]
+    public EventForm? PostedForm { get; set; }
+
+    private EventForm Form => PostedForm ??= new();
+
+    private List<GymEvent> _events = [];
+    private Dictionary<(Guid, RsvpStatus), int> _counts = [];
+    private string? _error;
+
+    public class EventForm
+    {
+        public string Title { get; set; } = "";
+        public GymEventKind Kind { get; set; } = GymEventKind.Tournament;
+        public DateOnly StartsOn { get; set; } = DateOnly.FromDateTime(DateTime.Today).AddDays(14);
+        public string? TimeInfo { get; set; }
+        public string? Location { get; set; }
+        public string? Details { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        _events = await Db.GymEvents.Where(e => e.StartsOn >= today.AddDays(-1)).OrderBy(e => e.StartsOn).ToListAsync();
+        var ids = _events.Select(e => e.Id).ToList();
+        var rsvps = await Db.EventRsvps.Where(r => ids.Contains(r.EventId)).ToListAsync();
+        _counts = rsvps.GroupBy(r => (r.EventId, r.Status)).ToDictionary(g => g.Key, g => g.Count());
+    }
+
+    private async Task PublishAsync()
+    {
+        if (string.IsNullOrWhiteSpace(Form.Title))
+        {
+            _error = "A title is required.";
+            return;
+        }
+
+        var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        Guid publisherPersonId = Guid.Empty;
+        if (Guid.TryParse(raw, out var userId))
+        {
+            publisherPersonId = (await Db.Persons.SingleOrDefaultAsync(p => p.UserId == userId))?.Id ?? Guid.Empty;
+        }
+
+        var title = Form.Title.Trim();
+        Db.GymEvents.Add(new GymEvent
+        {
+            Id = Guid.NewGuid(),
+            Title = title,
+            Kind = Form.Kind,
+            StartsOn = Form.StartsOn,
+            TimeInfo = Form.TimeInfo,
+            Location = Form.Location,
+            Details = Form.Details,
+            PublishedByPersonId = publisherPersonId,
+        });
+
+        var memberUserIds = await Db.Persons
+            .Where(p => !p.Archived && p.UserId != null && p.Roles.HasFlag(PersonRoles.Member))
+            .Select(p => p.UserId!.Value)
+            .Distinct()
+            .ToListAsync();
+        Notifications.Notify(
+            memberUserIds,
+            NotificationCategory.SessionChanged,
+            $"New event: {title}",
+            $"{Form.Kind} on {Form.StartsOn:dddd dd MMMM}. RSVP from the Events tab.",
+            "/events",
+            email: false);
+
+        await Db.SaveChangesAsync();
+        Nav.NavigateTo("/admin/events");
+    }
+}
