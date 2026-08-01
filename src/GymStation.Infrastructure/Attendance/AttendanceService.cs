@@ -92,6 +92,15 @@ public class AttendanceService(GymStationDbContext db)
                     throw new InvalidOperationException("Only instructors or staff can add members to the roll.");
                 }
                 break;
+
+            case CheckInSource.Self:
+                // Own-record check already passed in the pattern above.
+                break;
+
+            default:
+                // Out-of-range enum values (bad model binding, future callers) must never
+                // slip past authorization.
+                throw new InvalidOperationException($"Unknown check-in source '{source}'.");
         }
     }
 
