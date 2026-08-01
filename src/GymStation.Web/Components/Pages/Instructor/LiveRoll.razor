@@ -1,0 +1,107 @@
+@page "/instructor/roll/{SessionId:guid}"
+@attribute [Authorize(Policy = "GymInstructor")]
+@using GymStation.Domain.Attendance
+@using GymStation.Domain.Scheduling
+@inject GymStationDbContext Db
+
+<PageTitle>Live roll · GymStation</PageTitle>
+
+@if (_session is null)
+{
+    <main class="member-shell"><p class="cap">SESSION NOT FOUND IN THE ACTIVE GYM.</p></main>
+}
+else
+{
+    @* The one deliberately dark-boarded surface: scoreboard semantics are literally true here. *@
+    <main class="roll-board">
+        <div class="roll-head">
+            <h1>@_session.Name.ToUpperInvariant() · @_session.StartTime.ToString("HH\\:mm")</h1>
+            <span>@_session.Date.ToString("ddd dd MMM").ToUpperInvariant() · AUTO-CONFIRM @CheckInWindow.AutoConfirmAt(_session).ToString("HH\\:mm")</span>
+        </div>
+
+        @if (Failed)
+        {
+            <p class="auth-error" role="alert">That change couldn't be applied — reload and try again.</p>
+        }
+
+        <div class="roll-nums">
+            <div class="num"><b>@_records.Count(r => r.Status != AttendanceStatus.Removed)</b><span>ON THE MAT</span></div>
+            <div class="num num--pend"><b>@_records.Count(r => r.Status == AttendanceStatus.Pending)</b><span>PENDING</span></div>
+            <div class="num num--ok"><b>@_records.Count(r => r.Status == AttendanceStatus.Confirmed)</b><span>CONFIRMED</span></div>
+        </div>
+
+        @foreach (var record in _records.OrderBy(r => r.Status).ThenBy(r => _names.GetValueOrDefault(r.PersonId)))
+        {
+            <div class="roll-row @(record.Status == AttendanceStatus.Removed ? "roll-row--out" : null)">
+                <span class="nm">@_names.GetValueOrDefault(record.PersonId, "?")</span>
+                <span class="src">@record.Source.ToString().ToUpperInvariant() · @GymLocal(record.CheckedInUtc).ToString("HH\\:mm")</span>
+                <span class="stamp @(record.Status switch { AttendanceStatus.Confirmed => "stamp--ok", AttendanceStatus.Pending => "stamp--warn", _ => "stamp--bad" })">@record.Status.ToString().ToUpperInvariant()</span>
+                <span class="roll-actions">
+                    @if (record.Status != AttendanceStatus.Confirmed)
+                    {
+                        <form method="post" action="/instructor/actions/set-attendance"><AntiforgeryToken /><input type="hidden" name="recordId" value="@record.Id" /><input type="hidden" name="sessionId" value="@SessionId" /><input type="hidden" name="status" value="confirmed" /><button class="btn btn--xs" type="submit">✓</button></form>
+                    }
+                    @if (record.Status != AttendanceStatus.Removed)
+                    {
+                        <form method="post" action="/instructor/actions/set-attendance"><AntiforgeryToken /><input type="hidden" name="recordId" value="@record.Id" /><input type="hidden" name="sessionId" value="@SessionId" /><input type="hidden" name="status" value="removed" /><button class="btn btn--ghost btn--xs" type="submit">✕</button></form>
+                    }
+                </span>
+            </div>
+        }
+
+        <div class="roll-foot">
+            <form method="post" action="/instructor/actions/add-attendance" class="row-form">
+                <AntiforgeryToken />
+                <input type="hidden" name="sessionId" value="@SessionId" />
+                <select name="personId" aria-label="Add member to roll">
+                    @foreach (var (id, name) in _addable)
+                    {
+                        <option value="@id">@name</option>
+                    }
+                </select>
+                <button class="btn btn--ghost btn--xs" type="submit">+ ADD (NO PHONE)</button>
+            </form>
+            @if (_records.Any(r => r.Status == AttendanceStatus.Pending))
+            {
+                <form method="post" action="/instructor/actions/confirm-all">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="sessionId" value="@SessionId" />
+                    <button class="btn" type="submit">CONFIRM ALL · @_records.Count(r => r.Status == AttendanceStatus.Pending)</button>
+                </form>
+            }
+        </div>
+    </main>
+}
+
+@code {
+    [Parameter] public Guid SessionId { get; set; }
+    [SupplyParameterFromQuery(Name = "failed")] public int? FailedFlag { get; set; }
+    private bool Failed => FailedFlag == 1;
+
+    private ClassSession? _session;
+    private List<AttendanceRecord> _records = [];
+    private Dictionary<Guid, string> _names = [];
+    private List<(Guid Id, string Name)> _addable = [];
+    private TimeZoneInfo _zone = TimeZoneInfo.Utc;
+
+    private DateTimeOffset GymLocal(DateTimeOffset utc) => TimeZoneInfo.ConvertTime(utc, _zone);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _session = await Db.ClassSessions.SingleOrDefaultAsync(s => s.Id == SessionId);
+        if (_session is null)
+        {
+            return;
+        }
+
+        var gym = await Db.Gyms.SingleAsync(g => g.Id == _session.GymId);
+        _zone = TimeZoneInfo.FindSystemTimeZoneById(gym.TimeZoneId);
+
+        _records = await Db.AttendanceRecords.Where(a => a.SessionId == SessionId).ToListAsync();
+
+        var onRoll = _records.Select(r => r.PersonId).ToHashSet();
+        var people = await Db.Persons.Where(p => !p.Archived).OrderBy(p => p.FirstName).ToListAsync();
+        _names = people.ToDictionary(p => p.Id, p => p.DisplayName);
+        _addable = people.Where(p => !onRoll.Contains(p.Id)).Select(p => (p.Id, p.DisplayName)).ToList();
+    }
+}

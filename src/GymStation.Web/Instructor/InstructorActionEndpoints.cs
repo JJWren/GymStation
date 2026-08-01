@@ -1,5 +1,7 @@
 using System.Security.Claims;
+using GymStation.Domain.Attendance;
 using GymStation.Infrastructure;
+using GymStation.Infrastructure.Attendance;
 using GymStation.Infrastructure.Scheduling;
 using GymStation.Web.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -80,6 +82,58 @@ public static class InstructorActionEndpoints
             }
 
             return Results.Redirect("/instructor/swaps");
+        });
+
+        group.MapPost("/set-attendance", async ([FromForm] Guid recordId, [FromForm] Guid sessionId, [FromForm] string status, AttendanceService attendance) =>
+        {
+            AttendanceStatus? target = status switch
+            {
+                "confirmed" => AttendanceStatus.Confirmed,
+                "removed" => AttendanceStatus.Removed,
+                _ => null,
+            };
+
+            if (target is null)
+            {
+                return Results.Redirect($"/instructor/roll/{sessionId}?failed=1");
+            }
+
+            try
+            {
+                await attendance.SetStatusAsync(recordId, sessionId, target.Value);
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Redirect($"/instructor/roll/{sessionId}?failed=1");
+            }
+
+            return Results.Redirect($"/instructor/roll/{sessionId}");
+        });
+
+        group.MapPost("/confirm-all", async ([FromForm] Guid sessionId, AttendanceService attendance) =>
+        {
+            await attendance.ConfirmAllPendingAsync(sessionId);
+            return Results.Redirect($"/instructor/roll/{sessionId}");
+        });
+
+        group.MapPost("/add-attendance", async ([FromForm] Guid sessionId, [FromForm] Guid personId, ClaimsPrincipal user, AttendanceService attendance) =>
+        {
+            var raw = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(raw, out var userId))
+            {
+                return Results.Redirect($"/instructor/roll/{sessionId}?failed=1");
+            }
+
+            try
+            {
+                await attendance.CheckInAsync(sessionId, personId, CheckInSource.Instructor, userId);
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Redirect($"/instructor/roll/{sessionId}?failed=1");
+            }
+
+            return Results.Redirect($"/instructor/roll/{sessionId}");
         });
 
         return app;

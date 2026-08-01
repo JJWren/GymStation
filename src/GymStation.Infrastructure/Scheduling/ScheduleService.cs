@@ -86,12 +86,22 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
         session.Status = SessionStatus.Cancelled;
         session.CancelledReason = reason;
 
-        // Phase 4 broadens this to checked-in members; today the instructor + staff hear about it.
         var recipients = await notifications.StaffUserIdsAsync(ct);
         if (session.InstructorPersonId is { } instructorPersonId)
         {
             recipients.AddRange(await notifications.UserIdsForPersonsAsync([instructorPersonId], ct));
         }
+
+        // Everyone already checked in (and their guardians) hears about the cancellation.
+        var checkedInPersonIds = await db.AttendanceRecords
+            .Where(a => a.SessionId == session.Id && a.Status != Domain.Attendance.AttendanceStatus.Removed)
+            .Select(a => a.PersonId)
+            .ToListAsync(ct);
+        recipients.AddRange(await notifications.UserIdsForPersonsAsync(checkedInPersonIds, ct));
+        recipients.AddRange(await db.GuardianLinks
+            .Where(l => checkedInPersonIds.Contains(l.ChildPersonId))
+            .Select(l => l.GuardianUserId)
+            .ToListAsync(ct));
 
         notifications.Notify(
             recipients,

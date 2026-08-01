@@ -156,6 +156,24 @@ a { color: var(--ink); }
 .daynav a { color: var(--ink-faint); text-decoration: none; font-size: 16px; }
 @media (max-width: 760px) { .detail-cols { grid-template-columns: 1fr !important; } }
 
+/* ---- live roll (the scoreboard moment: deliberately darker board) ---- */
+.roll-board { max-width: 720px; margin: 0 auto; padding: 26px 18px; background: #0E1116; min-height: 100vh; }
+.roll-head { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #232B36; padding-bottom: 12px; margin-bottom: 16px; flex-wrap: wrap; gap: 6px; }
+.roll-head h1 { font: 20px/1 var(--font-display); }
+.roll-head span { font: 600 10px/1.4 var(--font-mono); letter-spacing: .14em; color: var(--ink-faint); }
+.roll-nums { display: flex; gap: 12px; margin-bottom: 18px; }
+.roll-nums .num { flex: 1; background: #12161D; border: 1px solid #232B36; border-radius: 10px; padding: 12px; text-align: center; }
+.roll-nums b { font: 700 42px/1 var(--font-mono); display: block; }
+.roll-nums span { font: 600 8.5px/1 var(--font-mono); letter-spacing: .2em; color: var(--ink-faint); }
+.roll-nums .num--pend b { color: var(--warn); }
+.roll-nums .num--ok b { color: var(--ok); }
+.roll-row { display: flex; align-items: center; gap: 10px; padding: 10px 6px; border-bottom: 1px solid #232B36; flex-wrap: wrap; }
+.roll-row .nm { flex: 1; font: 600 14px/1.2 var(--font-body); min-width: 120px; }
+.roll-row .src { font: 9px/1 var(--font-mono); letter-spacing: .1em; color: var(--ink-faint); }
+.roll-row--out { opacity: .45; }
+.roll-actions { display: flex; gap: 6px; }
+.roll-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; gap: 10px; flex-wrap: wrap; }
+
 /* ---- validation / errors ---- */
 .valid.modified:not([type=checkbox]) { outline: 1px solid var(--ok); }
 .invalid { outline: 1px solid var(--bad); }

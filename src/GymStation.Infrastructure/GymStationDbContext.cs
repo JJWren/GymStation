@@ -1,3 +1,4 @@
+using GymStation.Domain.Attendance;
 using GymStation.Domain.Notifications;
 using GymStation.Domain.People;
 using GymStation.Domain.Ranks;
@@ -38,6 +39,7 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
     public DbSet<SubstitutionRequest> SubstitutionRequests => Set<SubstitutionRequest>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
+    public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -163,6 +165,15 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
             e.Property(d => d.Error).HasMaxLength(500);
             e.HasIndex(d => new { d.Status, d.Channel });
             e.HasQueryFilter(d => CurrentGymId != null && d.GymId == CurrentGymId);
+        });
+
+        builder.Entity<AttendanceRecord>(e =>
+        {
+            e.HasIndex(a => new { a.SessionId, a.PersonId }).IsUnique();
+            e.HasIndex(a => new { a.GymId, a.PersonId, a.Status });
+            e.HasOne(a => a.Session).WithMany().HasForeignKey(a => a.SessionId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(a => a.Person).WithMany().HasForeignKey(a => a.PersonId).OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(a => CurrentGymId != null && a.GymId == CurrentGymId);
         });
     }
 

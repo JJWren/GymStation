@@ -1,8 +1,12 @@
 @page "/schedule"
 @attribute [Authorize]
+@using System.Security.Claims
+@using GymStation.Domain.Attendance
 @using GymStation.Domain.Scheduling
+@using GymStation.Domain.Tenancy
 @inject GymStationDbContext Db
 @inject GymStation.Infrastructure.Scheduling.ScheduleService Schedule
+@inject ITenantContext Tenant
 
 <PageTitle>Schedule · GymStation</PageTitle>
 
@@ -22,6 +26,11 @@
                style="@(Type == type.Name ? $"border-color:{type.ColorHex};color:{type.ColorHex}" : null)">@type.Name</a>
         }
     </div>
+
+    @if (Failed)
+    {
+        <p class="auth-error" role="alert">That check-in couldn't be recorded — the window may be closed.</p>
+    }
 
     @if (_sessions.Count == 0)
     {
@@ -45,19 +54,59 @@
             {
                 <span class="stamp stamp--bad">CANCELLED</span>
             }
+            else
+            {
+                @foreach (var person in _checkable)
+                {
+                    var record = _records.GetValueOrDefault((session.Id, person.Id));
+                    <div class="row-form">
+                        @if (_checkable.Count > 1)
+                        {
+                            <span class="mono">@person.FirstName</span>
+                        }
+                        @if (record is not null)
+                        {
+                            <span class="stamp @(record.Status == AttendanceStatus.Confirmed ? "stamp--ok" : record.Status == AttendanceStatus.Pending ? "stamp--warn" : "stamp--bad")">
+                                @(record.Status == AttendanceStatus.Pending ? "CHECKED IN · PENDING ROLL" : record.Status.ToString().ToUpperInvariant())
+                            </span>
+                        }
+                        else if (WindowOpen(session))
+                        {
+                            <form method="post" action="/member/actions/check-in">
+                                <AntiforgeryToken />
+                                <input type="hidden" name="sessionId" value="@session.Id" />
+                                <input type="hidden" name="personId" value="@person.Id" />
+                                <input type="hidden" name="date" value="@_date.ToString("yyyy-MM-dd")" />
+                                <button class="btn btn--xs" type="submit">CHECK IN</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <span class="cap" style="margin:0">WINDOW @(BeforeWindow(session) ? $"OPENS {session.StartTime.AddMinutes(-_windowMinutes):HH\\:mm}" : "CLOSED")</span>
+                        }
+                    </div>
+                }
+            }
         </div>
     }
-    <p class="cap">CHECK-IN ARRIVES WITH PHASE 4 — THIS LIST GETS THE WINDOW-AWARE BUTTON THEN.</p>
 </main>
 
 @code {
     [SupplyParameterFromQuery(Name = "date")] public string? DateRaw { get; set; }
     [SupplyParameterFromQuery(Name = "type")] public string? Type { get; set; }
+    [SupplyParameterFromQuery(Name = "failed")] public int? FailedFlag { get; set; }
+    private bool Failed => FailedFlag == 1;
+
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
 
     private DateOnly _date;
     private List<ClassSession> _sessions = [];
     private List<ClassType> _types = [];
     private Dictionary<Guid, string> _names = [];
+    private List<Person> _checkable = [];
+    private Dictionary<(Guid SessionId, Guid PersonId), AttendanceRecord> _records = [];
+    private int _windowMinutes = 60;
+    private DateTime _gymNow;
 
     protected override async Task OnInitializedAsync()
     {
@@ -75,5 +124,35 @@
 
         var ids = _sessions.Where(s => s.InstructorPersonId != null).Select(s => s.InstructorPersonId!.Value).Distinct().ToList();
         _names = await Db.Persons.Where(p => ids.Contains(p.Id)).ToDictionaryAsync(p => p.Id, p => p.DisplayName);
+
+        var settings = await Db.GymSettings.SingleOrDefaultAsync();
+        _windowMinutes = settings?.CheckInWindowMinutes ?? 60;
+
+        if (Tenant.CurrentGymId is { } gymId)
+        {
+            var gym = await Db.Gyms.SingleAsync(g => g.Id == gymId);
+            var zone = TimeZoneInfo.FindSystemTimeZoneById(gym.TimeZoneId);
+            _gymNow = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, zone).DateTime;
+        }
+
+        var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (Guid.TryParse(raw, out var userId))
+        {
+            var mine = await Db.Persons.Where(p => p.UserId == userId && !p.Archived).ToListAsync();
+            var childIds = await Db.GuardianLinks.Where(l => l.GuardianUserId == userId).Select(l => l.ChildPersonId).ToListAsync();
+            var children = await Db.Persons.Where(p => childIds.Contains(p.Id) && !p.Archived).ToListAsync();
+            _checkable = [.. mine, .. children];
+
+            var checkableIds = _checkable.Select(p => p.Id).ToList();
+            var sessionIds = _sessions.Select(s => s.Id).ToList();
+            _records = await Db.AttendanceRecords
+                .Where(a => sessionIds.Contains(a.SessionId) && checkableIds.Contains(a.PersonId))
+                .ToDictionaryAsync(a => ValueTuple.Create(a.SessionId, a.PersonId));
+        }
     }
+
+    private bool WindowOpen(ClassSession session) => CheckInWindow.IsOpen(session, _gymNow, _windowMinutes);
+
+    private bool BeforeWindow(ClassSession session)
+        => _gymNow < session.Date.ToDateTime(session.StartTime).AddMinutes(-_windowMinutes);
 }
