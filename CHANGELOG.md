@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.2](https://github.com/JJWren/GymStation/compare/v1.0.1...v1.0.2) (2026-08-01)
+
+
+### Bug Fixes
+
+* chart rendering and labels, desktop readability, roster sorting and filters ([#31](https://github.com/JJWren/GymStation/issues/31)) ([65e3fc6](https://github.com/JJWren/GymStation/commit/65e3fc6b8fb3e3d564402e8874d5aa7dc91bbc17))
+* SSR form binding, member access control, and navigation ([#21](https://github.com/JJWren/GymStation/issues/21)) ([c7b3eb1](https://github.com/JJWren/GymStation/commit/c7b3eb1784bf22e003e602acfdf5487aa8f5421a))
+
 ## [1.0.1](https://github.com/JJWren/GymStation/compare/v1.0.0...v1.0.1) (2026-08-01)
 
 
