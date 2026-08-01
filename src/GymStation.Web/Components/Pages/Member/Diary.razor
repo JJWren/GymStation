@@ -1,0 +1,185 @@
+@page "/diary"
+@attribute [Authorize]
+@layout MemberLayout
+@using System.Security.Claims
+@using GymStation.Domain.Training
+@using GymStation.Infrastructure.Training
+@inject GymStationDbContext Db
+@inject TrainingDiaryService DiaryService
+@inject NavigationManager Nav
+
+<PageTitle>Diary · GymStation</PageTitle>
+
+<main class="member-shell" style="padding-top:6px">
+    <div class="head-row">
+        <h1 class="page-title" style="font-size:20px">DIARY</h1>
+        <span class="chip" style="border-color:var(--ok);color:var(--ok)">🔒 ONLY YOU CAN SEE THIS</span>
+    </div>
+
+    <h2 class="section-h">New entry</h2>
+    <EditForm class="form-card" FormName="add-entry" Model="Form" OnValidSubmit="AddAsync">
+        <div class="form-grid">
+            <div>
+                <label for="dkind">Kind</label>
+                <InputSelect id="dkind" @bind-Value="Form.Kind">
+                    <option value="@TrainingEntryKind.LessonNotes">Lesson notes</option>
+                    <option value="@TrainingEntryKind.RollLog">Roll log</option>
+                    <option value="@TrainingEntryKind.SelfReported">Self-reported training</option>
+                </InputSelect>
+            </div>
+            <div>
+                <label for="ddate">Date</label>
+                <InputDate id="ddate" @bind-Value="Form.EntryDate" />
+            </div>
+        </div>
+        <label for="dsession">Link to a recent session (optional)</label>
+        <InputSelect id="dsession" @bind-Value="Form.SessionId">
+            <option value="">— none —</option>
+            @foreach (var session in _recentSessions)
+            {
+                <option value="@session.Id">@session.Date.ToString("ddd dd MMM") · @session.Name</option>
+            }
+        </InputSelect>
+        <label for="dnotes">Notes</label>
+        <InputTextArea id="dnotes" @bind-Value="Form.Notes" rows="3" />
+        <label for="dmin">Minutes (self-reported entries only — counts toward your self-reported tier)</label>
+        <InputNumber id="dmin" @bind-Value="Form.SelfReportedMinutes" />
+
+        <label>Rolls (optional — partner tags stay inside your private entry)</label>
+        @for (var i = 0; i < Form.Rolls.Count; i++)
+        {
+            var index = i;
+            <div class="row-form" style="margin-bottom:6px">
+                <InputSelect @bind-Value="Form.Rolls[index].PartnerPersonId" aria-label="Partner from roster">
+                    <option value="">— partner —</option>
+                    @foreach (var (id, name) in _partners)
+                    {
+                        <option value="@id">@name</option>
+                    }
+                </InputSelect>
+                <InputText @bind-Value="Form.Rolls[index].PartnerText" placeholder="or free text" aria-label="Partner free text" />
+                <InputText @bind-Value="Form.Rolls[index].Summary" placeholder="2x5min · even" aria-label="Roll summary" />
+            </div>
+        }
+
+        @if (_error is not null)
+        {
+            <p class="validation-message">@_error</p>
+        }
+        <p style="margin-top:12px"><button class="btn" type="submit">+ SAVE ENTRY</button></p>
+    </EditForm>
+
+    <h2 class="section-h">Entries</h2>
+    @foreach (var entry in _entries)
+    {
+        <div class="form-card" style="margin-bottom:10px">
+            <div class="head-row">
+                <b class="mono" style="color:var(--ink)">@entry.EntryDate.ToString("ddd dd MMM yyyy").ToUpperInvariant()</b>
+                <span class="chip @(entry.Kind == TrainingEntryKind.SelfReported ? "chip--on" : null)">
+                    @(entry.Kind switch { TrainingEntryKind.RollLog => "ROLL LOG", TrainingEntryKind.SelfReported => $"SELF · {entry.SelfReportedMinutes}MIN", _ => "LESSON" })
+                </span>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(entry.Notes))
+            {
+                <p style="margin:6px 0;color:var(--ink-dim)">@entry.Notes</p>
+            }
+            @foreach (var roll in entry.Rolls)
+            {
+                <div class="head-row" style="border-top:1px dashed #2c3440;padding:5px 0">
+                    <span class="mono" style="color:var(--ink)">@roll.PartnerLabel.ToUpperInvariant()</span>
+                    <span class="mono">@roll.Summary</span>
+                </div>
+            }
+        </div>
+    }
+    @if (_entries.Count == 0)
+    {
+        <p class="cap">NO ENTRIES YET. LOG WHAT YOU LEARNED TONIGHT.</p>
+    }
+</main>
+
+@code {
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+
+    [SupplyParameterFromForm(FormName = "add-entry")]
+    public EntryForm? PostedForm { get; set; }
+
+    private EntryForm Form => PostedForm ??= new();
+
+    private List<TrainingEntry> _entries = [];
+    private List<GymStation.Domain.Scheduling.ClassSession> _recentSessions = [];
+    private List<(Guid Id, string Name)> _partners = [];
+    private string? _error;
+
+    public class RollRow
+    {
+        public Guid? PartnerPersonId { get; set; }
+        public string? PartnerText { get; set; }
+        public string? Summary { get; set; }
+    }
+
+    public class EntryForm
+    {
+        public TrainingEntryKind Kind { get; set; } = TrainingEntryKind.LessonNotes;
+        public DateOnly EntryDate { get; set; } = DateOnly.FromDateTime(DateTime.Today);
+        public Guid? SessionId { get; set; }
+        public string? Notes { get; set; }
+        public int? SelfReportedMinutes { get; set; }
+        public List<RollRow> Rolls { get; set; } = [new(), new(), new()];
+    }
+
+    private Guid _userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(raw, out _userId))
+        {
+            return;
+        }
+
+        _entries = await DiaryService.GetMineAsync(_userId);
+
+        var me = await Db.Persons.SingleOrDefaultAsync(p => p.UserId == _userId && !p.Archived);
+        if (me is not null)
+        {
+            var cutoff = DateOnly.FromDateTime(DateTime.Today).AddDays(-7);
+            _recentSessions = await Db.AttendanceRecords
+                .Where(a => a.PersonId == me.Id && a.Session.Date >= cutoff)
+                .Select(a => a.Session)
+                .OrderByDescending(s => s.Date)
+                .ToListAsync();
+
+            var partnerPersons = await Db.Persons
+                .Where(p => !p.Archived && p.Id != me.Id)
+                .OrderBy(p => p.FirstName)
+                .ToListAsync();
+            _partners = partnerPersons.Select(p => (p.Id, p.DisplayName)).ToList();
+        }
+    }
+
+    private async Task AddAsync()
+    {
+        var partnerNames = _partners.ToDictionary(p => p.Id, p => p.Name);
+        var rolls = Form.Rolls
+            .Select(r =>
+            {
+                var label = r.PartnerPersonId is { } id && partnerNames.TryGetValue(id, out var name)
+                    ? name
+                    : r.PartnerText ?? "";
+                return ((Guid?)r.PartnerPersonId, label, r.Summary);
+            })
+            .Where(r => !string.IsNullOrWhiteSpace(r.label))
+            .ToList();
+
+        try
+        {
+            await DiaryService.AddAsync(_userId, Form.Kind, Form.EntryDate, Form.SessionId, Form.Notes, Form.SelfReportedMinutes, rolls);
+            Nav.NavigateTo("/diary");
+        }
+        catch (InvalidOperationException ex)
+        {
+            _error = ex.Message;
+        }
+    }
+}

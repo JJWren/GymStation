@@ -1,0 +1,102 @@
+@page "/progress"
+@attribute [Authorize]
+@layout MemberLayout
+@using System.Security.Claims
+@using GymStation.Infrastructure.Attendance
+@using GymStation.Infrastructure.Ranks
+@using GymStation.Infrastructure.Training
+@inject GymStationDbContext Db
+@inject RankService Ranks
+@inject AttendanceService Attendance
+@inject TrainingDiaryService Diary
+
+<PageTitle>Progress · GymStation</PageTitle>
+
+<main class="member-shell" style="padding-top:6px">
+    <h1 class="page-title" style="font-size:20px">PROGRESS</h1>
+
+    @if (_current is not null)
+    {
+        <div class="form-card" style="margin-top:12px">
+            <BeltBar Size="l" BandColorHex="@_current.Rank.BandColorHex" BarColorHex="@_current.Rank.BarColorHex"
+                     Stripes="@_current.Stripes" Label="@($"{_current.Rank.Name}, {_current.Stripes} stripes")" />
+            <p class="cap" style="margin-top:8px">
+                @_current.Rank.Name.ToUpperInvariant() · @_current.Stripes STRIPES ·
+                @RankProgress.FormatDuration(Today.ToDateTime(TimeOnly.MinValue) - _current.AtRankSince.ToDateTime(TimeOnly.MinValue)) AT BELT
+                @(_ageGroup is null ? null : $" · IBJJF: {_ageGroup.ToUpperInvariant()}")
+            </p>
+        </div>
+    }
+
+    <h2 class="section-h">Mat hours — two tiers</h2>
+    <div class="filters">
+        <span class="chip chip--on">@_hours.VerifiedHours GYM-VERIFIED</span>
+        <span class="chip" style="border-color:var(--ok);color:var(--ok)">@_hours.SelfReportedHours SELF-REPORTED</span>
+        <span class="chip">@_hours.TotalHours TOTAL</span>
+    </div>
+    <p class="cap">VERIFIED = CONFIRMED CHECK-INS · SELF-REPORTED = YOUR DIARY · OWNER STATS USE VERIFIED ONLY</p>
+
+    <h2 class="section-h">Sessions / week — last 12</h2>
+    <div class="form-card">
+        <div style="display:flex;gap:3px;align-items:flex-end;height:52px" aria-label="Weekly confirmed sessions">
+            @foreach (var count in _weekly)
+            {
+                <i style="flex:1;background:var(--tenant);opacity:.75;border-radius:2px 2px 0 0;height:@(Math.Min(count * 20, 100))%"></i>
+            }
+        </div>
+        <p class="cap" style="margin-top:6px">AVG @_avg /WK</p>
+    </div>
+
+    <h2 class="section-h">Promotion history</h2>
+    <div class="form-card tl">
+        @foreach (var award in _awards)
+        {
+            <div class="ev">
+                <span class="d">@award.AwardedOn.ToString("dd MMM yy").ToUpperInvariant()</span>
+                <div>
+                    <BeltBar Size="s" BandColorHex="@award.Rank.BandColorHex" BarColorHex="@award.Rank.BarColorHex"
+                             Stripes="@award.Stripes" Label="@($"{award.Rank.Name}, {award.Stripes} stripes")" />
+                    <div class="who">@(award.Stripes > 0 ? "STRIPE" : "PROMOTION")@(award.SelfReported ? " · SELF-REPORTED" : null)</div>
+                </div>
+                <span></span>
+            </div>
+        }
+        @if (_awards.Count == 0)
+        {
+            <p class="cap">NO RANK HISTORY YET.</p>
+        }
+    </div>
+</main>
+
+@code {
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+
+    private CurrentRank? _current;
+    private List<RankAward> _awards = [];
+    private TwoTierHours _hours = new(0, 0);
+    private double _avg;
+    private List<int> _weekly = [];
+    private string? _ageGroup;
+    private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(raw, out var userId))
+        {
+            return;
+        }
+
+        var me = await Db.Persons.SingleOrDefaultAsync(p => p.UserId == userId && !p.Archived);
+        if (me is null)
+        {
+            return;
+        }
+
+        _ageGroup = GymStation.Domain.People.IbjjfAgeGroup.FromBirthDate(me.DateOfBirth, Today);
+        _current = (await Ranks.GetPrimaryRanksAsync([me.Id])).GetValueOrDefault(me.Id);
+        _awards = await Ranks.GetAwardsForPersonAsync(me.Id);
+        _hours = await Diary.HoursAsync(userId);
+        (_avg, _, _weekly) = await Attendance.StatsAsync(me.Id, Today);
+    }
+}

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using GymStation.Domain.Attendance;
+using GymStation.Domain.Events;
 using GymStation.Infrastructure;
 using GymStation.Infrastructure.Attendance;
 using GymStation.Web.Http;
@@ -51,6 +52,50 @@ public static class MemberActionEndpoints
             }
 
             return Results.Redirect(back);
+        });
+
+        group.MapPost("/rsvp", async (
+            [FromForm] Guid eventId,
+            [FromForm] string status,
+            ClaimsPrincipal user,
+            GymStationDbContext db) =>
+        {
+            RsvpStatus? target = status switch
+            {
+                "going" => RsvpStatus.Going,
+                "interested" => RsvpStatus.Interested,
+                _ => null,
+            };
+
+            var raw = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (target is null || !Guid.TryParse(raw, out var userId))
+            {
+                return Results.Redirect("/events");
+            }
+
+            var me = await db.Persons.SingleOrDefaultAsync(p => p.UserId == userId && !p.Archived);
+            if (me is null || !await db.GymEvents.AnyAsync(e => e.Id == eventId))
+            {
+                return Results.Redirect("/events");
+            }
+
+            var existing = await db.EventRsvps.SingleOrDefaultAsync(r => r.EventId == eventId && r.PersonId == me.Id);
+            if (existing is null)
+            {
+                db.EventRsvps.Add(new EventRsvp { Id = Guid.NewGuid(), EventId = eventId, PersonId = me.Id, Status = target.Value });
+            }
+            else if (existing.Status == target.Value)
+            {
+                // Same button again = un-RSVP.
+                db.EventRsvps.Remove(existing);
+            }
+            else
+            {
+                existing.Status = target.Value;
+            }
+
+            await db.SaveChangesAsync();
+            return Results.Redirect("/events");
         });
 
         return app;

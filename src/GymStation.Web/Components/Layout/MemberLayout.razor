@@ -1,0 +1,40 @@
+@inherits LayoutComponentBase
+@using GymStation.Infrastructure
+@using GymStation.Infrastructure.Tenancy
+@using Microsoft.EntityFrameworkCore
+@inject GymStationDbContext Db
+@inject ITenantContext Tenant
+
+<div class="member-frame">
+    <header class="member-top">
+        <div><b>@(_gymName ?? "GYMSTATION")</b><i>MEMBER</i></div>
+        <a class="bell" href="/notifications" aria-label="Notifications">▲</a>
+    </header>
+    <div class="member-body">
+        @Body
+    </div>
+    <nav class="member-tabs" aria-label="Member navigation">
+        <NavLink href="/schedule"><b>▦</b><span>SCHEDULE</span></NavLink>
+        <NavLink href="/diary"><b>▤</b><span>DIARY</span></NavLink>
+        <NavLink href="/progress"><b>▲</b><span>PROGRESS</span></NavLink>
+        <NavLink href="/events"><b>★</b><span>EVENTS</span></NavLink>
+    </nav>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    private string? _gymName;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Tenant.CurrentGymId is { } gymId)
+        {
+            _gymName = (await Db.Gyms.SingleOrDefaultAsync(g => g.Id == gymId))?.Name.ToUpperInvariant();
+        }
+    }
+}

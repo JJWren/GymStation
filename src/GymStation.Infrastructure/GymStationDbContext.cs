@@ -1,10 +1,12 @@
 using GymStation.Domain.Attendance;
+using GymStation.Domain.Events;
 using GymStation.Domain.Money;
 using GymStation.Domain.Notifications;
 using GymStation.Domain.People;
 using GymStation.Domain.Ranks;
 using GymStation.Domain.Scheduling;
 using GymStation.Domain.Tenancy;
+using GymStation.Domain.Training;
 using GymStation.Infrastructure.Identity;
 using GymStation.Infrastructure.Ranks;
 using GymStation.Infrastructure.Tenancy;
@@ -46,6 +48,10 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<ExpenseCategory> ExpenseCategories => Set<ExpenseCategory>();
     public DbSet<Expense> Expenses => Set<Expense>();
+    public DbSet<TrainingEntry> TrainingEntries => Set<TrainingEntry>();
+    public DbSet<TrainingRoll> TrainingRolls => Set<TrainingRoll>();
+    public DbSet<GymEvent> GymEvents => Set<GymEvent>();
+    public DbSet<EventRsvp> EventRsvps => Set<EventRsvp>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -222,6 +228,38 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
             e.Property(x => x.Note).HasMaxLength(300);
             e.HasOne(x => x.Category).WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(x => new { x.GymId, x.SpentOn });
+            e.HasQueryFilter(x => CurrentGymId != null && x.GymId == CurrentGymId);
+        });
+
+        builder.Entity<TrainingEntry>(e =>
+        {
+            e.Property(t => t.Notes).HasMaxLength(4000);
+            e.HasIndex(t => new { t.GymId, t.PersonId, t.EntryDate });
+            e.HasMany(t => t.Rolls).WithOne().HasForeignKey(r => r.TrainingEntryId).OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(t => CurrentGymId != null && t.GymId == CurrentGymId);
+        });
+
+        builder.Entity<TrainingRoll>(e =>
+        {
+            e.Property(r => r.PartnerLabel).HasMaxLength(120);
+            e.Property(r => r.Summary).HasMaxLength(300);
+            e.HasQueryFilter(r => CurrentGymId != null && r.GymId == CurrentGymId);
+        });
+
+        builder.Entity<GymEvent>(e =>
+        {
+            e.Property(x => x.Title).HasMaxLength(150);
+            e.Property(x => x.TimeInfo).HasMaxLength(100);
+            e.Property(x => x.Location).HasMaxLength(200);
+            e.Property(x => x.Details).HasMaxLength(2000);
+            e.HasIndex(x => new { x.GymId, x.StartsOn });
+            e.HasQueryFilter(x => CurrentGymId != null && x.GymId == CurrentGymId);
+        });
+
+        builder.Entity<EventRsvp>(e =>
+        {
+            e.HasIndex(x => new { x.EventId, x.PersonId }).IsUnique();
+            e.HasOne<GymEvent>().WithMany().HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
             e.HasQueryFilter(x => CurrentGymId != null && x.GymId == CurrentGymId);
         });
     }
