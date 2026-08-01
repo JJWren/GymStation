@@ -17,6 +17,11 @@ else
 {
     <p class="page-sub"><a href="/admin/roster">ROSTER</a> → @_person.DisplayName.ToUpperInvariant()</p>
 
+    @if (Failed)
+    {
+        <p class="auth-error" role="alert">That action was rejected — check the amount or plan and try again.</p>
+    }
+
     <header class="patch" style="display:flex;gap:18px;align-items:center">
         <div class="avatar avatar--l" role="img" aria-label="Portrait placeholder"></div>
         <div style="flex:1;position:relative;z-index:1">
@@ -199,6 +204,9 @@ else
 
 @code {
     [Parameter] public Guid PersonId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "failed")] public int? FailedFlag { get; set; }
+    private bool Failed => FailedFlag == 1;
 
     [CascadingParameter] public HttpContext? HttpContext { get; set; }
 

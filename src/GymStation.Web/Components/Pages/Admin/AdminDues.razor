@@ -169,8 +169,9 @@
         _planCounts = counts.ToDictionary(x => x.Key, x => x.Count);
 
         var monthStart = new DateOnly(_month.Year, _month.Month, 1);
+        var monthEnd = monthStart.AddMonths(1).AddDays(-1);
         _expenses = await Db.Expenses.Include(x => x.Category)
-            .Where(x => x.SpentOn >= monthStart)
+            .Where(x => x.SpentOn >= monthStart && x.SpentOn <= monthEnd)
             .OrderByDescending(x => x.SpentOn)
             .ToListAsync();
         _categories = await Db.ExpenseCategories.Where(c => !c.Archived).OrderBy(c => c.Name).ToListAsync();
@@ -178,9 +179,11 @@
 
     private async Task AddPlanAsync()
     {
-        if (!string.IsNullOrWhiteSpace(PlanForm.Name) && PlanForm.Price > 0)
+        var name = PlanForm.Name.Trim();
+        if (!string.IsNullOrWhiteSpace(name) && PlanForm.Price > 0
+            && !await Db.MembershipPlans.AnyAsync(p => p.Name == name))
         {
-            Db.MembershipPlans.Add(new MembershipPlan { Id = Guid.NewGuid(), Name = PlanForm.Name.Trim(), Price = PlanForm.Price });
+            Db.MembershipPlans.Add(new MembershipPlan { Id = Guid.NewGuid(), Name = name, Price = PlanForm.Price });
             await Db.SaveChangesAsync();
         }
 
@@ -192,8 +195,16 @@
         var categoryId = ExpenseForm.CategoryId;
         if (!string.IsNullOrWhiteSpace(ExpenseForm.NewCategory))
         {
-            var category = new ExpenseCategory { Id = Guid.NewGuid(), Name = ExpenseForm.NewCategory.Trim().ToUpperInvariant() };
-            Db.ExpenseCategories.Add(category);
+            // Reuse an existing category (incl. the seeded starters) instead of tripping
+            // the unique (GymId, Name) index.
+            var name = ExpenseForm.NewCategory.Trim().ToUpperInvariant();
+            var category = await Db.ExpenseCategories.SingleOrDefaultAsync(c => c.Name == name);
+            if (category is null)
+            {
+                category = new ExpenseCategory { Id = Guid.NewGuid(), Name = name };
+                Db.ExpenseCategories.Add(category);
+            }
+
             categoryId = category.Id;
         }
 

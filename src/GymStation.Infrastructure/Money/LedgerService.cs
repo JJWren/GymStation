@@ -64,10 +64,11 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
             {
                 await db.SaveChangesAsync(ct);
             }
-            catch (DbUpdateException)
+            catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: "23505" })
             {
-                // A concurrent cycle run inserted the same (person, cycle) rows; the unique
-                // index kept the ledger correct.
+                // Unique-violation only: a concurrent cycle run inserted the same
+                // (person, cycle) rows and the index kept the ledger correct.
+                // Anything else (FK, truncation) surfaces.
                 db.ChangeTracker.Clear();
                 return 0;
             }
@@ -111,8 +112,13 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
     public async Task<List<DuesRow>> DuesAsync(CancellationToken ct = default)
     {
         var charges = await db.Charges.ToListAsync(ct);
-        var payments = await db.Payments.ToListAsync(ct);
+        if (charges.Count == 0)
+        {
+            return [];
+        }
+
         var personIds = charges.Select(c => c.PersonId).Distinct().ToList();
+        var payments = await db.Payments.Where(p => personIds.Contains(p.PersonId)).ToListAsync(ct);
         var names = await db.Persons.Where(p => personIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, p => p.DisplayName, ct);
 

@@ -61,6 +61,11 @@ public static class AdminActionEndpoints
             LedgerService ledger) =>
         {
             var destination = back == "person" ? $"/admin/people/{personId}" : "/admin/dues";
+            if (amount <= 0)
+            {
+                return Results.Redirect($"{destination}?failed=1");
+            }
+
             var raw = user.FindFirstValue(ClaimTypes.NameIdentifier);
             Guid? recordedBy = null;
             if (Guid.TryParse(raw, out var userId))
@@ -68,12 +73,18 @@ public static class AdminActionEndpoints
                 recordedBy = (await db.Persons.SingleOrDefaultAsync(p => p.UserId == userId))?.Id;
             }
 
+            // Received date in gym-local time, matching /run-cycle (UTC could shift the day/month).
+            var gym = await db.Gyms.SingleAsync(g => g.Id == db.CurrentGymId);
+            var zone = TimeZoneInfo.FindSystemTimeZoneById(gym.TimeZoneId);
+            var receivedOn = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, zone).DateTime);
+
             try
             {
-                await ledger.RecordPaymentAsync(personId, amount, DateOnly.FromDateTime(DateTime.UtcNow), recordedBy, null);
+                await ledger.RecordPaymentAsync(personId, amount, receivedOn, recordedBy, null);
             }
             catch (InvalidOperationException)
             {
+                // Person not visible in the active gym (stale form) — same failure surface.
                 return Results.Redirect($"{destination}?failed=1");
             }
 

@@ -50,11 +50,23 @@ public class ChargeCycleWorker(IServiceScopeFactory scopeFactory, ILogger<Charge
 
         foreach (var gym in gyms)
         {
-            var zone = TimeZoneInfo.FindSystemTimeZoneById(gym.TimeZoneId);
-            var gymToday = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, zone).DateTime);
+            try
+            {
+                var zone = TimeZoneInfo.FindSystemTimeZoneById(gym.TimeZoneId);
+                var gymToday = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, zone).DateTime);
 
-            tenant.SetGym(gym.Id);
-            await ledger.RaiseMonthlyChargesAsync(gymToday, ct);
+                tenant.SetGym(gym.Id);
+                await ledger.RaiseMonthlyChargesAsync(gymToday, ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // One gym's bad data (e.g. timezone id) must not starve the rest of the pass.
+                logger.LogError(ex, "Charge cycle failed for gym {GymId}.", gym.Id);
+            }
+            finally
+            {
+                db.ChangeTracker.Clear();
+            }
         }
 
         tenant.Clear();
