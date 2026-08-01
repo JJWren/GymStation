@@ -1,0 +1,283 @@
+@page "/admin/schedule"
+@attribute [Authorize(Policy = "GymStaff")]
+@layout AdminLayout
+@using GymStation.Domain.Scheduling
+@using GymStation.Domain.Tenancy
+@using GymStation.Infrastructure.Scheduling
+@inject GymStationDbContext Db
+@inject ScheduleService Schedule
+@inject NavigationManager Nav
+
+<PageTitle>Schedule · GymStation</PageTitle>
+
+<div class="head-row">
+    <h1 class="page-title">SCHEDULE</h1>
+    <div class="mono">
+        WK OF @_weekStart.ToString("dd MMM yyyy").ToUpperInvariant() ·
+        <a href="/admin/schedule?start=@_weekStart.AddDays(-7):yyyy-MM-dd">◀ PREV</a> ·
+        <a href="/admin/schedule?start=@_weekStart.AddDays(7):yyyy-MM-dd">NEXT ▶</a>
+    </div>
+</div>
+<p class="page-sub">
+    SWAPS: @(_settings?.SubstitutionMode == SubstitutionMode.AdminGate ? "ADMIN-GATE" : "AUTO-APPLY")
+    · OPEN CLAIMS: @(_settings?.OpenClaimsEnabled == true ? "ON" : "OFF")
+</p>
+
+<div class="week-grid">
+    @for (var i = 0; i < 7; i++)
+    {
+        var date = _weekStart.AddDays(i);
+        <div class="day-col">
+            <h3>@date.ToString("ddd dd").ToUpperInvariant()</h3>
+            @foreach (var session in _sessions.Where(s => s.Date == date))
+            {
+                <div class="ses @(session.Status == SessionStatus.Cancelled ? "ses--cancelled" : null)">
+                    <div class="t">@session.StartTime.ToString("HH\\:mm")</div>
+                    <div class="n">@session.Name</div>
+                    <div class="c">@(_personNames.GetValueOrDefault(session.InstructorPersonId ?? Guid.Empty, "UNASSIGNED").ToUpperInvariant())</div>
+                    <div>
+                        @foreach (var type in session.ClassTypes)
+                        {
+                            <span class="tag" style="border-color:@type.ColorHex;color:@type.ColorHex">@type.Name</span>
+                        }
+                    </div>
+                    @if (session.Status == SessionStatus.Cancelled)
+                    {
+                        <span class="stamp stamp--bad">CANCELLED</span>
+                    }
+                    else
+                    {
+                        <form method="post" action="/admin/actions/cancel-session" class="row-form">
+                            <AntiforgeryToken />
+                            <input type="hidden" name="sessionId" value="@session.Id" />
+                            <input type="text" name="reason" placeholder="reason" aria-label="Cancellation reason" />
+                            <button type="submit" class="btn btn--ghost btn--xs">CANCEL</button>
+                        </form>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<div class="detail-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;margin-top:20px">
+    <section>
+        <h2 class="section-h">Substitutions</h2>
+        @if (_requests.Count == 0)
+        {
+            <p class="cap">NO OPEN SUBSTITUTION REQUESTS.</p>
+        }
+        @foreach (var request in _requests)
+        {
+            <div class="form-card" style="margin-bottom:10px">
+                <b>@request.Session.Name · @request.Session.Date.ToString("ddd dd MMM").ToUpperInvariant() @request.Session.StartTime.ToString("HH\\:mm")</b>
+                <p class="cap" style="margin:4px 0 8px">
+                    @_personNames.GetValueOrDefault(request.RequestedByPersonId, "?").ToUpperInvariant() OUT ·
+                    @(request.ProposedSubPersonId is { } p ? "PROPOSED: " + _personNames.GetValueOrDefault(p, "?").ToUpperInvariant() : "OPEN REQUEST")
+                    @(request.EscalatedUtc is not null ? " · ESCALATED" : null)
+                </p>
+                <span class="stamp @(request.Status == SubstitutionStatus.PendingApproval ? "stamp--warn" : "stamp--dim")">@request.Status.ToString().ToUpperInvariant()</span>
+                @if (request.Status == SubstitutionStatus.PendingApproval)
+                {
+                    <form method="post" action="/admin/actions/approve-sub" class="row-form">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="requestId" value="@request.Id" />
+                        <button type="submit" class="btn btn--xs">APPROVE — @_personNames.GetValueOrDefault(request.AcceptedByPersonId ?? Guid.Empty, "?").ToUpperInvariant()</button>
+                    </form>
+                    <form method="post" action="/admin/actions/decline-sub" class="row-form">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="requestId" value="@request.Id" />
+                        <button type="submit" class="btn btn--ghost btn--xs">DECLINE</button>
+                    </form>
+                }
+            </div>
+        }
+
+        <h2 class="section-h">Gym setting — swap workflow</h2>
+        <div class="form-card">
+            <form method="post" action="/admin/actions/swap-mode" class="row-form">
+                <AntiforgeryToken />
+                <input type="hidden" name="mode" value="@(_settings?.SubstitutionMode == SubstitutionMode.AdminGate ? "auto-apply" : "admin-gate")" />
+                <button type="submit" class="btn btn--ghost btn--xs">SWITCH TO @(_settings?.SubstitutionMode == SubstitutionMode.AdminGate ? "AUTO-APPLY" : "ADMIN-GATE")</button>
+            </form>
+            <form method="post" action="/admin/actions/open-claims" class="row-form">
+                <AntiforgeryToken />
+                <input type="hidden" name="enabled" value="@(_settings?.OpenClaimsEnabled == true ? "false" : "true")" />
+                <button type="submit" class="btn btn--ghost btn--xs">TURN OPEN CLAIMS @(_settings?.OpenClaimsEnabled == true ? "OFF" : "ON")</button>
+            </form>
+        </div>
+    </section>
+
+    <section>
+        <h2 class="section-h">Add weekly class (template)</h2>
+        <EditForm class="form-card" FormName="add-template" Model="TemplateForm" OnValidSubmit="AddTemplateAsync">
+            <label for="tname">Name</label>
+            <InputText id="tname" @bind-Value="TemplateForm.Name" />
+            <div class="form-grid">
+                <div>
+                    <label for="tday">Day</label>
+                    <InputSelect id="tday" @bind-Value="TemplateForm.Day">
+                        @foreach (var day in Enum.GetValues<DayOfWeek>())
+                        {
+                            <option value="@day">@day</option>
+                        }
+                    </InputSelect>
+                </div>
+                <div>
+                    <label for="tstart">Start (HH:mm)</label>
+                    <InputText id="tstart" @bind-Value="TemplateForm.Start" />
+                </div>
+                <div>
+                    <label for="tdur">Duration (min)</label>
+                    <InputNumber id="tdur" @bind-Value="TemplateForm.DurationMinutes" />
+                </div>
+                <div>
+                    <label for="tinst">Default instructor</label>
+                    <InputSelect id="tinst" @bind-Value="TemplateForm.InstructorPersonId">
+                        <option value="">— unassigned —</option>
+                        @foreach (var (id, name) in _instructors)
+                        {
+                            <option value="@id">@name</option>
+                        }
+                    </InputSelect>
+                </div>
+            </div>
+            <label>Class types</label>
+            <div class="check-row">
+                @foreach (var type in _types)
+                {
+                    @* Static SSR: multiple same-named checkboxes bind the List<Guid> on post. *@
+                    <label><input type="checkbox" name="TypeIds" value="@type.Id" checked="@TemplateForm.TypeIds.Contains(type.Id)" /> @type.Name</label>
+                }
+            </div>
+            @if (_templateError is not null)
+            {
+                <p class="validation-message">@_templateError</p>
+            }
+            <p style="margin-top:14px"><button class="btn" type="submit">+ CLASS TEMPLATE</button></p>
+        </EditForm>
+
+        <h2 class="section-h">Class tags</h2>
+        <EditForm class="form-card" FormName="add-type" Model="TypeForm" OnValidSubmit="AddTypeAsync">
+            <div class="form-grid">
+                <div>
+                    <label for="ctname">Tag name</label>
+                    <InputText id="ctname" @bind-Value="TypeForm.Name" />
+                </div>
+                <div>
+                    <label for="ctcolor">Color</label>
+                    <InputText id="ctcolor" @bind-Value="TypeForm.ColorHex" />
+                </div>
+            </div>
+            <p style="margin-top:14px"><button class="btn btn--ghost" type="submit">+ TAG</button></p>
+        </EditForm>
+    </section>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "start")] public string? StartRaw { get; set; }
+
+    [SupplyParameterFromForm(FormName = "add-template")]
+    public AddTemplateForm? PostedTemplateForm { get; set; }
+
+    [SupplyParameterFromForm(FormName = "add-type")]
+    public AddTypeForm? PostedTypeForm { get; set; }
+
+    private AddTemplateForm TemplateForm => PostedTemplateForm ??= new();
+    private AddTypeForm TypeForm => PostedTypeForm ??= new();
+
+    private DateOnly _weekStart;
+    private List<ClassSession> _sessions = [];
+    private List<SubstitutionRequest> _requests = [];
+    private List<ClassType> _types = [];
+    private List<(Guid Id, string Name)> _instructors = [];
+    private Dictionary<Guid, string> _personNames = [];
+    private GymSettings? _settings;
+    private string? _templateError;
+
+    public class AddTemplateForm
+    {
+        public string Name { get; set; } = "";
+        public DayOfWeek Day { get; set; } = DayOfWeek.Monday;
+        public string Start { get; set; } = "18:00";
+        public int DurationMinutes { get; set; } = 60;
+        public Guid? InstructorPersonId { get; set; }
+        public List<Guid> TypeIds { get; set; } = [];
+    }
+
+    public class AddTypeForm
+    {
+        public string Name { get; set; } = "";
+        public string ColorHex { get; set; } = "#707886";
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _weekStart = DateOnly.TryParse(StartRaw, out var parsed) ? parsed : MondayOf(DateOnly.FromDateTime(DateTime.Today));
+        _settings = await Db.GymSettings.SingleOrDefaultAsync();
+        _sessions = await Schedule.GetWeekAsync(_weekStart);
+        _types = await Db.ClassTypes.Where(t => !t.Archived).OrderBy(t => t.Name).ToListAsync();
+        _requests = await Db.SubstitutionRequests
+            .Include(r => r.Session)
+            .Where(r => r.Status == SubstitutionStatus.Requested || r.Status == SubstitutionStatus.PendingApproval)
+            .OrderBy(r => r.Session.Date)
+            .ToListAsync();
+
+        var instructorPersons = await Db.Persons
+            .Where(p => !p.Archived && p.Roles.HasFlag(PersonRoles.Instructor))
+            .OrderBy(p => p.FirstName)
+            .ToListAsync();
+        _instructors = instructorPersons.Select(p => (p.Id, p.DisplayName)).ToList();
+
+        var nameIds = _sessions.Where(s => s.InstructorPersonId != null).Select(s => s.InstructorPersonId!.Value)
+            .Concat(_requests.SelectMany(r => new[] { r.RequestedByPersonId, r.ProposedSubPersonId ?? Guid.Empty, r.AcceptedByPersonId ?? Guid.Empty }))
+            .Where(id => id != Guid.Empty)
+            .Distinct().ToList();
+        _personNames = await Db.Persons.Where(p => nameIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id, p => p.DisplayName);
+    }
+
+    private static DateOnly MondayOf(DateOnly date)
+    {
+        var diff = ((int)date.DayOfWeek + 6) % 7;
+        return date.AddDays(-diff);
+    }
+
+    private async Task AddTemplateAsync()
+    {
+        if (string.IsNullOrWhiteSpace(TemplateForm.Name) || !TimeOnly.TryParse(TemplateForm.Start, out var start))
+        {
+            _templateError = "A name and a valid HH:mm start time are required.";
+            return;
+        }
+
+        var types = await Db.ClassTypes.Where(t => TemplateForm.TypeIds.Contains(t.Id)).ToListAsync();
+        Db.ClassTemplates.Add(new ClassTemplate
+        {
+            Id = Guid.NewGuid(),
+            Name = TemplateForm.Name.Trim(),
+            Day = TemplateForm.Day,
+            StartTime = start,
+            DurationMinutes = TemplateForm.DurationMinutes,
+            DefaultInstructorPersonId = TemplateForm.InstructorPersonId,
+            ClassTypes = types,
+        });
+        await Db.SaveChangesAsync();
+        Nav.NavigateTo($"/admin/schedule?start={_weekStart:yyyy-MM-dd}");
+    }
+
+    private async Task AddTypeAsync()
+    {
+        // Rendered into style attributes later — only a strict hex color is stored.
+        var color = System.Text.RegularExpressions.Regex.IsMatch(TypeForm.ColorHex, "^#[0-9a-fA-F]{6}$")
+            ? TypeForm.ColorHex
+            : "#707886";
+
+        if (!string.IsNullOrWhiteSpace(TypeForm.Name))
+        {
+            Db.ClassTypes.Add(new ClassType { Id = Guid.NewGuid(), Name = TypeForm.Name.Trim().ToLowerInvariant(), ColorHex = color });
+            await Db.SaveChangesAsync();
+        }
+
+        Nav.NavigateTo($"/admin/schedule?start={_weekStart:yyyy-MM-dd}");
+    }
+}

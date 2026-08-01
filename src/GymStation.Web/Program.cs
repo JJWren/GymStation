@@ -1,7 +1,9 @@
 using GymStation.Infrastructure;
 using GymStation.Infrastructure.Identity;
+using GymStation.Web.Admin;
 using GymStation.Web.Auth;
 using GymStation.Web.Components;
+using GymStation.Web.Instructor;
 using GymStation.Web.Ops;
 using GymStation.Web.Tenancy;
 using Microsoft.AspNetCore.Identity;
@@ -15,6 +17,13 @@ builder.Services.AddGymStationData(
     builder.Configuration.GetConnectionString("Default")
         ?? throw new InvalidOperationException("Missing ConnectionStrings:Default"),
     builder.Configuration["Storage:Root"] ?? "data/media");
+builder.Services.AddGymStationEmail(new GymStation.Infrastructure.Notifications.EmailOptions(
+    builder.Configuration["Email:Host"],
+    int.TryParse(builder.Configuration["Email:Port"], out var smtpPort) ? smtpPort : 587,
+    builder.Configuration["Email:Username"],
+    builder.Configuration["Email:Password"],
+    builder.Configuration["Email:From"] ?? "gymstation@localhost"));
+builder.Services.AddGymStationWorkers();
 
 builder.Services.AddIdentityCore<AppUser>(o =>
     {
@@ -32,8 +41,12 @@ builder.Services.ConfigureApplicationCookie(o =>
     o.AccessDeniedPath = "/login";
 });
 builder.Services.AddAuthorization(o =>
-    o.AddPolicy("GymStaff", p => p.RequireAuthenticatedUser().AddRequirements(new GymStaffRequirement())));
+{
+    o.AddPolicy("GymStaff", p => p.RequireAuthenticatedUser().AddRequirements(new GymStaffRequirement()));
+    o.AddPolicy("GymInstructor", p => p.RequireAuthenticatedUser().AddRequirements(new GymInstructorRequirement()));
+});
 builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, GymStaffHandler>();
+builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, GymInstructorHandler>();
 builder.Services.AddCascadingAuthenticationState();
 
 var app = builder.Build();
@@ -58,5 +71,7 @@ app.MapRazorComponents<App>()
 
 app.MapAuthEndpoints();
 app.MapOpsEndpoints();
+app.MapAdminActionEndpoints();
+app.MapInstructorActionEndpoints();
 
 app.Run();

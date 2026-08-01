@@ -1,5 +1,7 @@
+using GymStation.Domain.Notifications;
 using GymStation.Domain.People;
 using GymStation.Domain.Ranks;
+using GymStation.Domain.Scheduling;
 using GymStation.Domain.Tenancy;
 using GymStation.Infrastructure.Identity;
 using GymStation.Infrastructure.Ranks;
@@ -30,6 +32,12 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
     public DbSet<RankSystem> RankSystems => Set<RankSystem>();
     public DbSet<Rank> Ranks => Set<Rank>();
     public DbSet<RankAward> RankAwards => Set<RankAward>();
+    public DbSet<ClassType> ClassTypes => Set<ClassType>();
+    public DbSet<ClassTemplate> ClassTemplates => Set<ClassTemplate>();
+    public DbSet<ClassSession> ClassSessions => Set<ClassSession>();
+    public DbSet<SubstitutionRequest> SubstitutionRequests => Set<SubstitutionRequest>();
+    public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -104,6 +112,57 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
             e.HasOne(a => a.Person).WithMany().HasForeignKey(a => a.PersonId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(a => a.Rank).WithMany().HasForeignKey(a => a.RankId).OnDelete(DeleteBehavior.Restrict);
             e.HasQueryFilter(a => CurrentGymId != null && a.GymId == CurrentGymId);
+        });
+
+        builder.Entity<ClassType>(e =>
+        {
+            e.Property(t => t.Name).HasMaxLength(40);
+            e.Property(t => t.ColorHex).HasMaxLength(9);
+            e.HasIndex(t => new { t.GymId, t.Name }).IsUnique();
+            e.HasQueryFilter(t => CurrentGymId != null && t.GymId == CurrentGymId);
+        });
+
+        builder.Entity<ClassTemplate>(e =>
+        {
+            e.Property(t => t.Name).HasMaxLength(80);
+            e.HasMany(t => t.ClassTypes).WithMany().UsingEntity("ClassTemplateClassTypes");
+            e.HasQueryFilter(t => CurrentGymId != null && t.GymId == CurrentGymId);
+        });
+
+        builder.Entity<ClassSession>(e =>
+        {
+            e.Property(s => s.Name).HasMaxLength(80);
+            e.Property(s => s.CancelledReason).HasMaxLength(300);
+            // Idempotent lazy materialization: one session per template per date.
+            e.HasIndex(s => new { s.GymId, s.TemplateId, s.Date }).IsUnique().HasFilter("\"TemplateId\" IS NOT NULL");
+            e.HasIndex(s => new { s.GymId, s.Date });
+            e.HasMany(s => s.ClassTypes).WithMany().UsingEntity("ClassSessionClassTypes");
+            e.HasQueryFilter(s => CurrentGymId != null && s.GymId == CurrentGymId);
+        });
+
+        builder.Entity<SubstitutionRequest>(e =>
+        {
+            e.Property(r => r.Note).HasMaxLength(300);
+            e.HasOne(r => r.Session).WithMany().HasForeignKey(r => r.SessionId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(r => new { r.GymId, r.Status });
+            e.HasQueryFilter(r => CurrentGymId != null && r.GymId == CurrentGymId);
+        });
+
+        builder.Entity<Notification>(e =>
+        {
+            e.Property(n => n.Title).HasMaxLength(150);
+            e.Property(n => n.Body).HasMaxLength(1000);
+            e.Property(n => n.LinkPath).HasMaxLength(200);
+            e.HasIndex(n => new { n.RecipientUserId, n.ReadUtc });
+            e.HasMany(n => n.Deliveries).WithOne().HasForeignKey(d => d.NotificationId).OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(n => CurrentGymId != null && n.GymId == CurrentGymId);
+        });
+
+        builder.Entity<NotificationDelivery>(e =>
+        {
+            e.Property(d => d.Error).HasMaxLength(500);
+            e.HasIndex(d => new { d.Status, d.Channel });
+            e.HasQueryFilter(d => CurrentGymId != null && d.GymId == CurrentGymId);
         });
     }
 

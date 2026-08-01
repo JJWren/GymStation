@@ -137,6 +137,25 @@ a { color: var(--ink); }
 .tl .d { font: 600 10px/1.2 var(--font-mono); color: var(--ink-faint); text-align: right; }
 .tl .who { font: 9px/1.5 var(--font-mono); color: var(--ink-faint); margin-top: 3px; letter-spacing: .06em; }
 
+/* ---- schedule ---- */
+.week-grid { display: grid; grid-template-columns: repeat(7, minmax(128px, 1fr)); gap: 8px; overflow-x: auto; }
+.day-col { background: var(--panel); border-radius: 10px; padding: 6px; min-width: 0; }
+.day-col h3 { font: 600 10px/1 var(--font-mono); letter-spacing: .16em; color: var(--ink-dim); padding: 6px 4px 8px; border-bottom: 1px solid var(--edge); margin-bottom: 6px; text-align: center; }
+.ses { background: var(--surface); border-radius: 8px; padding: 9px 10px; margin-bottom: 6px; border-left: 3px solid var(--tenant); position: relative; }
+.ses .t { font: 700 12px/1.2 var(--font-mono); }
+.ses .n { font: 600 13px/1.25 var(--font-body); margin: 3px 0 2px; }
+.ses .c { font: 9px/1.5 var(--font-mono); color: var(--ink-faint); letter-spacing: .05em; }
+.ses--cancelled { opacity: .55; border-left-color: var(--bad); }
+.ses--cancelled .n { text-decoration: line-through; }
+.tag { display: inline-block; font: 600 9px/1 var(--font-mono); letter-spacing: .06em; border: 1px solid var(--edge); color: var(--ink-dim); border-radius: 99px; padding: 3px 6px; margin: 4px 4px 0 0; }
+.row-form { display: flex; gap: 6px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+.row-form input[type=text], .row-form select { background: var(--panel); border: 1px solid var(--edge); border-radius: 6px; padding: 7px 9px; font: 600 10px/1.2 var(--font-mono); color: var(--ink); min-width: 0; }
+.btn--xs { padding: 8px 10px; font-size: 9px; }
+.member-shell { max-width: 420px; margin: 0 auto; padding: 18px; }
+.daynav { display: flex; justify-content: space-between; align-items: center; font: 700 13px/1 var(--font-mono); letter-spacing: .12em; padding: 4px 6px 14px; }
+.daynav a { color: var(--ink-faint); text-decoration: none; font-size: 16px; }
+@media (max-width: 760px) { .detail-cols { grid-template-columns: 1fr !important; } }
+
 /* ---- validation / errors ---- */
 .valid.modified:not([type=checkbox]) { outline: 1px solid var(--ok); }
 .invalid { outline: 1px solid var(--bad); }
