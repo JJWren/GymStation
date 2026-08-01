@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/JJWren/GymStation/compare/v1.0.0...v1.0.1) (2026-08-01)
+
+
+### Bug Fixes
+
+* SSR DbContext collisions and public page column alignment ([#19](https://github.com/JJWren/GymStation/issues/19)) ([5553ab0](https://github.com/JJWren/GymStation/commit/5553ab0e504cf94bb4a364024222e2204e5b8c0f))
+
 ## 1.0.0 (2026-08-01)
 
 
