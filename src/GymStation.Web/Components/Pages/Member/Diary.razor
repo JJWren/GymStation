@@ -21,7 +21,7 @@
         <div class="form-grid">
             <div>
                 <label for="dkind">Kind</label>
-                <InputSelect id="dkind" @bind-Value="Form.Kind">
+                <InputSelect id="dkind" @bind-Value="Form!.Kind">
                     <option value="@TrainingEntryKind.LessonNotes">Lesson notes</option>
                     <option value="@TrainingEntryKind.RollLog">Roll log</option>
                     <option value="@TrainingEntryKind.SelfReported">Self-reported training</option>
@@ -29,11 +29,11 @@
             </div>
             <div>
                 <label for="ddate">Date</label>
-                <InputDate id="ddate" @bind-Value="Form.EntryDate" />
+                <InputDate id="ddate" @bind-Value="Form!.EntryDate" />
             </div>
         </div>
         <label for="dsession">Link to a recent session (optional)</label>
-        <InputSelect id="dsession" @bind-Value="Form.SessionId">
+        <InputSelect id="dsession" @bind-Value="Form!.SessionId">
             <option value="">— none —</option>
             @foreach (var session in _recentSessions)
             {
@@ -41,24 +41,24 @@
             }
         </InputSelect>
         <label for="dnotes">Notes</label>
-        <InputTextArea id="dnotes" @bind-Value="Form.Notes" rows="3" />
+        <InputTextArea id="dnotes" @bind-Value="Form!.Notes" rows="3" />
         <label for="dmin">Minutes (self-reported entries only — counts toward your self-reported tier)</label>
-        <InputNumber id="dmin" @bind-Value="Form.SelfReportedMinutes" />
+        <InputNumber id="dmin" @bind-Value="Form!.SelfReportedMinutes" />
 
         <label>Rolls (optional — partner tags stay inside your private entry)</label>
-        @for (var i = 0; i < Form.Rolls.Count; i++)
+        @for (var i = 0; i < Form!.Rolls.Count; i++)
         {
             var index = i;
             <div class="row-form" style="margin-bottom:6px">
-                <InputSelect @bind-Value="Form.Rolls[index].PartnerPersonId" aria-label="Partner from roster">
+                <InputSelect @bind-Value="Form!.Rolls[index].PartnerPersonId" aria-label="Partner from roster">
                     <option value="">— partner —</option>
                     @foreach (var (id, name) in _partners)
                     {
                         <option value="@id">@name</option>
                     }
                 </InputSelect>
-                <InputText @bind-Value="Form.Rolls[index].PartnerText" placeholder="or free text" aria-label="Partner free text" />
-                <InputText @bind-Value="Form.Rolls[index].Summary" placeholder="2x5min · even" aria-label="Roll summary" />
+                <InputText @bind-Value="Form!.Rolls[index].PartnerText" placeholder="or free text" aria-label="Partner free text" />
+                <InputText @bind-Value="Form!.Rolls[index].Summary" placeholder="2x5min · even" aria-label="Roll summary" />
             </div>
         }
 
@@ -102,9 +102,15 @@
     [CascadingParameter] public HttpContext? HttpContext { get; set; }
 
     [SupplyParameterFromForm(FormName = "add-entry")]
-    public EntryForm? PostedForm { get; set; }
+    public EntryForm? Form { get; set; }
 
-    private EntryForm Form => PostedForm ??= new();
+    protected override void OnInitialized()
+    {
+        Form ??= new();
+
+        // The form binder nulls collections that arrive with no posted fields.
+        Form.Rolls ??= [new(), new(), new()];
+    }
 
     private List<TrainingEntry> _entries = [];
     private List<GymStation.Domain.Scheduling.ClassSession> _recentSessions = [];
@@ -161,8 +167,9 @@
 
     private async Task AddAsync()
     {
+        var form = Form!;
         var partnerNames = _partners.ToDictionary(p => p.Id, p => p.Name);
-        var rolls = Form.Rolls
+        var rolls = form.Rolls
             .Select(r =>
             {
                 var label = r.PartnerPersonId is { } id && partnerNames.TryGetValue(id, out var name)
@@ -175,7 +182,7 @@
 
         try
         {
-            await DiaryService.AddAsync(_userId, Form.Kind, Form.EntryDate, Form.SessionId, Form.Notes, Form.SelfReportedMinutes, rolls);
+            await DiaryService.AddAsync(_userId, form.Kind, form.EntryDate, form.SessionId, form.Notes, form.SelfReportedMinutes, rolls);
             Nav.NavigateTo("/diary");
         }
         catch (InvalidOperationException ex)

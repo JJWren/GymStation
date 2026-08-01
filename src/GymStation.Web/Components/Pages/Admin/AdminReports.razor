@@ -53,30 +53,34 @@
     <section>
         <h2 class="section-h">Break-even calculator</h2>
         <EditForm class="form-card" FormName="break-even" Model="Form" OnValidSubmit="Calculate">
+            <p class="cap" style="margin:0 0 10px">
+                MEMBERS AND COSTS ARE PREFILLED FROM YOUR LIVE DATA — CHANGE ANYTHING AND PRESS CALCULATE.
+                IT ANSWERS: HOW MANY MEMBERS COVER THE BILLS, HOW MANY ALSO PAY <i>YOU</i> YOUR TARGET, AND THE REVENUE THAT BREAKS EVEN.
+            </p>
             <div class="form-grid">
                 <div>
                     <label for="bem">Active members (prefilled, editable)</label>
-                    <InputNumber id="bem" @bind-Value="Form.ActiveMembers" />
+                    <InputNumber id="bem" @bind-Value="Form!.ActiveMembers" />
                 </div>
                 <div>
                     <label for="bea">ARPM — avg revenue per member</label>
-                    <InputNumber id="bea" @bind-Value="Form.Arpm" />
+                    <InputNumber id="bea" @bind-Value="Form!.Arpm" />
                 </div>
                 <div>
                     <label for="bef">Monthly fixed costs (prefilled from log)</label>
-                    <InputNumber id="bef" @bind-Value="Form.MonthlyFixedCosts" />
+                    <InputNumber id="bef" @bind-Value="Form!.MonthlyFixedCosts" />
                 </div>
                 <div>
                     <label for="bep">Processing rate %</label>
-                    <InputNumber id="bep" @bind-Value="Form.ProcessingRatePercent" />
+                    <InputNumber id="bep" @bind-Value="Form!.ProcessingRatePercent" />
                 </div>
                 <div>
                     <label for="bes">Staffing % of revenue</label>
-                    <InputNumber id="bes" @bind-Value="Form.StaffingPercentOfRevenue" />
+                    <InputNumber id="bes" @bind-Value="Form!.StaffingPercentOfRevenue" />
                 </div>
                 <div>
                     <label for="bet">Target owner salary /mo</label>
-                    <InputNumber id="bet" @bind-Value="Form.TargetOwnerSalary" />
+                    <InputNumber id="bet" @bind-Value="Form!.TargetOwnerSalary" />
                 </div>
             </div>
             @if (_error is not null)
@@ -91,12 +95,12 @@
                     <div class="head-row" style="padding:7px 0;border-bottom:1px dashed #2c3440">
                         <span class="cap">MEMBERS TO COVER EXPENSES</span>
                         <span style="text-align:right"><b class="mono" style="font-size:20px;color:var(--ink)">@_result.MembersToCoverExpenses</b>
-                        <span class="cap" style="display:block;color:@(Form.ActiveMembers >= _result.MembersToCoverExpenses ? "var(--ok)" : "var(--warn)")">@GapLine(_result.MembersToCoverExpenses)</span></span>
+                        <span class="cap" style="display:block;color:@(Form!.ActiveMembers >= _result.MembersToCoverExpenses ? "var(--ok)" : "var(--warn)")">@GapLine(_result.MembersToCoverExpenses)</span></span>
                     </div>
                     <div class="head-row" style="padding:7px 0;border-bottom:1px dashed #2c3440">
                         <span class="cap">MEMBERS FOR TARGET SALARY</span>
                         <span style="text-align:right"><b class="mono" style="font-size:20px;color:var(--ink)">@_result.MembersForTargetSalary</b>
-                        <span class="cap" style="display:block;color:@(Form.ActiveMembers >= _result.MembersForTargetSalary ? "var(--ok)" : "var(--bad)")">@GapLine(_result.MembersForTargetSalary)</span></span>
+                        <span class="cap" style="display:block;color:@(Form!.ActiveMembers >= _result.MembersForTargetSalary ? "var(--ok)" : "var(--bad)")">@GapLine(_result.MembersForTargetSalary)</span></span>
                     </div>
                     <div class="head-row" style="padding:7px 0">
                         <span class="cap">MONTHLY REVENUE BREAK-EVEN</span>
@@ -111,9 +115,9 @@
 
 @code {
     [SupplyParameterFromForm(FormName = "break-even")]
-    public BreakEvenForm? PostedForm { get; set; }
+    public BreakEvenForm? Form { get; set; }
 
-    private BreakEvenForm Form => PostedForm ??= new();
+    protected override void OnInitialized() => Form ??= new();
 
     private List<MonthMoney> _money = [];
     private decimal _moneyMax;
@@ -145,7 +149,7 @@
         if (HttpContext?.Request.Method != "POST")
         {
             var prefill = await Reports.BreakEvenPrefillAsync(today);
-            Form.ActiveMembers = prefill.ActiveMembers;
+            Form!.ActiveMembers = prefill.ActiveMembers;
             Form.Arpm = prefill.Arpm;
             Form.MonthlyFixedCosts = prefill.MonthlyFixedCosts;
         }
@@ -157,11 +161,12 @@
 
     private void Calculate()
     {
+        var form = Form!;
         try
         {
             _result = BreakEvenMath.Calculate(new BreakEvenInput(
-                Form.ActiveMembers, Form.Arpm, Form.MonthlyFixedCosts,
-                Form.ProcessingRatePercent, Form.StaffingPercentOfRevenue, Form.TargetOwnerSalary));
+                form.ActiveMembers, form.Arpm, form.MonthlyFixedCosts,
+                form.ProcessingRatePercent, form.StaffingPercentOfRevenue, form.TargetOwnerSalary));
             _error = null;
         }
         catch (InvalidOperationException ex)
@@ -173,7 +178,7 @@
 
     private string GapLine(int needed)
     {
-        var gap = needed - Form.ActiveMembers;
+        var gap = needed - Form!.ActiveMembers;
         return gap <= 0 ? "COVERED" : $"{gap} TO GO";
     }
 }

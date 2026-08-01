@@ -32,7 +32,9 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
             .ToHashSet();
 
         var raised = 0;
-        foreach (var row in planned.Where(x => !alreadyCharged.Contains(x.Person.Id)))
+
+        // Zero-price plans are comped (instructors, staff) — no charges, no notifications.
+        foreach (var row in planned.Where(x => !alreadyCharged.Contains(x.Person.Id) && x.Plan.Price > 0))
         {
             db.Charges.Add(new Charge
             {

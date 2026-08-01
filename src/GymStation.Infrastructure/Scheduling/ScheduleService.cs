@@ -112,4 +112,44 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
 
         await db.SaveChangesAsync(ct);
     }
+
+    /// <summary>Undo a cancellation — same audience as the cancel notice hears it's back on.</summary>
+    public async Task ReopenSessionAsync(Guid sessionId, CancellationToken ct = default)
+    {
+        var session = await db.ClassSessions.SingleOrDefaultAsync(s => s.Id == sessionId, ct)
+            ?? throw new InvalidOperationException("Session not found in the active gym.");
+
+        if (session.Status != SessionStatus.Cancelled)
+        {
+            return;
+        }
+
+        session.Status = SessionStatus.Scheduled;
+        session.CancelledReason = null;
+
+        var recipients = await notifications.StaffUserIdsAsync(ct);
+        if (session.InstructorPersonId is { } instructorPersonId)
+        {
+            recipients.AddRange(await notifications.UserIdsForPersonsAsync([instructorPersonId], ct));
+        }
+
+        var checkedInPersonIds = await db.AttendanceRecords
+            .Where(a => a.SessionId == session.Id && a.Status != Domain.Attendance.AttendanceStatus.Removed)
+            .Select(a => a.PersonId)
+            .ToListAsync(ct);
+        recipients.AddRange(await notifications.UserIdsForPersonsAsync(checkedInPersonIds, ct));
+        recipients.AddRange(await db.GuardianLinks
+            .Where(l => checkedInPersonIds.Contains(l.ChildPersonId))
+            .Select(l => l.GuardianUserId)
+            .ToListAsync(ct));
+
+        notifications.Notify(
+            recipients,
+            NotificationCategory.SessionChanged,
+            $"Back on: {session.Name} · {session.Date:ddd dd MMM} {session.StartTime:HH\\:mm}",
+            $"{session.Name} on {session.Date:dddd dd MMMM} at {session.StartTime:HH\\:mm} is back on the schedule.",
+            "/schedule");
+
+        await db.SaveChangesAsync(ct);
+    }
 }

@@ -90,7 +90,7 @@ else
             <h2 class="section-h">Record rank award</h2>
             <EditForm class="form-card" FormName="record-award" Model="AwardForm" OnValidSubmit="RecordAwardAsync">
                 <label for="rank">Rank</label>
-                <InputSelect id="rank" @bind-Value="AwardForm.RankId">
+                <InputSelect id="rank" @bind-Value="AwardForm!.RankId">
                     <option value="">— pick a rank —</option>
                     @foreach (var system in _systems)
                     {
@@ -105,15 +105,15 @@ else
                 <div class="form-grid">
                     <div>
                         <label for="stripes">Stripes at this award</label>
-                        <InputNumber id="stripes" @bind-Value="AwardForm.Stripes" />
+                        <InputNumber id="stripes" @bind-Value="AwardForm!.Stripes" />
                     </div>
                     <div>
                         <label for="on">Awarded on</label>
-                        <InputDate id="on" @bind-Value="AwardForm.AwardedOn" />
+                        <InputDate id="on" @bind-Value="AwardForm!.AwardedOn" />
                     </div>
                 </div>
                 <div class="check-row" style="margin-top:10px">
-                    <label><InputCheckbox @bind-Value="AwardForm.SelfReported" /> SELF-REPORTED (PRE-APP HISTORY)</label>
+                    <label><InputCheckbox @bind-Value="AwardForm!.SelfReported" /> SELF-REPORTED (PRE-APP HISTORY)</label>
                 </div>
                 @if (_awardError is not null)
                 {
@@ -129,17 +129,17 @@ else
                 <h2 class="section-h">Instructor profile</h2>
                 <EditForm class="form-card" FormName="instructor-profile" Model="ProfileForm" OnValidSubmit="SaveProfileAsync">
                     <label for="exp">Experience summary</label>
-                    <InputText id="exp" @bind-Value="ProfileForm.ExperienceSummary" />
+                    <InputText id="exp" @bind-Value="ProfileForm!.ExperienceSummary" />
                     <label for="bio">Bio</label>
-                    <InputTextArea id="bio" @bind-Value="ProfileForm.Bio" rows="4" />
+                    <InputTextArea id="bio" @bind-Value="ProfileForm!.Bio" rows="4" />
                     <div class="form-grid">
                         <div>
                             <label for="rate">Pay rate (staff-only; never public)</label>
-                            <InputNumber id="rate" @bind-Value="ProfileForm.PayRate" />
+                            <InputNumber id="rate" @bind-Value="ProfileForm!.PayRate" />
                         </div>
                         <div>
                             <label for="unit">Rate unit</label>
-                            <InputSelect id="unit" @bind-Value="ProfileForm.PayRateUnit">
+                            <InputSelect id="unit" @bind-Value="ProfileForm!.PayRateUnit">
                                 <option value="@PayRateUnit.PerClass">Per class</option>
                                 <option value="@PayRateUnit.Hourly">Hourly</option>
                                 <option value="@PayRateUnit.Monthly">Monthly</option>
@@ -211,16 +211,15 @@ else
     [CascadingParameter] public HttpContext? HttpContext { get; set; }
 
     [SupplyParameterFromForm(FormName = "record-award")]
-    public RecordAwardForm? PostedAwardForm { get; set; }
+    public RecordAwardForm? AwardForm { get; set; }
 
     [SupplyParameterFromForm(FormName = "instructor-profile")]
-    public InstructorProfileForm? PostedProfileForm { get; set; }
+    public InstructorProfileForm? ProfileForm { get; set; }
 
-    private RecordAwardForm AwardForm => PostedAwardForm ??= new();
-    private InstructorProfileForm ProfileForm
+    protected override void OnInitialized()
     {
-        get => PostedProfileForm ??= new();
-        set => PostedProfileForm = value;
+        AwardForm ??= new();
+        ProfileForm ??= new();
     }
 
     private Person? _person;
@@ -305,7 +304,8 @@ else
 
     private async Task RecordAwardAsync()
     {
-        if (AwardForm.RankId is not { } rankId)
+        var form = AwardForm!;
+        if (form.RankId is not { } rankId)
         {
             _awardError = "Pick a rank.";
             return;
@@ -315,13 +315,13 @@ else
         {
             var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
             Guid? awardedBy = null;
-            if (!AwardForm.SelfReported && Guid.TryParse(raw, out var userId))
+            if (!form.SelfReported && Guid.TryParse(raw, out var userId))
             {
                 await using var db = await DbFactory.CreateDbContextAsync();
                 awardedBy = (await db.Persons.SingleOrDefaultAsync(p => p.UserId == userId))?.Id;
             }
 
-            await Ranks.RecordAwardAsync(PersonId, rankId, AwardForm.Stripes, AwardForm.AwardedOn, awardedBy, AwardForm.SelfReported, null);
+            await Ranks.RecordAwardAsync(PersonId, rankId, form.Stripes, form.AwardedOn, awardedBy, form.SelfReported, null);
             Nav.NavigateTo($"/admin/people/{PersonId}");
         }
         catch (InvalidOperationException ex)
@@ -332,6 +332,7 @@ else
 
     private async Task SaveProfileAsync()
     {
+        var form = ProfileForm!;
         await using var db = await DbFactory.CreateDbContextAsync();
         var profile = await db.InstructorProfiles.SingleOrDefaultAsync(p => p.PersonId == PersonId);
         if (profile is null)
@@ -340,10 +341,10 @@ else
             db.InstructorProfiles.Add(profile);
         }
 
-        profile.ExperienceSummary = ProfileForm.ExperienceSummary;
-        profile.Bio = ProfileForm.Bio;
-        profile.PayRate = ProfileForm.PayRate;
-        profile.PayRateUnit = ProfileForm.PayRateUnit;
+        profile.ExperienceSummary = form.ExperienceSummary;
+        profile.Bio = form.Bio;
+        profile.PayRate = form.PayRate;
+        profile.PayRateUnit = form.PayRateUnit;
         await db.SaveChangesAsync();
 
         Nav.NavigateTo($"/admin/people/{PersonId}");

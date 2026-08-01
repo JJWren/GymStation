@@ -39,7 +39,8 @@ builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
 builder.Services.ConfigureApplicationCookie(o =>
 {
     o.LoginPath = "/login";
-    o.AccessDeniedPath = "/login";
+    // NOT /login: bouncing a signed-in member to the login page reads as being logged out.
+    o.AccessDeniedPath = "/denied";
 });
 builder.Services.AddAuthorization(o =>
 {

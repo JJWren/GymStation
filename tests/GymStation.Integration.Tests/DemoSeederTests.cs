@@ -29,6 +29,13 @@ public class DemoSeederTests(PostgresFixture fixture)
         Assert.True(await db.ClassSessions.CountAsync() >= 100);
         Assert.True(await db.AttendanceRecords.CountAsync(a => a.Status == AttendanceStatus.Confirmed) > 300);
         Assert.True(await db.RankAwards.CountAsync() >= 35);
+
+        // Every kids-ladder belt is represented: Leo (grey) + one generated kid per belt.
+        var kidsRankIds = await db.Ranks
+            .Where(r => r.RankSystemId == GymStation.Infrastructure.Ranks.IbjjfSeed.KidsSystemId)
+            .Select(r => r.Id)
+            .ToListAsync();
+        Assert.True(await db.RankAwards.CountAsync(a => kidsRankIds.Contains(a.RankId)) >= 13);
         Assert.Equal(510m, (await db.Charges.SumAsync(c => c.Amount)) - await db.Payments.SumAsync(p => p.Amount));
         Assert.Equal(5, await db.Expenses.CountAsync());
         Assert.Equal(3, await db.GymEvents.CountAsync());
