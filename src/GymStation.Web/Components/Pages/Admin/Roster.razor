@@ -24,11 +24,40 @@
     <a class="chip @(Role == "member" ? "active" : null)" href="/admin/roster?role=member">MEMBERS</a>
     <a class="chip @(Role == "instructor" ? "active" : null)" href="/admin/roster?role=instructor">INSTRUCTORS</a>
     <a class="chip @(Role == "kids" ? "active" : null)" href="/admin/roster?role=kids">KIDS</a>
+    <a class="chip @(Role == "adult" ? "active" : null)" href="/admin/roster?role=adult">ADULTS</a>
+    <form method="get" style="display:contents">
+        @if (!string.IsNullOrEmpty(Q))
+        {
+            <input type="hidden" name="q" value="@Q" />
+        }
+        @if (!string.IsNullOrEmpty(Role))
+        {
+            <input type="hidden" name="role" value="@Role" />
+        }
+        <select name="rank" aria-label="Filter by rank">
+            <option value="">ANY RANK</option>
+            @foreach (var system in _systems)
+            {
+                <optgroup label="@system.Name">
+                    @foreach (var rank in system.Ranks.OrderBy(r => r.Order))
+                    {
+                        <option value="@rank.Id" selected="@(RankFilter == rank.Id)">@rank.Name</option>
+                    }
+                </optgroup>
+            }
+        </select>
+        <button class="btn btn--ghost" type="submit">FILTER</button>
+    </form>
 </div>
 
 <table class="ledger-table">
     <thead>
-        <tr><th>Person</th><th>Rank</th><th>At rank</th><th>Roles</th></tr>
+        <tr>
+            <th><a href="@SortHref("first")">First @Arrow("first")</a> / <a href="@SortHref("last")">Last @Arrow("last")</a></th>
+            <th><a href="@SortHref("rank")">Rank @Arrow("rank")</a></th>
+            <th><a href="@SortHref("tenure")">At rank @Arrow("tenure")</a></th>
+            <th>Roles</th>
+        </tr>
     </thead>
     <tbody>
     @foreach (var person in _people)
@@ -98,6 +127,9 @@
 @code {
     [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
     [SupplyParameterFromQuery(Name = "role")] public string? Role { get; set; }
+    [SupplyParameterFromQuery(Name = "rank")] public Guid? RankFilter { get; set; }
+    [SupplyParameterFromQuery(Name = "sort")] public string? Sort { get; set; }
+    [SupplyParameterFromQuery(Name = "dir")] public string? Dir { get; set; }
 
     [SupplyParameterFromForm(FormName = "add-person")]
     public AddPersonForm? Form { get; set; }
@@ -106,6 +138,7 @@
 
     private List<Person> _people = [];
     private Dictionary<Guid, CurrentRank> _ranks = [];
+    private List<RankSystem> _systems = [];
     private string? _formError;
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
 
@@ -140,12 +173,67 @@
             "member" => query.Where(p => p.Roles.HasFlag(PersonRoles.Member)),
             "instructor" => query.Where(p => p.Roles.HasFlag(PersonRoles.Instructor)),
             "kids" => query.Where(p => p.DateOfBirth != null && p.DateOfBirth > Today.AddYears(-16)),
+            "adult" => query.Where(p => p.DateOfBirth == null || p.DateOfBirth <= Today.AddYears(-16)),
             _ => query,
         };
 
         _people = await query.OrderBy(p => p.FirstName).ThenBy(p => p.LastName).ToListAsync();
         _ranks = await Ranks.GetPrimaryRanksAsync(_people.Select(p => p.Id).ToList());
+        _systems = await Ranks.GetVisibleSystemsAsync();
+
+        if (RankFilter is { } rankId)
+        {
+            _people = _people.Where(p => _ranks.GetValueOrDefault(p.Id)?.Rank.Id == rankId).ToList();
+        }
+
+        ApplySort();
     }
+
+    private void ApplySort()
+    {
+        var desc = Dir == "desc";
+        _people = Sort switch
+        {
+            "first" when desc => [.. _people.OrderByDescending(p => p.FirstName).ThenByDescending(p => p.LastName)],
+            "last" => desc
+                ? [.. _people.OrderByDescending(p => p.LastName).ThenByDescending(p => p.FirstName)]
+                : [.. _people.OrderBy(p => p.LastName).ThenBy(p => p.FirstName)],
+            "rank" => desc
+                ? [.. _people.OrderByDescending(p => _ranks.GetValueOrDefault(p.Id)?.Rank.Order ?? -1)]
+                : [.. _people.OrderBy(p => _ranks.GetValueOrDefault(p.Id)?.Rank.Order ?? int.MaxValue)],
+            "tenure" => desc
+                ? [.. _people.OrderByDescending(TenureDays)]
+                : [.. _people.OrderBy(p => TenureDays(p) < 0 ? int.MaxValue : TenureDays(p))],
+            _ => _people, // default: first-name ascending straight from the query
+        };
+    }
+
+    private int TenureDays(Person person)
+        => _ranks.GetValueOrDefault(person.Id) is { } rank ? Today.DayNumber - rank.AtRankSince.DayNumber : -1;
+
+    private string SortHref(string key)
+    {
+        var dir = Sort == key && Dir != "desc" ? "desc" : "asc";
+        var parts = new List<string> { $"sort={key}", $"dir={dir}" };
+        if (!string.IsNullOrEmpty(Q))
+        {
+            parts.Add($"q={Uri.EscapeDataString(Q)}");
+        }
+
+        if (!string.IsNullOrEmpty(Role))
+        {
+            parts.Add($"role={Role}");
+        }
+
+        if (RankFilter is { } rankId)
+        {
+            parts.Add($"rank={rankId}");
+        }
+
+        return "/admin/roster?" + string.Join("&", parts);
+    }
+
+    private string Arrow(string key) => Sort == key ? (Dir == "desc" ? "▼" : "▲") : "";
 
     private static string RoleLine(Person p)
     {

@@ -37,9 +37,13 @@
 <div class="detail-cols" style="display:grid;grid-template-columns:1.3fr 1fr;gap:18px;align-items:start">
     <section>
         <h2 class="section-h">Behind on dues — oldest first</h2>
+        <form method="get" class="row-form" style="margin:0 0 10px">
+            <input type="search" name="q" value="@Q" placeholder="SEARCH NAME…" aria-label="Search members behind on dues" />
+            <button class="btn btn--ghost btn--xs" type="submit">SEARCH</button>
+        </form>
         @if (_dues.Count == 0)
         {
-            <p class="cap">EVERYONE IS CURRENT. STAMP IT [PAID].</p>
+            <p class="cap">@(string.IsNullOrWhiteSpace(Q) ? "EVERYONE IS CURRENT. STAMP IT [PAID]." : "NO ONE BEHIND MATCHES THAT SEARCH.")</p>
         }
         @foreach (var row in _dues)
         {
@@ -137,6 +141,7 @@
 @code {
     [SupplyParameterFromQuery(Name = "failed")] public int? FailedFlag { get; set; }
     [SupplyParameterFromQuery(Name = "raised")] public int? Raised { get; set; }
+    [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
     private bool Failed => FailedFlag == 1;
 
     // Parameter names must match the identifiers bound in markup — SSR input names come
@@ -182,6 +187,10 @@
         await using var db = await DbFactory.CreateDbContextAsync();
         _summary = await Ledger.MonthSummaryAsync(_month);
         _dues = await Ledger.DuesAsync();
+        if (!string.IsNullOrWhiteSpace(Q))
+        {
+            _dues = _dues.Where(d => d.Name.Contains(Q.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
+        }
         _plans = await db.MembershipPlans.Where(p => !p.Archived).OrderBy(p => p.Price).ToListAsync();
 
         var counts = await db.Persons.Where(p => !p.Archived && p.MembershipPlanId != null)

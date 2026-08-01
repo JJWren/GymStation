@@ -38,6 +38,26 @@
         {
             <p class="cap">NO UPCOMING EVENTS.</p>
         }
+
+        <h2 class="section-h">Past — last 12 months</h2>
+        @foreach (var gymEvent in _past)
+        {
+            <div class="form-card" style="margin-bottom:8px;opacity:.75">
+                <div class="head-row">
+                    <b>@gymEvent.Title</b>
+                    <span class="chip">@gymEvent.Kind.ToString().ToUpperInvariant()</span>
+                </div>
+                <p class="cap" style="margin:4px 0">
+                    @gymEvent.StartsOn.ToString("ddd dd MMM yyyy").ToUpperInvariant()
+                    · @_counts.GetValueOrDefault((gymEvent.Id, RsvpStatus.Going)) WENT
+                    · @_counts.GetValueOrDefault((gymEvent.Id, RsvpStatus.Interested)) INTERESTED
+                </p>
+            </div>
+        }
+        @if (_past.Count == 0)
+        {
+            <p class="cap">NO PAST EVENTS IN THE LAST YEAR.</p>
+        }
     </section>
 
     <section>
@@ -91,6 +111,7 @@
     protected override void OnInitialized() => Form ??= new();
 
     private List<GymEvent> _events = [];
+    private List<GymEvent> _past = [];
     private Dictionary<(Guid, RsvpStatus), int> _counts = [];
     private string? _error;
 
@@ -108,7 +129,11 @@
     {
         var today = DateOnly.FromDateTime(DateTime.Today);
         _events = await Db.GymEvents.Where(e => e.StartsOn >= today.AddDays(-1)).OrderBy(e => e.StartsOn).ToListAsync();
-        var ids = _events.Select(e => e.Id).ToList();
+        _past = await Db.GymEvents
+            .Where(e => e.StartsOn < today.AddDays(-1) && e.StartsOn >= today.AddYears(-1))
+            .OrderByDescending(e => e.StartsOn)
+            .ToListAsync();
+        var ids = _events.Concat(_past).Select(e => e.Id).ToList();
         var rsvps = await Db.EventRsvps.Where(r => ids.Contains(r.EventId)).ToListAsync();
         _counts = rsvps.GroupBy(r => (r.EventId, r.Status)).ToDictionary(g => g.Key, g => g.Count());
     }

@@ -25,8 +25,13 @@
                     <InputNumber id="swin" @bind-Value="Form!.CheckInWindowMinutes" />
                 </div>
                 <div>
-                    <label for="stz">Timezone (IANA)</label>
-                    <InputText id="stz" @bind-Value="Form!.TimeZoneId" />
+                    <label for="stz">Timezone (offsets are standard/winter time)</label>
+                    <InputSelect id="stz" @bind-Value="Form!.TimeZoneId">
+                        @foreach (var (id, label) in _timeZones)
+                        {
+                            <option value="@id">@label</option>
+                        }
+                    </InputSelect>
                 </div>
             </div>
             <label for="sacc">Tenant accent — your gym's color on buttons, links, tags, stamps, and the public page (#rrggbb, WCAG-checked against both modes)</label>
@@ -78,7 +83,11 @@
                     <button class="btn btn--ghost btn--xs" type="submit">UPLOAD HERO</button>
                 </form>
             </div>
-            <p class="cap">PNG/JPG/WEBP · MAX 2 MB · SHOWN ON THE RAIL, MEMBER TOP BAR, AND THE PUBLIC PAGE AT /@_gymSlug</p>
+            <p class="cap">
+                PNG/JPG/WEBP · MAX 2 MB · LOGO: SQUARE, 256×256 OR LARGER (RENDERS AT ~44PX) ·
+                HERO: WIDE, 1600×600 OR LARGER (DARKENED BEHIND THE PUBLIC-PAGE TEXT) ·
+                SHOWN ON THE RAIL, MEMBER TOP BAR, AND /@_gymSlug
+            </p>
         </div>
     </section>
 </div>
@@ -95,6 +104,15 @@
     private GymSettings? _settings;
     private string? _gymSlug;
     private string? _error;
+    private List<(string Id, string Label)> _timeZones = [];
+
+    private static readonly string[] CommonZoneIds =
+    [
+        "America/New_York", "America/Detroit", "America/Chicago", "America/Denver",
+        "America/Phoenix", "America/Los_Angeles", "America/Anchorage", "Pacific/Honolulu",
+        "America/Toronto", "Europe/London", "Europe/Lisbon", "Europe/Paris", "Europe/Berlin",
+        "Asia/Tokyo", "Australia/Sydney", "Pacific/Auckland",
+    ];
 
     public class SettingsForm
     {
@@ -118,6 +136,29 @@
             Form.AccentColorHex = _settings.AccentColorHex;
             Form.DefaultThemeDark = _settings.DefaultThemeDark;
         }
+
+        BuildTimeZones();
+    }
+
+    private void BuildTimeZones()
+    {
+        var ids = CommonZoneIds.ToList();
+
+        // The gym's saved zone always appears, even when it isn't in the curated list.
+        if (Form?.TimeZoneId is { Length: > 0 } current && !ids.Contains(current))
+        {
+            ids.Insert(0, current);
+        }
+
+        _timeZones = ids
+            .Where(id => TimeZoneInfo.TryFindSystemTimeZoneById(id, out _))
+            .Select(id =>
+            {
+                var offset = TimeZoneInfo.FindSystemTimeZoneById(id).BaseUtcOffset;
+                var sign = offset < TimeSpan.Zero ? "−" : "+";
+                return (id, $"{id} (UTC{sign}{offset.Duration():hh\\:mm})");
+            })
+            .ToList();
     }
 
     [CascadingParameter] public HttpContext? HttpContext { get; set; }

@@ -14,18 +14,20 @@
     <section>
         <h2 class="section-h">Money in vs out — 6 months</h2>
         <div class="form-card">
-            <div style="display:flex;gap:6px;align-items:flex-end;height:110px">
+            @* Columns need a definite height (100%) — percentage bars inside an
+               auto-height flex child silently collapse to zero. *@
+            <div style="display:flex;gap:6px;height:132px">
                 @foreach (var month in _money)
                 {
-                    var scale = _moneyMax <= 0 ? 0m : 100m / _moneyMax;
-                    <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:2px">
-                        <i style="display:block;background:var(--ok);opacity:.8;border-radius:2px 2px 0 0;height:@((int)(month.Collected * scale))%"></i>
-                        <i style="display:block;background:var(--bad);opacity:.7;height:@((int)(month.Expenses * scale))%"></i>
+                    <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;height:100%">
+                        <i title="@($"Collected {month.Collected:N0}")" style="display:block;background:var(--ok);opacity:.8;border-radius:2px 2px 0 0;height:@(BarPercent(month.Collected))%"></i>
+                        <i title="@($"Expenses {month.Expenses:N0}")" style="display:block;background:var(--bad);opacity:.7;height:@(BarPercent(month.Expenses))%"></i>
                         <b style="font:600 8px/1.6 var(--font-mono);color:var(--ink-faint);text-align:center;letter-spacing:.06em">@month.Month.ToString("MMM").ToUpperInvariant()</b>
+                        <span style="font:600 7.5px/1.35 var(--font-mono);text-align:center"><span style="color:var(--ok)">+@Compact(month.Collected)</span><br /><span style="color:var(--bad)">−@Compact(month.Expenses)</span></span>
                     </div>
                 }
             </div>
-            <p class="cap"><span style="color:var(--ok)">■ COLLECTED (PAYMENTS)</span> · <span style="color:var(--bad)">■ EXPENSES (LOG)</span></p>
+            <p class="cap"><span style="color:var(--ok)">■ COLLECTED (PAYMENTS)</span> · <span style="color:var(--bad)">■ EXPENSES (LOG)</span> · BARS SHARE ONE SCALE (TALLEST = $@Compact(_moneyMax))</p>
             @if (_money.Count > 0)
             {
                 var latest = _money[^1];
@@ -40,13 +42,16 @@
 
         <h2 class="section-h">Confirmed check-ins / week — 12 weeks</h2>
         <div class="form-card">
-            <div style="display:flex;gap:3px;align-items:flex-end;height:52px" aria-label="Weekly confirmed check-ins">
+            <div style="display:flex;gap:3px;height:64px" aria-label="Weekly confirmed check-ins, oldest to newest">
                 @foreach (var count in _weekly)
                 {
-                    <i style="flex:1;background:var(--tenant);opacity:.75;border-radius:2px 2px 0 0;height:@(_weeklyMax == 0 ? 0 : count * 100 / _weeklyMax)%"></i>
+                    <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:1px;height:100%">
+                        <span style="font:600 7.5px/1 var(--font-mono);color:var(--ink-faint);text-align:center">@count</span>
+                        <i style="display:block;background:var(--tenant);opacity:.75;border-radius:2px 2px 0 0;height:@(_weeklyMax == 0 ? 0 : Math.Max(count > 0 ? 3 : 0, count * 80 / _weeklyMax))%"></i>
+                    </div>
                 }
             </div>
-            <p class="cap" style="margin-top:6px">GYM-WIDE · CONFIRMED ATTENDANCE RECORDS ONLY</p>
+            <p class="cap" style="margin-top:6px">GYM-WIDE · CONFIRMED ATTENDANCE ONLY · EACH BAR = ONE WEEK, OLDEST LEFT → THIS WEEK RIGHT</p>
         </div>
     </section>
 
@@ -181,4 +186,12 @@
         var gap = needed - Form!.ActiveMembers;
         return gap <= 0 ? "COVERED" : $"{gap} TO GO";
     }
+
+    // Both bars of a month stack in one column — 38% each keeps the worst-case pair
+    // plus its labels inside the column. Non-zero values always get a visible sliver.
+    private int BarPercent(decimal value)
+        => value <= 0 || _moneyMax <= 0 ? 0 : Math.Max(2, (int)(value * 38m / _moneyMax));
+
+    private static string Compact(decimal value)
+        => value >= 1000 ? $"{value / 1000m:0.#}K" : value.ToString("0");
 }
