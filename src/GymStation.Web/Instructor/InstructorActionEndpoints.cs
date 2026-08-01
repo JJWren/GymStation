@@ -86,10 +86,21 @@ public static class InstructorActionEndpoints
 
         group.MapPost("/set-attendance", async ([FromForm] Guid recordId, [FromForm] Guid sessionId, [FromForm] string status, AttendanceService attendance) =>
         {
-            var target = status == "removed" ? AttendanceStatus.Removed : AttendanceStatus.Confirmed;
+            AttendanceStatus? target = status switch
+            {
+                "confirmed" => AttendanceStatus.Confirmed,
+                "removed" => AttendanceStatus.Removed,
+                _ => null,
+            };
+
+            if (target is null)
+            {
+                return Results.Redirect($"/instructor/roll/{sessionId}?failed=1");
+            }
+
             try
             {
-                await attendance.SetStatusAsync(recordId, target);
+                await attendance.SetStatusAsync(recordId, sessionId, target.Value);
             }
             catch (InvalidOperationException)
             {

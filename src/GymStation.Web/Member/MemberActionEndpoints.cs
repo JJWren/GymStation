@@ -24,11 +24,15 @@ public static class MemberActionEndpoints
             GymStationDbContext db,
             AttendanceService attendance) =>
         {
-            var back = string.IsNullOrWhiteSpace(date) ? "/schedule" : $"/schedule?date={date}";
+            var back = string.IsNullOrWhiteSpace(date) || !DateOnly.TryParse(date, out var day)
+                ? "/schedule"
+                : $"/schedule?date={day:yyyy-MM-dd}";
+            var fail = back.Contains('?') ? $"{back}&failed=1" : $"{back}?failed=1";
+
             var raw = user.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!Guid.TryParse(raw, out var userId))
             {
-                return Results.Redirect($"{back}&failed=1");
+                return Results.Redirect(fail);
             }
 
             // Source is derived server-side: own record → Self; guardian-linked → Guardian.
@@ -43,7 +47,7 @@ public static class MemberActionEndpoints
             }
             catch (InvalidOperationException)
             {
-                return Results.Redirect(back.Contains('?') ? $"{back}&failed=1" : $"{back}?failed=1");
+                return Results.Redirect(fail);
             }
 
             return Results.Redirect(back);

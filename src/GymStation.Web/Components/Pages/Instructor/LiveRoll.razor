@@ -34,7 +34,7 @@ else
         {
             <div class="roll-row @(record.Status == AttendanceStatus.Removed ? "roll-row--out" : null)">
                 <span class="nm">@_names.GetValueOrDefault(record.PersonId, "?")</span>
-                <span class="src">@record.Source.ToString().ToUpperInvariant() · @record.CheckedInUtc.ToLocalTime().ToString("HH\\:mm")</span>
+                <span class="src">@record.Source.ToString().ToUpperInvariant() · @GymLocal(record.CheckedInUtc).ToString("HH\\:mm")</span>
                 <span class="stamp @(record.Status switch { AttendanceStatus.Confirmed => "stamp--ok", AttendanceStatus.Pending => "stamp--warn", _ => "stamp--bad" })">@record.Status.ToString().ToUpperInvariant()</span>
                 <span class="roll-actions">
                     @if (record.Status != AttendanceStatus.Confirmed)
@@ -82,6 +82,9 @@ else
     private List<AttendanceRecord> _records = [];
     private Dictionary<Guid, string> _names = [];
     private List<(Guid Id, string Name)> _addable = [];
+    private TimeZoneInfo _zone = TimeZoneInfo.Utc;
+
+    private DateTimeOffset GymLocal(DateTimeOffset utc) => TimeZoneInfo.ConvertTime(utc, _zone);
 
     protected override async Task OnInitializedAsync()
     {
@@ -90,6 +93,9 @@ else
         {
             return;
         }
+
+        var gym = await Db.Gyms.SingleAsync(g => g.Id == _session.GymId);
+        _zone = TimeZoneInfo.FindSystemTimeZoneById(gym.TimeZoneId);
 
         _records = await Db.AttendanceRecords.Where(a => a.SessionId == SessionId).ToListAsync();
 

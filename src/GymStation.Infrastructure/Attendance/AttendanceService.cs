@@ -95,10 +95,12 @@ public class AttendanceService(GymStationDbContext db)
         }
     }
 
-    public async Task SetStatusAsync(Guid recordId, AttendanceStatus status, CancellationToken ct = default)
+    public async Task SetStatusAsync(Guid recordId, Guid sessionId, AttendanceStatus status, CancellationToken ct = default)
     {
-        var record = await db.AttendanceRecords.SingleOrDefaultAsync(a => a.Id == recordId, ct)
-            ?? throw new InvalidOperationException("Attendance record not found in the active gym.");
+        // The session id must match the record: callers act on a specific roll, and a
+        // crafted record id from another session must not be reachable through it.
+        var record = await db.AttendanceRecords.SingleOrDefaultAsync(a => a.Id == recordId && a.SessionId == sessionId, ct)
+            ?? throw new InvalidOperationException("Attendance record not found for this session in the active gym.");
 
         record.Status = status;
         record.ConfirmedUtc = status == AttendanceStatus.Confirmed ? DateTimeOffset.UtcNow : null;

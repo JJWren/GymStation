@@ -144,7 +144,7 @@ public class AttendanceTests(PostgresFixture fixture)
         var before = await attendance.StatsAsync(member.Id, DateOnly.FromDateTime(DateTime.UtcNow));
         Assert.Equal(0, before.VerifiedHours);
 
-        await attendance.SetStatusAsync(record.Id, AttendanceStatus.Confirmed);
+        await attendance.SetStatusAsync(record.Id, session.Id, AttendanceStatus.Confirmed);
 
         var after = await attendance.StatsAsync(member.Id, DateOnly.FromDateTime(DateTime.UtcNow));
         Assert.Equal(1, after.VerifiedHours);
