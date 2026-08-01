@@ -122,10 +122,11 @@
             publisherPersonId = (await Db.Persons.SingleOrDefaultAsync(p => p.UserId == userId))?.Id ?? Guid.Empty;
         }
 
+        var title = Form.Title.Trim();
         Db.GymEvents.Add(new GymEvent
         {
             Id = Guid.NewGuid(),
-            Title = Form.Title.Trim(),
+            Title = title,
             Kind = Form.Kind,
             StartsOn = Form.StartsOn,
             TimeInfo = Form.TimeInfo,
@@ -142,7 +143,7 @@
         Notifications.Notify(
             memberUserIds,
             NotificationCategory.SessionChanged,
-            $"New event: {Form.Title}",
+            $"New event: {title}",
             $"{Form.Kind} on {Form.StartsOn:dddd dd MMMM}. RSVP from the Events tab.",
             "/events",
             email: false);

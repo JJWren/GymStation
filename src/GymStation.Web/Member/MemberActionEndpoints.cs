@@ -94,7 +94,16 @@ public static class MemberActionEndpoints
                 existing.Status = target.Value;
             }
 
-            await db.SaveChangesAsync();
+            try
+            {
+                await db.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: "23505" })
+            {
+                // Double-submit raced the unique (EventId, PersonId) index — the earlier
+                // request already recorded the RSVP; treat as a no-op.
+            }
+
             return Results.Redirect("/events");
         });
 
