@@ -186,6 +186,40 @@ a { color: var(--ink); }
 .roll-actions { display: flex; gap: 6px; }
 .roll-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; gap: 10px; flex-wrap: wrap; }
 
+/* ---- public gym page ---- */
+.pub-hero { min-height: 300px; background: radial-gradient(ellipse 90% 70% at 50% 20%, rgba(201,80,59,.14), transparent 60%), linear-gradient(180deg, #232B36 0%, #1A2028 55%, #14181E 100%); background-size: cover; background-position: center; display: flex; }
+.pub-hero-scrim { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; padding: 26px; background: linear-gradient(180deg, rgba(20,24,30,.15), rgba(20,24,30,.82)); }
+.pub-hero h1 { font: 38px/1 var(--font-display); }
+.pub-crest { width: 46px; height: 46px; border-radius: 11px; margin-bottom: 12px; object-fit: cover; }
+.pub-tag { font: 600 10px/1 var(--font-mono); letter-spacing: .2em; color: var(--ink-dim); margin: 8px 0 16px; }
+.pub-hero .btn { width: max-content; text-decoration: none; display: inline-block; }
+.pub-strip { background: var(--panel); border-top: 1px solid var(--edge); border-bottom: 1px solid var(--edge); padding: 14px 20px; }
+.pub-strip h2, .pub-section h2 { font: 600 10px/1 var(--font-mono); letter-spacing: .2em; color: var(--ink-dim); margin-bottom: 12px; }
+.pub-days { display: flex; gap: 8px; overflow-x: auto; }
+.pub-day { flex: none; background: var(--surface); border-radius: 9px; padding: 9px 11px; min-width: 106px; }
+.pub-day b { font: 600 9px/1 var(--font-mono); letter-spacing: .14em; color: var(--tenant); display: block; margin-bottom: 5px; }
+.pub-day span { display: block; font: 600 10px/1.6 var(--font-mono); color: var(--ink-dim); }
+.pub-section { padding: 22px 20px; max-width: 900px; margin: 0 auto; }
+.pub-coaches { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.pub-foot { border-top: 1px solid var(--edge); padding: 16px 20px; display: flex; justify-content: space-between; font: 600 9px/1 var(--font-mono); color: var(--ink-faint); letter-spacing: .12em; flex-wrap: wrap; gap: 8px; }
+
+/* ---- light mode (paper ledger) — applied via .theme-light wrapper ---- */
+.theme-light {
+    --bg: #EFEAE0;
+    --panel: #E9E3D6;
+    --surface: #F7F4EC;
+    --surface-2: #FFFDF7;
+    --edge: #C9C2B2;
+    --ink: #26241F;
+    --ink-dim: #5C594F;
+    --ink-faint: #8D897C;
+    background: var(--bg);
+    color: var(--ink);
+    background-image: repeating-linear-gradient(0deg, rgba(90,110,130,.08) 0 1px, transparent 1px 26px);
+}
+.theme-light .rail .tab.active { background: var(--bg); }
+.theme-light .roll-board { background: #0E1116; color: #F1EDE3; } /* the scoreboard stays dark by design */
+
 /* ---- validation / errors ---- */
 .valid.modified:not([type=checkbox]) { outline: 1px solid var(--ok); }
 .invalid { outline: 1px solid var(--bad); }
