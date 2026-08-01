@@ -1,4 +1,5 @@
 using GymStation.Domain.Attendance;
+using GymStation.Domain.Money;
 using GymStation.Domain.Notifications;
 using GymStation.Domain.People;
 using GymStation.Domain.Ranks;
@@ -40,6 +41,11 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
     public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
+    public DbSet<MembershipPlan> MembershipPlans => Set<MembershipPlan>();
+    public DbSet<Charge> Charges => Set<Charge>();
+    public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<ExpenseCategory> ExpenseCategories => Set<ExpenseCategory>();
+    public DbSet<Expense> Expenses => Set<Expense>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -174,6 +180,49 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
             e.HasOne(a => a.Session).WithMany().HasForeignKey(a => a.SessionId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(a => a.Person).WithMany().HasForeignKey(a => a.PersonId).OnDelete(DeleteBehavior.Cascade);
             e.HasQueryFilter(a => CurrentGymId != null && a.GymId == CurrentGymId);
+        });
+
+        builder.Entity<MembershipPlan>(e =>
+        {
+            e.Property(p => p.Name).HasMaxLength(80);
+            e.Property(p => p.Price).HasPrecision(10, 2);
+            e.HasIndex(p => new { p.GymId, p.Name }).IsUnique();
+            e.HasQueryFilter(p => CurrentGymId != null && p.GymId == CurrentGymId);
+        });
+
+        builder.Entity<Charge>(e =>
+        {
+            e.Property(c => c.Amount).HasPrecision(10, 2);
+            e.Property(c => c.Description).HasMaxLength(150);
+            e.Property(c => c.CycleKey).HasMaxLength(7);
+            // One cycle charge per person per month; the ledger can never double-bill a cycle.
+            e.HasIndex(c => new { c.GymId, c.PersonId, c.CycleKey }).IsUnique().HasFilter("\"CycleKey\" IS NOT NULL");
+            e.HasOne(c => c.Person).WithMany().HasForeignKey(c => c.PersonId).OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(c => CurrentGymId != null && c.GymId == CurrentGymId);
+        });
+
+        builder.Entity<Payment>(e =>
+        {
+            e.Property(p => p.Amount).HasPrecision(10, 2);
+            e.Property(p => p.Note).HasMaxLength(300);
+            e.HasOne(p => p.Person).WithMany().HasForeignKey(p => p.PersonId).OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(p => CurrentGymId != null && p.GymId == CurrentGymId);
+        });
+
+        builder.Entity<ExpenseCategory>(e =>
+        {
+            e.Property(c => c.Name).HasMaxLength(60);
+            e.HasIndex(c => new { c.GymId, c.Name }).IsUnique();
+            e.HasQueryFilter(c => CurrentGymId != null && c.GymId == CurrentGymId);
+        });
+
+        builder.Entity<Expense>(e =>
+        {
+            e.Property(x => x.Amount).HasPrecision(10, 2);
+            e.Property(x => x.Note).HasMaxLength(300);
+            e.HasOne(x => x.Category).WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => new { x.GymId, x.SpentOn });
+            e.HasQueryFilter(x => CurrentGymId != null && x.GymId == CurrentGymId);
         });
     }
 

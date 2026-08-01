@@ -1,5 +1,7 @@
+using System.Security.Claims;
 using GymStation.Domain.Tenancy;
 using GymStation.Infrastructure;
+using GymStation.Infrastructure.Money;
 using GymStation.Infrastructure.Scheduling;
 using GymStation.Web.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -48,6 +50,72 @@ public static class AdminActionEndpoints
             settings.OpenClaimsEnabled = enabled;
             await db.SaveChangesAsync();
             return Results.Redirect("/admin/schedule");
+        });
+
+        group.MapPost("/record-payment", async (
+            [FromForm] Guid personId,
+            [FromForm] decimal amount,
+            [FromForm] string? back,
+            ClaimsPrincipal user,
+            GymStationDbContext db,
+            LedgerService ledger) =>
+        {
+            var destination = back == "person" ? $"/admin/people/{personId}" : "/admin/dues";
+            if (amount <= 0)
+            {
+                return Results.Redirect($"{destination}?failed=1");
+            }
+
+            var raw = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            Guid? recordedBy = null;
+            if (Guid.TryParse(raw, out var userId))
+            {
+                recordedBy = (await db.Persons.SingleOrDefaultAsync(p => p.UserId == userId))?.Id;
+            }
+
+            // Received date in gym-local time, matching /run-cycle (UTC could shift the day/month).
+            var gym = await db.Gyms.SingleAsync(g => g.Id == db.CurrentGymId);
+            var zone = TimeZoneInfo.FindSystemTimeZoneById(gym.TimeZoneId);
+            var receivedOn = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, zone).DateTime);
+
+            try
+            {
+                await ledger.RecordPaymentAsync(personId, amount, receivedOn, recordedBy, null);
+            }
+            catch (InvalidOperationException)
+            {
+                // Person not visible in the active gym (stale form) — same failure surface.
+                return Results.Redirect($"{destination}?failed=1");
+            }
+
+            return Results.Redirect(destination);
+        });
+
+        group.MapPost("/run-cycle", async (GymStationDbContext db, LedgerService ledger) =>
+        {
+            var gym = await db.Gyms.SingleAsync(g => g.Id == db.CurrentGymId);
+            var zone = TimeZoneInfo.FindSystemTimeZoneById(gym.TimeZoneId);
+            var gymToday = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, zone).DateTime);
+            await ledger.RaiseMonthlyChargesAsync(gymToday);
+            return Results.Redirect("/admin/dues");
+        });
+
+        group.MapPost("/assign-plan", async ([FromForm] Guid personId, [FromForm] Guid? planId, GymStationDbContext db) =>
+        {
+            var person = await db.Persons.SingleOrDefaultAsync(p => p.Id == personId);
+            if (person is null)
+            {
+                return Results.Redirect("/admin/roster");
+            }
+
+            if (planId is { } id && !await db.MembershipPlans.AnyAsync(pl => pl.Id == id && !pl.Archived))
+            {
+                return Results.Redirect($"/admin/people/{personId}?failed=1");
+            }
+
+            person.MembershipPlanId = planId;
+            await db.SaveChangesAsync();
+            return Results.Redirect($"/admin/people/{personId}");
         });
 
         return app;
