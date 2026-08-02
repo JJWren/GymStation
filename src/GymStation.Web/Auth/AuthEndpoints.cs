@@ -92,6 +92,34 @@ public static class AuthEndpoints
             return Results.Redirect("/login");
         }).RequireAuthorization();
 
+        // Per-user theme preference (decision 3): stored on the account so it follows
+        // the user across devices; null means "follow the gym default".
+        group.MapPost("/theme", async (
+            [FromForm] bool dark,
+            [FromForm] string? back,
+            ClaimsPrincipal principal,
+            UserManager<AppUser> users) =>
+        {
+            var user = await users.GetUserAsync(principal);
+            if (user is not null)
+            {
+                user.PreferredThemeDark = dark;
+                await users.UpdateAsync(user);
+            }
+
+            // Local paths only — never an attacker-suppliable absolute URL. Backslashes
+            // and whitespace are rejected too: browsers normalize \ to /, which would
+            // turn /\evil.com into a protocol-relative redirect.
+            var destination = !string.IsNullOrEmpty(back)
+                && back.StartsWith('/')
+                && !back.StartsWith("//")
+                && !back.Contains('\\')
+                && !back.Any(char.IsWhiteSpace)
+                ? back
+                : "/";
+            return Results.Redirect(destination);
+        }).RequireAuthorization();
+
         return app;
     }
 

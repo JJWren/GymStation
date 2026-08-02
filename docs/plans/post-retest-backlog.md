@@ -29,7 +29,7 @@ gets meaningful drops instead of eighteen tiny ones.
 - [x] #37 — Sunday-start calendar stat weeks with dates (PR #50)
 - [x] #40 — Admin: edit person details (incl. DOB → IBJJF/Masters category)
 - [x] #39 — Instructor experience (/teach landing)
-- [ ] #34 — Theme toggle
+- [x] #34 — Theme toggle
 - [x] #41 — Guardian portal
 - [ ] #24 — Ledger management
 - [ ] #25 — Events v2
