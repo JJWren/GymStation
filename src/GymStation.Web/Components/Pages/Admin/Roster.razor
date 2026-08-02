@@ -36,6 +36,7 @@
         }
         <select name="rank" aria-label="Filter by rank">
             <option value="">ANY RANK</option>
+            <option value="none" selected="@(RankRaw == "none")">NO BELT</option>
             @foreach (var system in _systems)
             {
                 <optgroup label="@system.Name">
@@ -127,9 +128,12 @@
 @code {
     [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
     [SupplyParameterFromQuery(Name = "role")] public string? Role { get; set; }
-    [SupplyParameterFromQuery(Name = "rank")] public Guid? RankFilter { get; set; }
+    [SupplyParameterFromQuery(Name = "rank")] public string? RankRaw { get; set; }
     [SupplyParameterFromQuery(Name = "sort")] public string? Sort { get; set; }
     [SupplyParameterFromQuery(Name = "dir")] public string? Dir { get; set; }
+
+    private Guid? RankFilter => Guid.TryParse(RankRaw, out var id) ? id : null;
+    private bool NoBeltFilter => RankRaw == "none";
 
     [SupplyParameterFromForm(FormName = "add-person")]
     public AddPersonForm? Form { get; set; }
@@ -181,7 +185,11 @@
         _ranks = await Ranks.GetPrimaryRanksAsync(_people.Select(p => p.Id).ToList());
         _systems = await Ranks.GetVisibleSystemsAsync();
 
-        if (RankFilter is { } rankId)
+        if (NoBeltFilter)
+        {
+            _people = _people.Where(p => !_ranks.ContainsKey(p.Id)).ToList();
+        }
+        else if (RankFilter is { } rankId)
         {
             _people = _people.Where(p => _ranks.GetValueOrDefault(p.Id)?.Rank.Id == rankId).ToList();
         }
@@ -199,11 +207,11 @@
                 ? [.. _people.OrderByDescending(p => p.LastName).ThenByDescending(p => p.FirstName)]
                 : [.. _people.OrderBy(p => p.LastName).ThenBy(p => p.FirstName)],
             "rank" => desc
-                ? [.. _people.OrderByDescending(p => _ranks.GetValueOrDefault(p.Id)?.Rank.Order ?? -1)]
-                : [.. _people.OrderBy(p => _ranks.GetValueOrDefault(p.Id)?.Rank.Order ?? int.MaxValue)],
+                ? [.. _people.OrderByDescending(p => RankOrdering.Key(_ranks.GetValueOrDefault(p.Id))).ThenBy(p => p.FirstName).ThenBy(p => p.LastName)]
+                : [.. _people.OrderBy(p => RankOrdering.Key(_ranks.GetValueOrDefault(p.Id))).ThenBy(p => p.FirstName).ThenBy(p => p.LastName)],
             "tenure" => desc
-                ? [.. _people.OrderByDescending(TenureDays)]
-                : [.. _people.OrderBy(p => TenureDays(p) < 0 ? int.MaxValue : TenureDays(p))],
+                ? [.. _people.OrderByDescending(TenureDays).ThenBy(p => p.FirstName).ThenBy(p => p.LastName)]
+                : [.. _people.OrderBy(p => TenureDays(p) < 0 ? int.MaxValue : TenureDays(p)).ThenBy(p => p.FirstName).ThenBy(p => p.LastName)],
             _ => _people, // default: first-name ascending straight from the query
         };
     }
@@ -225,9 +233,9 @@
             parts.Add($"role={Uri.EscapeDataString(Role)}");
         }
 
-        if (RankFilter is { } rankId)
+        if (!string.IsNullOrEmpty(RankRaw))
         {
-            parts.Add($"rank={rankId}");
+            parts.Add($"rank={Uri.EscapeDataString(RankRaw)}");
         }
 
         return "/admin/roster?" + string.Join("&", parts);
