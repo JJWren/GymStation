@@ -22,6 +22,10 @@ public static class RankOrdering
             : current.Rank.RankSystemId == IbjjfSeed.AdultSystemId ? 1
             : 2;
 
-        return ((long)system << 32) | ((long)(uint)current.Rank.Order << 8) | (uint)current.Stripes;
+        // 20-bit fields: clamps sit far beyond any real ladder (IBJJF max is 6 stripes)
+        // while keeping the top field clear of long's sign bit.
+        return ((long)system << 40)
+            | ((long)Math.Clamp(current.Rank.Order, 0, 0xF_FFFF) << 20)
+            | (uint)Math.Clamp(current.Stripes, 0, 0xF_FFFF);
     }
 }

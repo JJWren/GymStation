@@ -207,11 +207,11 @@
                 ? [.. _people.OrderByDescending(p => p.LastName).ThenByDescending(p => p.FirstName)]
                 : [.. _people.OrderBy(p => p.LastName).ThenBy(p => p.FirstName)],
             "rank" => desc
-                ? [.. _people.OrderByDescending(p => RankOrdering.Key(_ranks.GetValueOrDefault(p.Id)))]
-                : [.. _people.OrderBy(p => RankOrdering.Key(_ranks.GetValueOrDefault(p.Id)))],
+                ? [.. _people.OrderByDescending(p => RankOrdering.Key(_ranks.GetValueOrDefault(p.Id))).ThenBy(p => p.FirstName).ThenBy(p => p.LastName)]
+                : [.. _people.OrderBy(p => RankOrdering.Key(_ranks.GetValueOrDefault(p.Id))).ThenBy(p => p.FirstName).ThenBy(p => p.LastName)],
             "tenure" => desc
-                ? [.. _people.OrderByDescending(TenureDays)]
-                : [.. _people.OrderBy(p => TenureDays(p) < 0 ? int.MaxValue : TenureDays(p))],
+                ? [.. _people.OrderByDescending(TenureDays).ThenBy(p => p.FirstName).ThenBy(p => p.LastName)]
+                : [.. _people.OrderBy(p => TenureDays(p) < 0 ? int.MaxValue : TenureDays(p)).ThenBy(p => p.FirstName).ThenBy(p => p.LastName)],
             _ => _people, // default: first-name ascending straight from the query
         };
     }
