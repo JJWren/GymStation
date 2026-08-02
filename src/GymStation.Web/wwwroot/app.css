@@ -238,6 +238,17 @@ a { color: var(--ink); }
 /* ---- desktop readability ----
    The ledger density was tuned at laptop widths; on 1920px+ the fixed px type reads
    too small. First-order fix: scale the whole frame up at wide viewports. The
-   systematic clamp()-based type-scale pass is tracked separately (issue #22). */
-@media (min-width: 1440px) { body { zoom: 1.1; } }
-@media (min-width: 1760px) { body { zoom: 1.2; } }
+   systematic clamp()-based type-scale pass is tracked separately (issue #22).
+
+   zoom multiplies LAYOUT units, so any 100vh frame becomes zoom×viewport tall and
+   pushes footers (admin rail's sign-out) below the fold on exactly the widest
+   screens — every viewport-height rule divides by the SAME --desktop-zoom custom
+   property, so the factor can never drift between the two declarations. */
+@media (min-width: 1440px) {
+    body { --desktop-zoom: 1.1; zoom: var(--desktop-zoom); }
+    body, .app-frame, .member-frame, .roll-board { min-height: calc(100vh / var(--desktop-zoom)); }
+}
+
+@media (min-width: 1760px) {
+    body { --desktop-zoom: 1.2; }
+}
