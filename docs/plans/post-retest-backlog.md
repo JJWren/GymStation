@@ -26,9 +26,9 @@ gets meaningful drops instead of eighteen tiny ones.
 - [x] #35 — Member schedule: full-day visibility (verify) + guardian states (verified, no code)
 - [x] #33 — Real bell icon
 - [x] #36 — Gym name → public page; public page knows you (PR #49)
-- [ ] #37 — Sunday-start calendar stat weeks with dates (PR #50 in gate)
+- [x] #37 — Sunday-start calendar stat weeks with dates (PR #50)
 - [x] #40 — Admin: edit person details (incl. DOB → IBJJF/Masters category)
-- [ ] #39 — Instructor experience
+- [x] #39 — Instructor experience (/teach landing)
 - [ ] #34 — Theme toggle
 - [ ] #41 — Guardian portal
 - [ ] #24 — Ledger management

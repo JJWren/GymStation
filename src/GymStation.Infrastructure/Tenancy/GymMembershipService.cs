@@ -45,17 +45,29 @@ public class GymMembershipService(GymStationDbContext db)
 
     /// <summary>
     /// Post-sign-in landing for a user in a gym. Staff run the gym from the admin
-    /// Today screen; everyone else — members, instructors (until #39's /teach lands),
-    /// and guardians with no roster record — lives in the member shell.
+    /// Today screen; instructors land on /teach (their sessions + covers); members
+    /// and guardian-only accounts live on the member schedule.
     /// </summary>
     public async Task<string> LandingPathAsync(Guid userId, Guid gymId, CancellationToken ct = default)
     {
-        var isStaff = await db.Persons.IgnoreQueryFilters()
-            .AnyAsync(p => p.UserId == userId
-                && p.GymId == gymId
-                && !p.Archived
-                && (p.Roles.HasFlag(PersonRoles.Admin) || p.Roles.HasFlag(PersonRoles.Owner)), ct);
+        var roles = await db.Persons.IgnoreQueryFilters()
+            .Where(p => p.UserId == userId && p.GymId == gymId && !p.Archived)
+            .Select(p => (PersonRoles?)p.Roles)
+            .FirstOrDefaultAsync(ct);
 
-        return isStaff ? "/" : "/schedule";
+        if (roles is { } r)
+        {
+            if (r.HasFlag(PersonRoles.Admin) || r.HasFlag(PersonRoles.Owner))
+            {
+                return "/";
+            }
+
+            if (r.HasFlag(PersonRoles.Instructor))
+            {
+                return "/teach";
+            }
+        }
+
+        return "/schedule";
     }
 }

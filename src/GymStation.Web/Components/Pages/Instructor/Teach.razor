@@ -1,0 +1,130 @@
+@page "/teach"
+@attribute [Authorize(Policy = "GymInstructor")]
+@layout MemberLayout
+@using System.Security.Claims
+@using GymStation.Domain.Scheduling
+@inject IDbContextFactory<GymStationDbContext> DbFactory
+@inject GymStation.Infrastructure.Scheduling.ScheduleService Schedule
+
+<PageTitle>Teach · GymStation</PageTitle>
+
+<main class="member-shell" style="padding-top:6px">
+    <h1 class="page-title" style="font-size:20px">TEACH</h1>
+    <p class="cap" style="margin-top:4px">YOUR SESSIONS · NEXT 14 DAYS — LIVE ROLL, COVER REQUESTS, AND WHAT'S WAITING ON YOU</p>
+
+    @if (Failed)
+    {
+        <p class="auth-error" role="alert">That action couldn't be completed — the request may have changed state.</p>
+    }
+
+    <h2 class="section-h">You teach</h2>
+    @if (_mySessions.Count == 0)
+    {
+        <p class="cap">NO UPCOMING SESSIONS ASSIGNED TO YOU IN THE NEXT 14 DAYS.</p>
+    }
+    @foreach (var session in _mySessions)
+    {
+        <div class="ses" style="margin-bottom:10px">
+            <div class="head-row">
+                <span class="t">@session.Date.ToString("ddd dd MMM").ToUpperInvariant() · @session.StartTime.ToString("HH\\:mm")</span>
+                <a class="chip" href="/instructor/roll/@session.Id">LIVE ROLL →</a>
+            </div>
+            <div class="n" style="font-size:16px">@session.Name</div>
+            <form method="post" action="/instructor/actions/request-sub" class="row-form" style="margin-top:8px">
+                <AntiforgeryToken />
+                <input type="hidden" name="sessionId" value="@session.Id" />
+                <select name="proposedSubPersonId" aria-label="Proposed substitute">
+                    <option value="">OPEN — anyone can claim</option>
+                    @foreach (var (id, name) in _otherInstructors)
+                    {
+                        <option value="@id">@name</option>
+                    }
+                </select>
+                <button type="submit" class="btn btn--ghost btn--xs">MARK ME OUT</button>
+            </form>
+        </div>
+    }
+
+    <h2 class="section-h">Waiting on you</h2>
+    @if (_actionable.Count == 0)
+    {
+        <p class="cap">NO OPEN COVER REQUESTS RIGHT NOW.</p>
+    }
+    @foreach (var request in _actionable)
+    {
+        <div class="form-card" style="margin-bottom:10px">
+            <b>@request.Session.Name · @request.Session.Date.ToString("ddd dd MMM").ToUpperInvariant() @request.Session.StartTime.ToString("HH\\:mm")</b>
+            <p class="cap" style="margin:4px 0 8px">
+                @(request.ProposedSubPersonId is null ? "OPEN REQUEST" : "NAMED TO YOU") ·
+                REQUESTED BY @_names.GetValueOrDefault(request.RequestedByPersonId, "?").ToUpperInvariant()
+            </p>
+            <form method="post" action="/instructor/actions/accept-sub" class="row-form">
+                <AntiforgeryToken />
+                <input type="hidden" name="requestId" value="@request.Id" />
+                <button type="submit" class="btn btn--xs">@(request.ProposedSubPersonId is null ? "CLAIM THIS SESSION" : "ACCEPT")</button>
+            </form>
+        </div>
+    }
+
+    <p class="cap" style="margin-top:14px"><a href="/instructor/swaps">ALL SUBSTITUTIONS →</a> · <a href="/schedule">FULL SCHEDULE →</a></p>
+</main>
+
+@code {
+    [SupplyParameterFromQuery(Name = "failed")] public int? FailedFlag { get; set; }
+    private bool Failed => FailedFlag == 1;
+
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+
+    private List<ClassSession> _mySessions = [];
+    private List<GymStation.Domain.Scheduling.SubstitutionRequest> _actionable = [];
+    private List<(Guid Id, string Name)> _otherInstructors = [];
+    private Dictionary<Guid, string> _names = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(raw, out var userId))
+        {
+            return;
+        }
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var me = await db.Persons.SingleOrDefaultAsync(p => p.UserId == userId && !p.Archived);
+        if (me is null)
+        {
+            return;
+        }
+
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        await Schedule.GetWeekAsync(MondayOf(today));
+        await Schedule.GetWeekAsync(MondayOf(today).AddDays(7));
+
+        _mySessions = await db.ClassSessions
+            .Where(s => s.InstructorPersonId == me.Id && s.Status == SessionStatus.Scheduled
+                && s.Date >= today && s.Date <= today.AddDays(14))
+            .OrderBy(s => s.Date).ThenBy(s => s.StartTime)
+            .ToListAsync();
+
+        _actionable = await db.SubstitutionRequests
+            .Include(r => r.Session)
+            .Where(r => r.Status == SubstitutionStatus.Requested
+                && r.RequestedByPersonId != me.Id
+                && (r.ProposedSubPersonId == null || r.ProposedSubPersonId == me.Id))
+            .OrderBy(r => r.Session.Date)
+            .ToListAsync();
+
+        var instructorPersons = await db.Persons
+            .Where(p => !p.Archived && p.Id != me.Id && p.Roles.HasFlag(PersonRoles.Instructor))
+            .OrderBy(p => p.FirstName).ToListAsync();
+        _otherInstructors = instructorPersons.Select(p => (p.Id, p.DisplayName)).ToList();
+
+        var nameIds = _actionable.Select(r => r.RequestedByPersonId).Distinct().ToList();
+        _names = await db.Persons.Where(p => nameIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id, p => p.DisplayName);
+    }
+
+    private static DateOnly MondayOf(DateOnly date)
+    {
+        var diff = ((int)date.DayOfWeek + 6) % 7;
+        return date.AddDays(-diff);
+    }
+}
