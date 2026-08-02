@@ -46,8 +46,13 @@ a { color: var(--ink); }
 .gym-choice button { background: var(--surface); color: var(--ink); font: 700 0.875rem/1.2 var(--font-display); letter-spacing: .02em; text-align: left; padding: 1rem; }
 
 /* ---- admin shell ---- */
-.app-frame { display: flex; min-height: 100vh; max-width: 73.75rem; margin: 0 auto; }
-.rail { width: 11.625rem; background: var(--panel); padding: 1rem 0 1rem 0.75rem; display: flex; flex-direction: column; gap: 0.125rem; flex: none; }
+/* Full-width at every size (the old centered max-width made the rail float
+   away from the screen edge); the rail pins to the viewport and the content
+   scrolls past it. */
+.app-frame { display: flex; min-height: 100vh; }
+.rail { width: 11.625rem; background: var(--panel); padding: 1rem 0 1rem 0.75rem; display: flex; flex-direction: column; gap: 0.125rem; flex: none; position: sticky; top: 0; height: 100vh; overflow-y: auto; align-self: flex-start; }
+.rail-tabs { display: flex; flex-direction: column; gap: 0.125rem; flex: 1; min-height: 0; }
+.rail-menu { display: none; }
 .rail .brand { display: flex; align-items: center; padding: 0 0.625rem 1.125rem; }
 .brand-link { color: inherit; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; }
 .rail .crest { width: 1.625rem; height: 1.625rem; border-radius: 0.375rem; background: var(--tenant); flex: none; }
@@ -60,6 +65,22 @@ a { color: var(--ink); }
 .rail .foot { margin-top: auto; padding: 0.625rem 0.75rem; font: 0.5625rem/1.6 var(--font-mono); color: var(--ink-faint); letter-spacing: .08em; }
 .rail .foot button { background: none; border: 1px solid var(--edge); border-radius: 0.375rem; color: var(--ink-dim); font: 700 0.5625rem/1 var(--font-mono); letter-spacing: .1em; padding: 0.4375rem 0.625rem; margin-top: 0.5rem; cursor: pointer; }
 .main { flex: 1; padding: 1.5rem 1.625rem; min-width: 0; }
+
+/* Narrow admin: the rail becomes a sticky top bar — crest, gym name, and a
+   hamburger whose pull-down carries the tabs and the foot. */
+@media (max-width: 900px) {
+    .app-frame { display: block; }
+    .rail { position: sticky; top: 0; z-index: 40; width: 100%; height: auto; overflow: visible; flex-direction: row; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem; }
+    .rail .brand { padding: 0; }
+    .rail-menu { display: block; }
+    .rail-menu summary { list-style: none; cursor: pointer; font: 700 1.125rem/1 var(--font-mono); color: var(--ink-dim); border: 1px solid var(--edge); border-radius: 0.5rem; padding: 0.375rem 0.625rem; user-select: none; }
+    .rail-menu summary::-webkit-details-marker { display: none; }
+    .rail-menu[open] summary { color: var(--tenant); border-color: var(--tenant); }
+    .rail-tabs { display: none; }
+    .rail:has(.rail-menu[open]) .rail-tabs { display: flex; position: absolute; top: 100%; left: 0; right: 0; background: var(--panel); border-bottom: 1px solid var(--edge); padding: 0.5rem 0.75rem 0.875rem; box-shadow: 0 0.875rem 2rem rgba(0, 0, 0, .4); }
+    .rail .tab { border-radius: 0.5rem; }
+    .rail .foot { margin-top: 0.5rem; }
+}
 
 .page-title { font: 1.5rem/1 var(--font-display); }
 .page-sub { font: 0.625rem/1 var(--font-mono); letter-spacing: .16em; color: var(--ink-faint); margin: 0.375rem 0 1.125rem; }
