@@ -38,7 +38,7 @@ gets meaningful drops instead of eighteen tiny ones.
 - [ ] #27 — Member check-in history
 - [x] #29 — Drop-ins / visitors (live-roll quick-add, VISITORS chip, convert)
 - [ ] #43 — Admin: member portraits from the person page (plain upload; crop joins #28)
-- [ ] #23 — Interactive schedule editor
+- [x] #23 — Interactive schedule editor (gym hours, time rail, edit modal; drag deferred)
 - [ ] #22 — Responsive type-scale pass
 
 ---
