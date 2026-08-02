@@ -9,6 +9,7 @@
 @using GymStation.Infrastructure.Tenancy
 @using Microsoft.EntityFrameworkCore
 @inject IDbContextFactory<GymStationDbContext> DbFactory
+@inject GymStation.Infrastructure.Tenancy.GymMembershipService Memberships
 @inject LedgerService Ledger
 @inject ITenantContext Tenant
 @inject NavigationManager Nav
@@ -93,18 +94,16 @@ else
 
         await using var db = await DbFactory.CreateDbContextAsync();
 
-        // "/" is the ADMIN Today screen. Members and instructors live in the member
-        // shell — send them to their schedule instead of rendering staff data.
+        // "/" is the ADMIN Today screen. Everyone else routes to their own landing
+        // (instructors → /teach, members/guardians → /schedule) — one rule, shared
+        // with sign-in via LandingPathAsync.
         var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (Guid.TryParse(raw, out var userId))
+        if (Guid.TryParse(raw, out var userId) && Tenant.CurrentGymId is { } activeGymId)
         {
-            var isStaff = await db.Persons.AnyAsync(p =>
-                p.UserId == userId
-                && !p.Archived
-                && (p.Roles.HasFlag(PersonRoles.Admin) || p.Roles.HasFlag(PersonRoles.Owner)));
-            if (!isStaff)
+            var landing = await Memberships.LandingPathAsync(userId, activeGymId);
+            if (landing != "/")
             {
-                Nav.NavigateTo("/schedule");
+                Nav.NavigateTo(landing);
                 return;
             }
         }

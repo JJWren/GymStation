@@ -22,14 +22,16 @@ public static class InstructorActionEndpoints
             [FromForm] Guid sessionId,
             [FromForm] Guid? proposedSubPersonId,
             [FromForm] string? note,
+            [FromForm] string? back,
             ClaimsPrincipal user,
             GymStationDbContext db,
             SubstitutionService subs) =>
         {
+            var destination = Destination(back);
             var personId = await PersonIdAsync(db, user);
             if (personId is null)
             {
-                return Results.Redirect("/instructor/swaps?failed=1");
+                return Results.Redirect($"{destination}?failed=1");
             }
 
             try
@@ -38,18 +40,19 @@ public static class InstructorActionEndpoints
             }
             catch (InvalidOperationException)
             {
-                return Results.Redirect("/instructor/swaps?failed=1");
+                return Results.Redirect($"{destination}?failed=1");
             }
 
-            return Results.Redirect("/instructor/swaps");
+            return Results.Redirect(destination);
         });
 
-        group.MapPost("/accept-sub", async ([FromForm] Guid requestId, ClaimsPrincipal user, GymStationDbContext db, SubstitutionService subs) =>
+        group.MapPost("/accept-sub", async ([FromForm] Guid requestId, [FromForm] string? back, ClaimsPrincipal user, GymStationDbContext db, SubstitutionService subs) =>
         {
+            var destination = Destination(back);
             var personId = await PersonIdAsync(db, user);
             if (personId is null)
             {
-                return Results.Redirect("/instructor/swaps?failed=1");
+                return Results.Redirect($"{destination}?failed=1");
             }
 
             try
@@ -58,10 +61,10 @@ public static class InstructorActionEndpoints
             }
             catch (InvalidOperationException)
             {
-                return Results.Redirect("/instructor/swaps?failed=1");
+                return Results.Redirect($"{destination}?failed=1");
             }
 
-            return Results.Redirect("/instructor/swaps");
+            return Results.Redirect(destination);
         });
 
         group.MapPost("/withdraw-sub", async ([FromForm] Guid requestId, ClaimsPrincipal user, GymStationDbContext db, SubstitutionService subs) =>
@@ -138,6 +141,9 @@ public static class InstructorActionEndpoints
 
         return app;
     }
+
+    // Allow-listed, never caller-controlled paths — no open redirect.
+    private static string Destination(string? back) => back == "teach" ? "/teach" : "/instructor/swaps";
 
     private static async Task<Guid?> PersonIdAsync(GymStationDbContext db, ClaimsPrincipal user)
     {
