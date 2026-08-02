@@ -9,16 +9,13 @@
     }
     else
     {
-        <span class="btn btn--ghost btn--xs pager-inert" aria-hidden="true">«</span>
-        <span class="btn btn--ghost btn--xs pager-inert" aria-hidden="true">‹</span>
+        <span class="btn btn--ghost btn--xs pager-inert" role="link" aria-disabled="true" aria-label="First page (already on it)">«</span>
+        <span class="btn btn--ghost btn--xs pager-inert" role="link" aria-disabled="true" aria-label="Previous page (none)">‹</span>
     }
     <form method="get" action="@Path" class="pager-form">
-        @foreach (var (key, value) in Preserve)
+        @foreach (var (key, value) in SafePreserve)
         {
-            @if (!string.IsNullOrEmpty(value))
-            {
-                <input type="hidden" name="@key" value="@value" />
-            }
+            <input type="hidden" name="@key" value="@value" />
         }
         <input class="pager-page" type="number" name="page" value="@Page" min="1" aria-label="Page number" />
         <span class="cap" style="margin:0">OF @PageCount</span>
@@ -37,8 +34,8 @@
     }
     else
     {
-        <span class="btn btn--ghost btn--xs pager-inert" aria-hidden="true">›</span>
-        <span class="btn btn--ghost btn--xs pager-inert" aria-hidden="true">»</span>
+        <span class="btn btn--ghost btn--xs pager-inert" role="link" aria-disabled="true" aria-label="Next page (none)">›</span>
+        <span class="btn btn--ghost btn--xs pager-inert" role="link" aria-disabled="true" aria-label="Last page (already on it)">»</span>
     }
 </div>
 
@@ -54,8 +51,17 @@
     /// <summary>Active page size; must be one of <see cref="Sizes"/>.</summary>
     [Parameter] public int Size { get; set; } = DefaultSize;
 
-    /// <summary>Other query params (search, filters, sort) carried through links and the form.</summary>
-    [Parameter] public Dictionary<string, string?> Preserve { get; set; } = [];
+    /// <summary>Other query params (search, filters, sort) carried through links and the form.
+    /// Null-safe; the reserved "page"/"size" keys are filtered so a careless caller can't
+    /// post duplicates that shadow the user's edits.</summary>
+    [Parameter] public Dictionary<string, string?>? Preserve { get; set; }
+
+    private static readonly string[] ReservedKeys = ["page", "size"];
+
+    private IEnumerable<KeyValuePair<string, string?>> SafePreserve =>
+        (Preserve ?? []).Where(pair =>
+            !string.IsNullOrEmpty(pair.Value)
+            && !ReservedKeys.Contains(pair.Key, StringComparer.OrdinalIgnoreCase));
 
     public static readonly int[] Sizes = [10, 25, 50];
     public const int DefaultSize = 25;
@@ -73,9 +79,8 @@
     private string UrlFor(int page)
     {
         var parts = new List<string> { $"page={page}", $"size={Size}" };
-        parts.AddRange(Preserve
-            .Where(pair => !string.IsNullOrEmpty(pair.Value))
-            .Select(pair => $"{pair.Key}={Uri.EscapeDataString(pair.Value!)}"));
+        parts.AddRange(SafePreserve
+            .Select(pair => $"{Uri.EscapeDataString(pair.Key)}={Uri.EscapeDataString(pair.Value!)}"));
         return $"{Path}?{string.Join("&", parts)}";
     }
 }
