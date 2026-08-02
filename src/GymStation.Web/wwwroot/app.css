@@ -161,6 +161,8 @@ a { color: var(--ink); }
 .member-top i { font: 9px/1 var(--font-mono); color: var(--ink-faint); letter-spacing: .14em; font-style: normal; }
 .member-top .bell { width: 30px; height: 30px; border: 1px solid var(--edge); border-radius: 8px; display: grid; place-items: center; color: var(--ink-dim); text-decoration: none; font-size: 13px; }
 .member-top-actions { display: flex; gap: 8px; align-items: center; }
+.media-crop .crop-canvas { border: 1px solid var(--edge); border-radius: 8px; touch-action: none; max-width: 100%; display: block; margin-top: 8px; cursor: grab; }
+.media-crop .crop-ui[hidden] { display: none; }
 .member-top .signout button { height: 30px; padding: 0 10px; border: 1px solid var(--edge); border-radius: 8px; background: none; color: var(--ink-dim); font: 600 9px/1 var(--font-mono); letter-spacing: .12em; cursor: pointer; }
 .member-body { flex: 1; }
 .member-tabs { display: flex; border-top: 1px solid var(--edge); background: var(--panel); position: sticky; bottom: 0; }
