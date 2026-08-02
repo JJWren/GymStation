@@ -238,6 +238,17 @@ a { color: var(--ink); }
 #blazor-error-ui { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 10; }
 .blazor-error-boundary::after { content: "An error has occurred."; }
 
+/* ---- diary month calendar ---- */
+.diary-cal { margin-bottom: 12px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+.cal-head { font: 600 9px/1 var(--font-mono); letter-spacing: .14em; color: var(--ink-faint); padding: 2px 0; }
+.cal-cell { display: block; font: 600 11px/1 var(--font-mono); color: var(--ink-dim); padding: 7px 0; border: 1px solid transparent; border-radius: 6px; }
+.cal-cell--has { color: var(--ink); background: var(--surface-2); border-color: var(--edge); text-decoration: none; }
+.cal-cell--has:hover { border-color: var(--tenant); }
+.cal-cell--sel { background: var(--tenant); color: var(--tenant-ink); border-color: var(--tenant); }
+.cal-cell--sel:hover { border-color: var(--tenant); }
+.cal-cell--today { outline: 1px dashed var(--tenant); outline-offset: -1px; }
+
 /* ---- desktop readability ----
    The ledger density was tuned at laptop widths; on 1920px+ the fixed px type reads
    too small. First-order fix: scale the whole frame up at wide viewports. The

@@ -62,6 +62,75 @@ public class MemberPortalTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task EditingAnEntry_ReplacesRollsWholesale_AndStaysAuthorOnly()
+    {
+        var (tenant, member, staff) = await SeedAsync();
+
+        await using var context = fixture.CreateContext(tenant);
+        var diary = new TrainingDiaryService(context);
+        var entry = await diary.AddAsync(member.UserId!.Value, TrainingEntryKind.RollLog, new DateOnly(2026, 7, 30), null,
+            "arm drags", null, [(staff.Id, "Owner T", "2x5 · even")]);
+
+        // Nobody but the author can even see the entry, let alone rewrite or delete it.
+        Assert.Null(await diary.GetEntryAsync(staff.UserId!.Value, entry.Id));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => diary.UpdateAsync(
+            staff.UserId!.Value, entry.Id, TrainingEntryKind.LessonNotes, new DateOnly(2026, 7, 30), null, "hijack", null, []));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => diary.DeleteAsync(staff.UserId!.Value, entry.Id));
+
+        // Flipping to self-reported still demands positive minutes on the edit path.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => diary.UpdateAsync(
+            member.UserId!.Value, entry.Id, TrainingEntryKind.SelfReported, new DateOnly(2026, 7, 30), null, "notes", null, []));
+
+        await diary.UpdateAsync(member.UserId!.Value, entry.Id, TrainingEntryKind.RollLog, new DateOnly(2026, 7, 29), null,
+            "reworked notes", null, [(null, "visitor", "1x5"), (staff.Id, "Owner T", "3x5")]);
+
+        var updated = await diary.GetEntryAsync(member.UserId!.Value, entry.Id);
+        Assert.NotNull(updated);
+        Assert.Equal(new DateOnly(2026, 7, 29), updated!.EntryDate);
+        Assert.Equal("reworked notes", updated.Notes);
+        Assert.Equal(2, updated.Rolls.Count);
+
+        // The old roll rows are gone, not orphaned alongside the replacements.
+        Assert.Equal(2, await context.TrainingRolls.CountAsync(r => r.TrainingEntryId == entry.Id));
+    }
+
+    [Fact]
+    public async Task DeletingAnEntry_RemovesItsRollsToo()
+    {
+        var (tenant, member, staff) = await SeedAsync();
+
+        await using var context = fixture.CreateContext(tenant);
+        var diary = new TrainingDiaryService(context);
+        var entry = await diary.AddAsync(member.UserId!.Value, TrainingEntryKind.RollLog, new DateOnly(2026, 7, 30), null,
+            null, null, [(staff.Id, "Owner T", "2x5")]);
+
+        await diary.DeleteAsync(member.UserId!.Value, entry.Id);
+
+        Assert.Empty(await context.TrainingEntries.ToListAsync());
+        Assert.Empty(await context.TrainingRolls.ToListAsync());
+        await Assert.ThrowsAsync<InvalidOperationException>(() => diary.DeleteAsync(member.UserId!.Value, entry.Id));
+    }
+
+    [Fact]
+    public async Task MonthQuery_ReturnsOnlyThatMonth_NewestFirst()
+    {
+        var (tenant, member, _) = await SeedAsync();
+
+        await using var context = fixture.CreateContext(tenant);
+        var diary = new TrainingDiaryService(context);
+        foreach (var date in new DateOnly[] { new(2026, 7, 31), new(2026, 8, 1), new(2026, 8, 31), new(2026, 9, 1) })
+        {
+            await diary.AddAsync(member.UserId!.Value, TrainingEntryKind.LessonNotes, date, null, "n", null, []);
+        }
+
+        var august = await diary.GetMonthAsync(member.UserId!.Value, new DateOnly(2026, 8, 1));
+
+        Assert.Equal(2, august.Count);
+        Assert.Equal(new DateOnly(2026, 8, 31), august[0].EntryDate);
+        Assert.Equal(new DateOnly(2026, 8, 1), august[1].EntryDate);
+    }
+
+    [Fact]
     public async Task SelfReportedEntries_NeedPositiveMinutes_AndNeverTouchVerifiedStats()
     {
         var (tenant, member, staff) = await SeedAsync();
