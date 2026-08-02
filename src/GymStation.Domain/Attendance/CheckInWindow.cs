@@ -12,11 +12,15 @@ public static class CheckInWindow
     {
         var start = session.Date.ToDateTime(session.StartTime);
         var opens = start.AddMinutes(-windowMinutes);
-        var closes = session.Date.ToDateTime(session.EndTime);
+
+        // Add the duration to the start DATETIME — EndTime is a TimeOnly that wraps
+        // at midnight, which used to close the window a day early for any session
+        // ending past 00:00 gym-local.
+        var closes = start.AddMinutes(session.DurationMinutes);
         return gymLocalNow >= opens && gymLocalNow <= closes;
     }
 
     /// <summary>Session end + 2h: pending records auto-confirm after this instant (gym-local).</summary>
     public static DateTime AutoConfirmAt(ClassSession session)
-        => session.Date.ToDateTime(session.EndTime).AddHours(2);
+        => session.Date.ToDateTime(session.StartTime).AddMinutes(session.DurationMinutes).AddHours(2);
 }
