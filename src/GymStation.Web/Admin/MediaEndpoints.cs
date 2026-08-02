@@ -102,6 +102,9 @@ public static class MediaEndpoints
         {
             var person = await db.Persons.SingleOrDefaultAsync(p => p.Id == personId);
             if (person?.PortraitPath is not { } path
+                // Defense in depth: only ever open THIS person's portrait key, even if
+                // the stored value was tampered with — never an arbitrary store path.
+                || !path.StartsWith($"gyms/{person.GymId}/portraits/{person.Id}", StringComparison.OrdinalIgnoreCase)
                 || !AllowedTypes.TryGetValue(Path.GetExtension(path), out var contentType))
             {
                 return Results.NotFound();
