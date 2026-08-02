@@ -13,6 +13,8 @@ public static class StatWeeks
     /// <summary>The last <paramref name="weeks"/> week-starts, oldest first, ending with the (partial) current week.</summary>
     public static List<DateOnly> Starts(DateOnly today, int weeks)
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(weeks);
+
         var current = SundayOf(today);
         return [.. Enumerable.Range(0, weeks).Select(i => current.AddDays(-7 * (weeks - 1 - i)))];
     }
