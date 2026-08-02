@@ -1,0 +1,130 @@
+@page "/progress/child/{PersonId:guid}"
+@attribute [Authorize]
+@layout MemberLayout
+@using System.Security.Claims
+@using GymStation.Infrastructure.Attendance
+@using GymStation.Infrastructure.Ranks
+@inject IDbContextFactory<GymStationDbContext> DbFactory
+@inject RankService Ranks
+@inject AttendanceService Attendance
+
+<PageTitle>@(_child?.DisplayName ?? "Progress") · GymStation</PageTitle>
+
+<main class="member-shell" style="padding-top:6px">
+    @if (!_authorized || _child is null)
+    {
+        <h1 class="page-title" style="font-size:20px">PROGRESS</h1>
+        <p class="cap" style="margin-top:10px">THIS ISN'T ONE OF YOUR PEOPLE. <a href="/progress">BACK TO YOUR PROGRESS</a></p>
+    }
+    else
+    {
+        <p class="cap" style="margin:0 0 4px"><a href="/progress">YOUR PROGRESS</a> → @_child.DisplayName.ToUpperInvariant()</p>
+        <h1 class="page-title" style="font-size:20px">@_child.DisplayName.ToUpperInvariant()</h1>
+        @if (_ageGroup is not null)
+        {
+            <p class="cap" style="margin-top:4px">IBJJF: @_ageGroup.ToUpperInvariant() (DERIVED)</p>
+        }
+
+        @if (_current is not null)
+        {
+            <div class="form-card" style="margin-top:12px">
+                <BeltBar Size="l" BandColorHex="@_current.Rank.BandColorHex" BarColorHex="@_current.Rank.BarColorHex"
+                         Stripes="@_current.Stripes" Label="@($"{_current.Rank.Name}, {_current.Stripes} stripes")" />
+                <p class="cap" style="margin-top:8px">
+                    @_current.Rank.Name.ToUpperInvariant() · @_current.Stripes STRIPES ·
+                    @RankProgress.FormatDuration(Today.ToDateTime(TimeOnly.MinValue) - _current.AtRankSince.ToDateTime(TimeOnly.MinValue)) AT BELT
+                </p>
+            </div>
+        }
+
+        <h2 class="section-h">Mat hours — gym-verified</h2>
+        <div class="filters">
+            <span class="chip chip--on">@_verifiedHours VERIFIED HRS</span>
+            <span class="chip">AVG @_avg /WK · 12W</span>
+        </div>
+
+        <h2 class="section-h">Sessions / week — last 12</h2>
+        <div class="form-card">
+            <div style="display:flex;gap:3px;height:72px" aria-label="Confirmed sessions per Sunday-start calendar week, last 12 weeks, oldest to newest">
+                @foreach (var week in _weekly)
+                {
+                    <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:1px;height:100%">
+                        <span style="font:600 7.5px/1 var(--font-mono);color:var(--ink-faint);text-align:center">@week.Count</span>
+                        <i style="display:block;background:var(--tenant);opacity:.75;border-radius:2px 2px 0 0;height:@(_weeklyPeak == 0 ? 0 : Math.Max(week.Count > 0 ? 3 : 0, week.Count * 72 / _weeklyPeak))%"></i>
+                        <b style="font:600 7px/1.5 var(--font-mono);color:var(--ink-faint);text-align:center">@week.WeekStart.ToString("M/d")</b>
+                    </div>
+                }
+            </div>
+            <p class="cap" style="margin-top:6px">CONFIRMED CHECK-INS PER SUNDAY-START WEEK · OLDEST LEFT → THIS WEEK RIGHT</p>
+        </div>
+
+        <h2 class="section-h">Promotion history</h2>
+        <div class="form-card tl">
+            @foreach (var award in _awards)
+            {
+                <div class="ev">
+                    <span class="d">@award.AwardedOn.ToString("dd MMM yy").ToUpperInvariant()</span>
+                    <div>
+                        <BeltBar Size="s" BandColorHex="@award.Rank.BandColorHex" BarColorHex="@award.Rank.BarColorHex"
+                                 Stripes="@award.Stripes" Label="@($"{award.Rank.Name}, {award.Stripes} stripes")" />
+                        <div class="who">@(award.Stripes > 0 ? "STRIPE" : "PROMOTION")@(award.SelfReported ? " · SELF-REPORTED" : null)</div>
+                    </div>
+                    <span></span>
+                </div>
+            }
+            @if (_awards.Count == 0)
+            {
+                <p class="cap">NO RANK HISTORY YET.</p>
+            }
+        </div>
+
+        <p class="cap" style="margin-top:14px">DIARIES ARE PRIVATE TO THEIR OWNER — GUARDIANS SEE ATTENDANCE AND RANK, NEVER NOTES.</p>
+    }
+</main>
+
+@code {
+    [Parameter] public Guid PersonId { get; set; }
+
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+
+    private bool _authorized;
+    private Person? _child;
+    private CurrentRank? _current;
+    private List<RankAward> _awards = [];
+    private double _avg;
+    private int _verifiedHours;
+    private List<GymStation.Domain.Attendance.WeekCount> _weekly = [];
+    private int _weeklyPeak;
+    private string? _ageGroup;
+    private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(raw, out var userId))
+        {
+            return;
+        }
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        // Only THIS user's linked children — anyone else gets the not-yours screen.
+        _authorized = await db.GuardianLinks.AnyAsync(l => l.GuardianUserId == userId && l.ChildPersonId == PersonId);
+        if (!_authorized)
+        {
+            return;
+        }
+
+        _child = await db.Persons.SingleOrDefaultAsync(p => p.Id == PersonId && !p.Archived);
+        if (_child is null)
+        {
+            return;
+        }
+
+        _ageGroup = GymStation.Domain.People.IbjjfAgeGroup.FromBirthDate(_child.DateOfBirth, Today);
+        _current = (await Ranks.GetPrimaryRanksAsync([PersonId])).GetValueOrDefault(PersonId);
+        _awards = await Ranks.GetAwardsForPersonAsync(PersonId);
+        (_avg, _verifiedHours, _weekly) = await Attendance.StatsAsync(PersonId, Today);
+        _weeklyPeak = _weekly.Count == 0 ? 0 : _weekly.Max(w => w.Count);
+    }
+}
