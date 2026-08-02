@@ -55,7 +55,9 @@ public static class AuthEndpoints
             if (gyms.Count == 1)
             {
                 await SignInWithActiveGymAsync(signIn, user, gyms[0].GymId);
-                return Results.Redirect("/");
+
+                // Route by role at sign-in: non-staff never see the admin shell.
+                return Results.Redirect(await memberships.LandingPathAsync(user.Id, gyms[0].GymId));
             }
 
             await signIn.SignInAsync(user, isPersistent: true);
@@ -81,7 +83,7 @@ public static class AuthEndpoints
             }
 
             await SignInWithActiveGymAsync(signIn, user, gymId);
-            return Results.Redirect("/");
+            return Results.Redirect(await memberships.LandingPathAsync(user.Id, gymId));
         }).RequireAuthorization();
 
         group.MapPost("/logout", async (SignInManager<AppUser> signIn) =>
