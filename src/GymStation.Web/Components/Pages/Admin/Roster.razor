@@ -313,9 +313,11 @@
             return;
         }
 
-        if (roles == PersonRoles.None)
+        // The #29 visitor shape always carries the Member role for portal purposes —
+        // whether visitor was ticked alone or alongside staff roles.
+        if (form.IsVisitor)
         {
-            roles = PersonRoles.Member;
+            roles |= PersonRoles.Member;
         }
 
         Guid? userId = null;
