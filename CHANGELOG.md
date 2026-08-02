@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.0](https://github.com/JJWren/GymStation/compare/v1.1.0...v1.2.0) (2026-08-02)
+
+
+### Features
+
+* guardian portal — MY PEOPLE on progress and per-child progress pages ([#53](https://github.com/JJWren/GymStation/issues/53)) ([657950b](https://github.com/JJWren/GymStation/commit/657950bef5c07605cc00e8b07998c383b9dc75ac))
+* instructor /teach landing — your sessions, covers, and YOU TEACH badges ([#52](https://github.com/JJWren/GymStation/issues/52)) ([c6cd0e4](https://github.com/JJWren/GymStation/commit/c6cd0e43326f9e1247db23e46c6242f2a8f7c3e8))
+* per-user light/dark toggle in both shells ([#55](https://github.com/JJWren/GymStation/issues/55)) ([f4c3a89](https://github.com/JJWren/GymStation/commit/f4c3a89e05255c6b3caa489149956f1904feb11d))
+
 ## [1.1.0](https://github.com/JJWren/GymStation/compare/v1.0.2...v1.1.0) (2026-08-02)
 
 
