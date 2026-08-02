@@ -144,7 +144,7 @@ a { color: var(--ink); }
 
 .filters { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.875rem; align-items: center; }
 .filters input[type=search] { flex: 1; min-width: 10rem; }
-.filters input:not([type=checkbox]):not([type=radio]):not([type=hidden]), .filters select { background: var(--panel); border: 1px solid var(--edge); border-radius: 0.5rem; padding: 0.625rem 0.75rem; font: 600 0.6875rem/1 var(--font-mono); color: var(--ink); letter-spacing: .06em; }
+.filters input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]), .filters select { background: var(--panel); border: 1px solid var(--edge); border-radius: 0.5rem; padding: 0.625rem 0.75rem; font: 600 0.6875rem/1 var(--font-mono); color: var(--ink); letter-spacing: .06em; }
 
 .cap { font: 0.625rem/1.6 var(--font-mono); color: var(--ink-faint); letter-spacing: .05em; margin-top: 0.625rem; }
 .head-row { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; flex-wrap: wrap; }
