@@ -242,13 +242,13 @@ a { color: var(--ink); }
 
    zoom multiplies LAYOUT units, so any 100vh frame becomes zoom×viewport tall and
    pushes footers (admin rail's sign-out) below the fold on exactly the widest
-   screens — every viewport-height rule must divide by the same factor. */
+   screens — every viewport-height rule divides by the SAME --desktop-zoom custom
+   property, so the factor can never drift between the two declarations. */
 @media (min-width: 1440px) {
-    body { zoom: 1.1; }
-    body, .app-frame, .member-frame, .roll-board { min-height: calc(100vh / 1.1); }
+    body { --desktop-zoom: 1.1; zoom: var(--desktop-zoom); }
+    body, .app-frame, .member-frame, .roll-board { min-height: calc(100vh / var(--desktop-zoom)); }
 }
 
 @media (min-width: 1760px) {
-    body { zoom: 1.2; }
-    body, .app-frame, .member-frame, .roll-board { min-height: calc(100vh / 1.2); }
+    body { --desktop-zoom: 1.2; }
 }
