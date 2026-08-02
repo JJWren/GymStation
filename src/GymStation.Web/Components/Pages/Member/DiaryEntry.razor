@@ -1,0 +1,280 @@
+@page "/diary/entry/{EntryId:guid}"
+@attribute [Authorize]
+@layout MemberLayout
+@using System.Security.Claims
+@using GymStation.Domain.Training
+@using GymStation.Infrastructure.Training
+@inject IDbContextFactory<GymStationDbContext> DbFactory
+@inject TrainingDiaryService DiaryService
+@inject NavigationManager Nav
+
+<PageTitle>Diary entry · GymStation</PageTitle>
+
+<main class="member-shell" style="padding-top:6px">
+    @if (_entry is null)
+    {
+        <h1 class="page-title" style="font-size:20px">ENTRY NOT FOUND</h1>
+        <p class="cap">THIS ENTRY DOESN'T EXIST — OR ISN'T YOURS. DIARIES ARE PRIVATE TO THEIR AUTHOR.</p>
+        <p><a class="btn btn--ghost btn--xs" href="/diary">← BACK TO DIARY</a></p>
+    }
+    else
+    {
+        <div class="head-row">
+            <h1 class="page-title" style="font-size:20px">EDIT ENTRY</h1>
+            <span class="chip" style="border-color:var(--ok);color:var(--ok)">🔒 ONLY YOU CAN SEE THIS</span>
+        </div>
+        <p style="margin:0 0 10px">
+            <a class="btn btn--ghost btn--xs" href="/diary?month=@_entry.EntryDate.ToString("yyyy-MM")">← BACK TO DIARY</a>
+            @if (Saved)
+            {
+                <span class="chip chip--on" style="margin-left:8px">SAVED</span>
+            }
+        </p>
+
+        <EditForm class="form-card" FormName="edit-entry" Model="Form" OnValidSubmit="SaveAsync">
+            <button type="submit" hidden tabindex="-1" aria-hidden="true"></button>
+            <div class="form-grid">
+                <div>
+                    <label for="ekind">Kind</label>
+                    <InputSelect id="ekind" @bind-Value="Form!.Kind">
+                        <option value="@TrainingEntryKind.LessonNotes">Lesson notes</option>
+                        <option value="@TrainingEntryKind.RollLog">Roll log</option>
+                        <option value="@TrainingEntryKind.SelfReported">Self-reported training</option>
+                    </InputSelect>
+                </div>
+                <div>
+                    <label for="edate">Date</label>
+                    <InputDate id="edate" @bind-Value="Form!.EntryDate" />
+                </div>
+            </div>
+            <label for="esession">Linked session (optional)</label>
+            <InputSelect id="esession" @bind-Value="Form!.SessionId">
+                <option value="">— none —</option>
+                @foreach (var session in _sessions)
+                {
+                    <option value="@session.Id">@session.Date.ToString("ddd dd MMM") · @session.Name</option>
+                }
+            </InputSelect>
+            <label for="enotes">Notes</label>
+            <InputTextArea id="enotes" @bind-Value="Form!.Notes" rows="3" />
+            <label for="emin">Minutes (self-reported entries only — counts toward your self-reported tier)</label>
+            <InputNumber id="emin" @bind-Value="Form!.SelfReportedMinutes" />
+
+            <label>Rolls (optional — partner tags stay inside your private entry)</label>
+            @for (var i = 0; i < Form!.Rolls.Count; i++)
+            {
+                var index = i;
+                <div class="row-form" style="margin-bottom:6px">
+                    <InputSelect @bind-Value="Form!.Rolls[index].PartnerPersonId" aria-label="Partner from roster">
+                        <option value="">— partner —</option>
+                        @foreach (var (id, name) in _partners)
+                        {
+                            <option value="@id">@name</option>
+                        }
+                    </InputSelect>
+                    <InputText @bind-Value="Form!.Rolls[index].PartnerText" placeholder="or free text" aria-label="Partner free text" />
+                    <InputText @bind-Value="Form!.Rolls[index].Summary" placeholder="2x5min · even" aria-label="Roll summary" />
+                    <button class="btn btn--ghost btn--xs" type="submit" name="Form.RemoveRoll" value="@index"
+                            aria-label="Remove roll @(index + 1)" style="color:var(--bad)">×</button>
+                </div>
+            }
+            <p style="margin:6px 0 0">
+                <button class="btn btn--ghost btn--xs" type="submit" name="Form.AddPartner" value="true">+ PARTNER</button>
+            </p>
+
+            @if (_error is not null)
+            {
+                <p class="validation-message">@_error</p>
+            }
+            <p style="margin-top:12px"><button class="btn" type="submit">SAVE CHANGES</button></p>
+        </EditForm>
+
+        <EditForm FormName="delete-entry" Model="Delete" OnValidSubmit="DeleteAsync" style="margin-top:14px">
+            <button class="btn btn--ghost btn--xs" type="submit" style="color:var(--bad)"
+                    onclick="return confirm('Delete this entry? This cannot be undone.')">DELETE ENTRY</button>
+        </EditForm>
+    }
+</main>
+
+@code {
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+
+    [Parameter] public Guid EntryId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "saved")] public int? SavedFlag { get; set; }
+    private bool Saved => SavedFlag == 1;
+
+    [SupplyParameterFromForm(FormName = "edit-entry")]
+    public EntryForm? Form { get; set; }
+
+    [SupplyParameterFromForm(FormName = "delete-entry")]
+    public DeleteForm? Delete { get; set; }
+
+    protected override void OnInitialized() => Delete ??= new();
+
+    private TrainingEntry? _entry;
+    private List<GymStation.Domain.Scheduling.ClassSession> _sessions = [];
+    private List<(Guid Id, string Name)> _partners = [];
+    private string? _error;
+    private Guid _userId;
+
+    public class RollRow
+    {
+        // String on purpose: the select posts "" for "no partner", and an empty
+        // string aimed at a Guid? makes the form binder drop the whole collection.
+        public string? PartnerPersonId { get; set; }
+        public string? PartnerText { get; set; }
+        public string? Summary { get; set; }
+    }
+
+    public class EntryForm
+    {
+        public TrainingEntryKind Kind { get; set; } = TrainingEntryKind.LessonNotes;
+        public DateOnly EntryDate { get; set; } = DateOnly.FromDateTime(DateTime.Today);
+        public Guid? SessionId { get; set; }
+        public string? Notes { get; set; }
+        public int? SelfReportedMinutes { get; set; }
+        public List<RollRow> Rolls { get; set; } = [];
+
+        // Set by the +PARTNER / × submit buttons; a plain save posts neither.
+        public bool AddPartner { get; set; }
+        public int? RemoveRoll { get; set; }
+    }
+
+    public class DeleteForm
+    {
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(raw, out _userId))
+        {
+            return;
+        }
+
+        _entry = await DiaryService.GetEntryAsync(_userId, EntryId);
+        if (_entry is null)
+        {
+            return;
+        }
+
+        // On a GET the form mirrors the stored entry; on a POST the binder's values win.
+        Form ??= BuildForm(_entry);
+        Form.Rolls ??= [];
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var me = await db.Persons.SingleOrDefaultAsync(p => p.UserId == _userId && !p.Archived);
+        if (me is not null)
+        {
+            var cutoff = DateOnly.FromDateTime(DateTime.Today).AddDays(-7);
+            _sessions = await db.AttendanceRecords
+                .Where(a => a.PersonId == me.Id && a.Session.Date >= cutoff)
+                .Select(a => a.Session)
+                .OrderByDescending(s => s.Date)
+                .ToListAsync();
+
+            // The entry's own linked session stays selectable even when it's older
+            // than the recent-sessions window.
+            if (_entry.SessionId is { } linked && _sessions.All(s => s.Id != linked))
+            {
+                var session = await db.ClassSessions.SingleOrDefaultAsync(s => s.Id == linked);
+                if (session is not null)
+                {
+                    _sessions.Insert(0, session);
+                }
+            }
+
+            var partnerPersons = await db.Persons
+                .Where(p => !p.Archived && p.Id != me.Id)
+                .OrderBy(p => p.FirstName)
+                .ToListAsync();
+            _partners = partnerPersons.Select(p => (p.Id, p.DisplayName)).ToList();
+        }
+    }
+
+    private static EntryForm BuildForm(TrainingEntry entry)
+    {
+        return new EntryForm
+        {
+            Kind = entry.Kind,
+            EntryDate = entry.EntryDate,
+            SessionId = entry.SessionId,
+            Notes = entry.Notes,
+            SelfReportedMinutes = entry.SelfReportedMinutes,
+            Rolls = entry.Rolls
+                .Select(r => new RollRow
+                {
+                    PartnerPersonId = r.PartnerPersonId?.ToString(),
+                    // Always carry the stored label: if the tagged partner has since
+                    // left the roster list, the save path falls back to this text
+                    // instead of silently dropping the roll.
+                    PartnerText = r.PartnerLabel,
+                    Summary = r.Summary,
+                })
+                .ToList(),
+        };
+    }
+
+    private async Task SaveAsync()
+    {
+        var form = Form!;
+
+        // The row buttons re-render the form with the adjusted list instead of saving.
+        if (form.AddPartner)
+        {
+            form.AddPartner = false;
+            form.Rolls.Add(new());
+            return;
+        }
+
+        if (form.RemoveRoll is { } removeAt)
+        {
+            form.RemoveRoll = null;
+            if (removeAt >= 0 && removeAt < form.Rolls.Count)
+            {
+                form.Rolls.RemoveAt(removeAt);
+            }
+
+            return;
+        }
+
+        var partnerNames = _partners.ToDictionary(p => p.Id, p => p.Name);
+        var rolls = form.Rolls
+            .Select(r =>
+            {
+                Guid? partnerId = Guid.TryParse(r.PartnerPersonId, out var pid) ? pid : null;
+                var label = partnerId is { } id && partnerNames.TryGetValue(id, out var name)
+                    ? name
+                    : r.PartnerText ?? "";
+                return (partnerId, label, r.Summary);
+            })
+            .Where(r => !string.IsNullOrWhiteSpace(r.label))
+            .ToList();
+
+        try
+        {
+            await DiaryService.UpdateAsync(_userId, EntryId, form.Kind, form.EntryDate, form.SessionId, form.Notes, form.SelfReportedMinutes, rolls);
+            Nav.NavigateTo($"/diary/entry/{EntryId}?saved=1");
+        }
+        catch (InvalidOperationException ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        var month = _entry?.EntryDate.ToString("yyyy-MM") ?? "";
+
+        try
+        {
+            await DiaryService.DeleteAsync(_userId, EntryId);
+            Nav.NavigateTo($"/diary?month={month}");
+        }
+        catch (InvalidOperationException ex)
+        {
+            _error = ex.Message;
+        }
+    }
+}
