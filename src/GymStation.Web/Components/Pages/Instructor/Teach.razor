@@ -32,6 +32,7 @@
             <div class="n" style="font-size:16px">@session.Name</div>
             <form method="post" action="/instructor/actions/request-sub" class="row-form" style="margin-top:8px">
                 <AntiforgeryToken />
+                <input type="hidden" name="back" value="teach" />
                 <input type="hidden" name="sessionId" value="@session.Id" />
                 <select name="proposedSubPersonId" aria-label="Proposed substitute">
                     <option value="">OPEN — anyone can claim</option>
@@ -60,6 +61,7 @@
             </p>
             <form method="post" action="/instructor/actions/accept-sub" class="row-form">
                 <AntiforgeryToken />
+                <input type="hidden" name="back" value="teach" />
                 <input type="hidden" name="requestId" value="@request.Id" />
                 <button type="submit" class="btn btn--xs">@(request.ProposedSubPersonId is null ? "CLAIM THIS SESSION" : "ACCEPT")</button>
             </form>
