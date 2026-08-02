@@ -316,7 +316,7 @@ input[type=range] { accent-color: var(--tenant); }
    scaling never multiplies 100vh, which is exactly why zoom got replaced.
    Hairline borders (≤2px) and the mat texture stay px on purpose. */
 /* Percent-of-default terms keep user/browser font-size preferences in force:
-   100% = the reader's chosen base, scaling to ~128% at 1760w+. */
+   106.25% of the reader's chosen base through 1280w, scaling to 140% at 1760w+. */
 html { font-size: clamp(106.25%, 16.25% + 1.125vw, 140%); }
 
 /* Tablet widths: the phone-shaped member column reads awkward floating in a
