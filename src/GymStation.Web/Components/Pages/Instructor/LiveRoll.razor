@@ -1,6 +1,8 @@
 @page "/instructor/roll/{SessionId:guid}"
 @attribute [Authorize(Policy = "GymInstructor")]
+@using System.Security.Claims
 @using GymStation.Domain.Attendance
+@using GymStation.Domain.People
 @using GymStation.Domain.Scheduling
 @inject IDbContextFactory<GymStationDbContext> DbFactory
 
@@ -8,12 +10,31 @@
 
 @if (_session is null)
 {
-    <main class="member-shell"><p class="cap">SESSION NOT FOUND IN THE ACTIVE GYM.</p></main>
+    <main class="member-shell">
+        <p class="cap">SESSION NOT FOUND IN THE ACTIVE GYM.</p>
+        <p><a class="btn btn--ghost btn--xs" href="@(_isInstructor && !_isStaff ? "/teach" : "/")">← BACK</a></p>
+    </main>
 }
 else
 {
     @* The one deliberately dark-boarded surface: scoreboard semantics are literally true here. *@
     <main class="roll-board">
+        @* Role-derived (not a query param) so the way out survives the action
+           redirects, which drop query strings. *@
+        <nav class="roll-nav" aria-label="Leave the roll board">
+            @if (_isStaff)
+            {
+                <a class="btn btn--ghost btn--xs" href="/">← DASHBOARD</a>
+            }
+            @if (_isInstructor)
+            {
+                <a class="btn btn--ghost btn--xs" href="/teach">← TEACH</a>
+            }
+            @if (!_isStaff && !_isInstructor)
+            {
+                <a class="btn btn--ghost btn--xs" href="/">← BACK</a>
+            }
+        </nav>
         <div class="roll-head">
             <h1>@_session.Name.ToUpperInvariant() · @_session.StartTime.ToString("HH\\:mm")</h1>
             <span>@_session.Date.ToString("ddd dd MMM").ToUpperInvariant() · AUTO-CONFIRM @CheckInWindow.AutoConfirmAt(_session).ToString("HH\\:mm")</span>
@@ -85,6 +106,11 @@ else
     [SupplyParameterFromQuery(Name = "failed")] public int? FailedFlag { get; set; }
     private bool Failed => FailedFlag == 1;
 
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+
+    private bool _isStaff;
+    private bool _isInstructor;
+
     private ClassSession? _session;
     private List<AttendanceRecord> _records = [];
     private Dictionary<Guid, string> _names = [];
@@ -97,6 +123,17 @@ else
     protected override async Task OnInitializedAsync()
     {
         await using var db = await DbFactory.CreateDbContextAsync();
+
+        var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (Guid.TryParse(raw, out var userId))
+        {
+            var roles = await db.Persons.Where(p => p.UserId == userId && !p.Archived)
+                .Select(p => p.Roles)
+                .FirstOrDefaultAsync();
+            _isStaff = roles.HasFlag(PersonRoles.Admin) || roles.HasFlag(PersonRoles.Owner);
+            _isInstructor = roles.HasFlag(PersonRoles.Instructor);
+        }
+
         _session = await db.ClassSessions.SingleOrDefaultAsync(s => s.Id == SessionId);
         if (_session is null)
         {

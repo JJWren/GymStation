@@ -40,6 +40,7 @@ gets meaningful drops instead of eighteen tiny ones.
 - [x] #43 — Admin: member portraits from the person page (click-to-upload + crop, staff-only serving)
 - [x] #23 — Interactive schedule editor (gym hours, time rail, edit modal; drag deferred)
 - [x] #66 — Signed-in identity under the sign-out button (both shells)
+- [x] #68 — Live roll: role-aware back links (dashboard/teach)
 - [x] #22 — Responsive type-scale pass (fluid rem scale, tablet member column, breakpoint screenshots)
 
 ---
