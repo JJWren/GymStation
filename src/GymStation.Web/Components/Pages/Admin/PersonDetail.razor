@@ -55,16 +55,17 @@ else
                     <span class="chip chip--on">@_avgPerWeek /WK · 12W</span>
                     <span class="chip">@_verifiedHours VERIFIED HRS</span>
                 </div>
-                <div style="display:flex;gap:3px;height:56px" aria-label="Confirmed sessions per week, last 12 weeks, oldest to newest">
-                    @foreach (var count in _weeklyCounts)
+                <div style="display:flex;gap:3px;height:68px" aria-label="Confirmed sessions per week, last 12 weeks, oldest to newest">
+                    @foreach (var week in _weeklyCounts)
                     {
                         <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:1px;height:100%">
-                            <span style="font:600 7.5px/1 var(--font-mono);color:var(--ink-faint);text-align:center">@count</span>
-                            <i style="display:block;background:var(--tenant);opacity:.75;border-radius:2px 2px 0 0;height:@(_weeklyPeak == 0 ? 0 : Math.Max(count > 0 ? 3 : 0, count * 80 / _weeklyPeak))%"></i>
+                            <span style="font:600 7.5px/1 var(--font-mono);color:var(--ink-faint);text-align:center">@week.Count</span>
+                            <i style="display:block;background:var(--tenant);opacity:.75;border-radius:2px 2px 0 0;height:@(_weeklyPeak == 0 ? 0 : Math.Max(week.Count > 0 ? 3 : 0, week.Count * 72 / _weeklyPeak))%"></i>
+                            <b style="font:600 7px/1.5 var(--font-mono);color:var(--ink-faint);text-align:center">@week.WeekStart.ToString("M/d")</b>
                         </div>
                     }
                 </div>
-                <p class="cap">SESSIONS PER WEEK · 12 WEEKS, OLDEST LEFT → THIS WEEK RIGHT · CONFIRMED ONLY — SELF-REPORTED TRAINING NEVER APPEARS HERE</p>
+                <p class="cap">SESSIONS PER SUNDAY-START WEEK · OLDEST LEFT → THIS WEEK RIGHT · CONFIRMED ONLY — SELF-REPORTED TRAINING NEVER APPEARS HERE</p>
             </div>
 
             <h2 class="section-h">Rank history</h2>
@@ -235,7 +236,7 @@ else
     private string? _awardError;
     private double _avgPerWeek;
     private int _verifiedHours;
-    private List<int> _weeklyCounts = [];
+    private List<GymStation.Domain.Attendance.WeekCount> _weeklyCounts = [];
     private int _weeklyPeak;
     private List<GymStation.Domain.Money.MembershipPlan> _plans = [];
     private List<(DateOnly When, string Label, decimal Amount, bool IsCharge)> _ledgerLines = [];
@@ -269,7 +270,7 @@ else
 
         _ageGroup = IbjjfAgeGroup.FromBirthDate(_person.DateOfBirth, Today);
         (_avgPerWeek, _verifiedHours, _weeklyCounts) = await Attendance.StatsAsync(PersonId, Today);
-        _weeklyPeak = _weeklyCounts.Count == 0 ? 0 : _weeklyCounts.Max();
+        _weeklyPeak = _weeklyCounts.Count == 0 ? 0 : _weeklyCounts.Max(w => w.Count);
         _systems = await Ranks.GetVisibleSystemsAsync();
         _awards = await Ranks.GetAwardsForPersonAsync(PersonId);
         _current = (await Ranks.GetPrimaryRanksAsync([PersonId])).GetValueOrDefault(PersonId);
