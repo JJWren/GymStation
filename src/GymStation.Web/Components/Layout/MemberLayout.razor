@@ -96,7 +96,7 @@
             {
                 var roles = await db.Persons.Where(p => p.UserId == userId && !p.Archived)
                     .Select(p => p.Roles)
-                    .FirstOrDefaultAsync();
+                    .SingleOrDefaultAsync();
                 _isInstructor = roles.HasFlag(GymStation.Domain.People.PersonRoles.Instructor);
                 _isStaff = roles.HasFlag(GymStation.Domain.People.PersonRoles.Admin)
                     || roles.HasFlag(GymStation.Domain.People.PersonRoles.Owner);
