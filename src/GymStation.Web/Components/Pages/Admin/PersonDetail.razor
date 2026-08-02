@@ -38,6 +38,10 @@ else
                 {
                     <text> · NO LOGIN</text>
                 }
+                @if (_person.Visitor)
+                {
+                    <text> · VISITOR</text>
+                }
                 @if (_person.Archived)
                 {
                     <text> · ARCHIVED</text>
@@ -245,6 +249,7 @@ else
                     <label><InputCheckbox @bind-Value="PersonForm!.IsInstructor" /> INSTRUCTOR</label>
                     <label><InputCheckbox @bind-Value="PersonForm!.IsAdmin" /> ADMIN</label>
                     <label><InputCheckbox @bind-Value="PersonForm!.IsOwner" /> OWNER</label>
+                    <label><InputCheckbox @bind-Value="PersonForm!.IsVisitor" /> VISITOR — UNTICK & ASSIGN A PLAN TO CONVERT</label>
                 </div>
                 @if (_editError is not null)
                 {
@@ -345,6 +350,7 @@ else
         public bool IsInstructor { get; set; }
         public bool IsAdmin { get; set; }
         public bool IsOwner { get; set; }
+        public bool IsVisitor { get; set; }
     }
 
     protected override async Task OnInitializedAsync()
@@ -414,6 +420,7 @@ else
             PersonForm.IsInstructor = _person.Roles.HasFlag(PersonRoles.Instructor);
             PersonForm.IsAdmin = _person.Roles.HasFlag(PersonRoles.Admin);
             PersonForm.IsOwner = _person.Roles.HasFlag(PersonRoles.Owner);
+            PersonForm.IsVisitor = _person.Visitor;
         }
     }
 
@@ -428,7 +435,7 @@ else
 
         try
         {
-            await People.UpdateAsync(PersonId, form.FirstName, form.LastName, form.DateOfBirth, roles);
+            await People.UpdateAsync(PersonId, form.FirstName, form.LastName, form.DateOfBirth, roles, form.IsVisitor);
             Nav.NavigateTo($"/admin/people/{PersonId}");
         }
         catch (InvalidOperationException ex)

@@ -33,5 +33,9 @@ public class Person : ITenantOwned
 
     public bool Archived { get; set; }
 
+    /// <summary>Ad-hoc drop-in added from the live roll: no plan, no cycle charges.
+    /// Clearing the flag (typically while assigning a plan) converts them to a member.</summary>
+    public bool Visitor { get; set; }
+
     public bool HasRole(PersonRoles role) => role != PersonRoles.None && (Roles & role) == role;
 }

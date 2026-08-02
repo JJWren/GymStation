@@ -34,7 +34,7 @@ else
         {
             <div class="roll-row @(record.Status == AttendanceStatus.Removed ? "roll-row--out" : null)">
                 <span class="nm">@_names.GetValueOrDefault(record.PersonId, "?")</span>
-                <span class="src">@record.Source.ToString().ToUpperInvariant() · @GymLocal(record.CheckedInUtc).ToString("HH\\:mm")</span>
+                <span class="src">@(_visitors.Contains(record.PersonId) ? "VISITOR · " : "")@record.Source.ToString().ToUpperInvariant() · @GymLocal(record.CheckedInUtc).ToString("HH\\:mm")</span>
                 <span class="stamp @(record.Status switch { AttendanceStatus.Confirmed => "stamp--ok", AttendanceStatus.Pending => "stamp--warn", _ => "stamp--bad" })">@record.Status.ToString().ToUpperInvariant()</span>
                 <span class="roll-actions">
                     @if (record.Status != AttendanceStatus.Confirmed)
@@ -61,6 +61,13 @@ else
                 </select>
                 <button class="btn btn--ghost btn--xs" type="submit">+ ADD (NO PHONE)</button>
             </form>
+            <form method="post" action="/instructor/actions/add-visitor" class="row-form">
+                <AntiforgeryToken />
+                <input type="hidden" name="sessionId" value="@SessionId" />
+                <input type="text" name="firstName" placeholder="first" required maxlength="60" aria-label="Drop-in first name" />
+                <input type="text" name="lastName" placeholder="last" required maxlength="60" aria-label="Drop-in last name" />
+                <button class="btn btn--ghost btn--xs" type="submit">+ DROP-IN</button>
+            </form>
             @if (_records.Any(r => r.Status == AttendanceStatus.Pending))
             {
                 <form method="post" action="/instructor/actions/confirm-all">
@@ -81,6 +88,7 @@ else
     private ClassSession? _session;
     private List<AttendanceRecord> _records = [];
     private Dictionary<Guid, string> _names = [];
+    private HashSet<Guid> _visitors = [];
     private List<(Guid Id, string Name)> _addable = [];
     private TimeZoneInfo _zone = TimeZoneInfo.Utc;
 
@@ -103,6 +111,7 @@ else
         var onRoll = _records.Select(r => r.PersonId).ToHashSet();
         var people = await db.Persons.Where(p => !p.Archived).OrderBy(p => p.FirstName).ToListAsync();
         _names = people.ToDictionary(p => p.Id, p => p.DisplayName);
+        _visitors = people.Where(p => p.Visitor).Select(p => p.Id).ToHashSet();
         _addable = people.Where(p => !onRoll.Contains(p.Id)).Select(p => (p.Id, p.DisplayName)).ToList();
     }
 }
