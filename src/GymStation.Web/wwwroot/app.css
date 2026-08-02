@@ -246,7 +246,7 @@ a { color: var(--ink); }
 .pager-form { display: flex; gap: 0.375rem; align-items: center; }
 .pager-form input[type=number], .pager-form select { background: var(--panel); border: 1px solid var(--edge); border-radius: 0.375rem; padding: 0.4375rem 0.5rem; font: 600 0.625rem/1.2 var(--font-mono); color: var(--ink); }
 .pager-page { width: 3.5rem; text-align: center; }
-.pager-inert { opacity: .35; }
+.pager-inert { opacity: .35; cursor: default; pointer-events: none; }
 
 /* ---- schedule time rail + editor modal ---- */
 .rail-grid { --slot-h: 1.5625rem; display: grid; grid-template-columns: 2.875rem repeat(7, minmax(0, 1fr)); column-gap: 0.375rem; margin-top: 0.5rem; }

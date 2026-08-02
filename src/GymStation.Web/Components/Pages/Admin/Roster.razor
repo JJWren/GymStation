@@ -20,12 +20,12 @@
         <input type="search" name="q" value="@Q" placeholder="SEARCH NAME…" aria-label="Search name" />
         <button class="btn btn--ghost" type="submit">SEARCH</button>
     </form>
-    <a class="chip @(Role is null ? "active" : null)" href="/admin/roster">ALL</a>
-    <a class="chip @(Role == "member" ? "active" : null)" href="/admin/roster?role=member">MEMBERS</a>
-    <a class="chip @(Role == "visitors" ? "active" : null)" href="/admin/roster?role=visitors">VISITORS</a>
-    <a class="chip @(Role == "instructor" ? "active" : null)" href="/admin/roster?role=instructor">INSTRUCTORS</a>
-    <a class="chip @(Role == "kids" ? "active" : null)" href="/admin/roster?role=kids">KIDS</a>
-    <a class="chip @(Role == "adult" ? "active" : null)" href="/admin/roster?role=adult">ADULTS</a>
+    <a class="chip @(Role is null ? "active" : null)" href="/admin/roster?size=@_size">ALL</a>
+    <a class="chip @(Role == "member" ? "active" : null)" href="/admin/roster?role=member&size=@_size">MEMBERS</a>
+    <a class="chip @(Role == "visitors" ? "active" : null)" href="/admin/roster?role=visitors&size=@_size">VISITORS</a>
+    <a class="chip @(Role == "instructor" ? "active" : null)" href="/admin/roster?role=instructor&size=@_size">INSTRUCTORS</a>
+    <a class="chip @(Role == "kids" ? "active" : null)" href="/admin/roster?role=kids&size=@_size">KIDS</a>
+    <a class="chip @(Role == "adult" ? "active" : null)" href="/admin/roster?role=adult&size=@_size">ADULTS</a>
     <form method="get" style="display:contents">
         @if (!string.IsNullOrEmpty(Q))
         {
