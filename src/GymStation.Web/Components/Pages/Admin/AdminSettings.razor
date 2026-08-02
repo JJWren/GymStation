@@ -8,7 +8,7 @@
 <PageTitle>Settings · GymStation</PageTitle>
 
 <h1 class="page-title">SETTINGS</h1>
-<p class="page-sub">WORKFLOW · THEME · MEDIA — SWAP MODE AND CLASS TAGS LIVE ON THE SCHEDULE PAGE</p>
+<p class="page-sub">WORKFLOW · THEME · MEDIA — CLASS TAGS LIVE ON THE SCHEDULE PAGE</p>
 
 @if (Failed)
 {
@@ -54,6 +54,27 @@
             <p style="margin-top:0.75rem"><button class="btn" type="submit">SAVE SETTINGS</button></p>
             <p class="cap">BELT COLORS ARE NOT THEMEABLE — RANK RENDERING IS IDENTICAL IN EVERY GYM.</p>
         </EditForm>
+
+        <h2 class="section-h">Swap workflow</h2>
+        <div class="form-card">
+            <p class="cap" style="margin:0 0 0.5rem">
+                CURRENTLY: @(_settings?.SubstitutionMode == SubstitutionMode.AdminGate ? "ADMIN-GATE" : "AUTO-APPLY")
+                · OPEN CLAIMS @(_settings?.OpenClaimsEnabled == true ? "ON" : "OFF")<br />
+                ADMIN-GATE: AN ACCEPTED OR CLAIMED COVER WAITS FOR YOUR APPROVAL BEFORE IT TAKES EFFECT.
+                AUTO-APPLY: IT TAKES EFFECT THE MOMENT A COACH ACCEPTS.<br />
+                OPEN CLAIMS: COACHES MAY POST A REQUEST WITHOUT NAMING A SUB, SO ANY COACH CAN CLAIM IT.
+            </p>
+            <form method="post" action="/admin/actions/swap-mode" class="row-form">
+                <AntiforgeryToken />
+                <input type="hidden" name="mode" value="@(_settings?.SubstitutionMode == SubstitutionMode.AdminGate ? "auto-apply" : "admin-gate")" />
+                <button type="submit" class="btn btn--ghost btn--xs">SWITCH TO @(_settings?.SubstitutionMode == SubstitutionMode.AdminGate ? "AUTO-APPLY" : "ADMIN-GATE")</button>
+            </form>
+            <form method="post" action="/admin/actions/open-claims" class="row-form">
+                <AntiforgeryToken />
+                <input type="hidden" name="enabled" value="@(_settings?.OpenClaimsEnabled == true ? "false" : "true")" />
+                <button type="submit" class="btn btn--ghost btn--xs">TURN OPEN CLAIMS @(_settings?.OpenClaimsEnabled == true ? "OFF" : "ON")</button>
+            </form>
+        </div>
     </section>
 
     <section>

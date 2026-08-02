@@ -47,7 +47,7 @@ public static class AdminActionEndpoints
             var settings = await db.GymSettings.SingleAsync();
             settings.SubstitutionMode = mode == "admin-gate" ? SubstitutionMode.AdminGate : SubstitutionMode.AutoApply;
             await db.SaveChangesAsync();
-            return Results.Redirect("/admin/schedule");
+            return Results.Redirect("/admin/settings");
         });
 
         group.MapPost("/open-claims", async ([FromForm] bool enabled, GymStationDbContext db) =>
@@ -55,7 +55,7 @@ public static class AdminActionEndpoints
             var settings = await db.GymSettings.SingleAsync();
             settings.OpenClaimsEnabled = enabled;
             await db.SaveChangesAsync();
-            return Results.Redirect("/admin/schedule");
+            return Results.Redirect("/admin/settings");
         });
 
         group.MapPost("/record-payment", async (
