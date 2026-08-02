@@ -13,7 +13,9 @@ public class ReportService(GymStationDbContext db)
     {
         var firstMonth = new DateOnly(today.Year, today.Month, 1).AddMonths(-(months - 1));
 
-        var payments = await db.Payments.AsNoTracking().Where(p => p.ReceivedOn >= firstMonth).ToListAsync(ct);
+        var payments = await db.Payments.AsNoTracking()
+            .Where(p => p.VoidedUtc == null && p.ReceivedOn >= firstMonth)
+            .ToListAsync(ct);
         var expenses = await db.Expenses.AsNoTracking().Where(x => x.SpentOn >= firstMonth).ToListAsync(ct);
 
         var series = new List<MonthMoney>(months);

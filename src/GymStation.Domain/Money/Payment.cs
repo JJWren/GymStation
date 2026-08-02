@@ -19,4 +19,12 @@ public class Payment : ITenantOwned
     public DateOnly ReceivedOn { get; set; }
     public Guid? RecordedByPersonId { get; set; }
     public string? Note { get; set; }
+
+    // Money history is never deleted — a mistaken payment is VOIDED with an audit
+    // trail and drops out of every derived number.
+    public DateTimeOffset? VoidedUtc { get; set; }
+    public Guid? VoidedByPersonId { get; set; }
+    public string? VoidReason { get; set; }
+
+    public bool Voided => VoidedUtc is not null;
 }

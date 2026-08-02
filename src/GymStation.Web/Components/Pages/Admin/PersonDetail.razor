@@ -175,9 +175,25 @@ else
                 </form>
                 @foreach (var line in _ledgerLines)
                 {
-                    <div class="head-row" style="border-bottom:1px dashed #2c3440;padding:5px 0">
-                        <span class="mono">@line.When.ToString("dd MMM").ToUpperInvariant() · @line.Label</span>
-                        <span class="mono" style="color:@(line.IsCharge ? "var(--ink)" : "var(--ok)")">@(line.IsCharge ? "+" : "−")$@line.Amount.ToString("N2")</span>
+                    <div class="head-row" style="border-bottom:1px dashed #2c3440;padding:5px 0;@(line.Voided ? "opacity:.55" : null)">
+                        <span class="mono" style="@(line.Voided ? "text-decoration:line-through" : null)">@line.When.ToString("dd MMM").ToUpperInvariant() · @line.Label</span>
+                        <span style="display:flex;gap:8px;align-items:center">
+                            @if (line.Voided)
+                            {
+                                <span class="stamp stamp--bad">VOID</span>
+                            }
+                            <span class="mono" style="color:@(line.IsCharge ? "var(--ink)" : "var(--ok)");@(line.Voided ? "text-decoration:line-through" : null)">@(line.IsCharge ? "+" : "−")$@line.Amount.ToString("N2")</span>
+                            @if (line.PaymentId is { } paymentId && !line.Voided)
+                            {
+                                <form method="post" action="/admin/actions/void-payment" class="row-form" style="margin:0">
+                                    <AntiforgeryToken />
+                                    <input type="hidden" name="paymentId" value="@paymentId" />
+                                    <input type="hidden" name="personId" value="@PersonId" />
+                                    <input type="text" name="reason" placeholder="reason" aria-label="Void reason" required maxlength="300" style="width:84px" />
+                                    <button class="btn btn--ghost btn--xs" type="submit" title="Void this payment — it stays in the audit trail">VOID</button>
+                                </form>
+                            }
+                        </span>
                     </div>
                 }
                 <div class="head-row" style="padding:8px 0">
@@ -298,8 +314,10 @@ else
     private List<GymStation.Domain.Attendance.WeekCount> _weeklyCounts = [];
     private int _weeklyPeak;
     private List<GymStation.Domain.Money.MembershipPlan> _plans = [];
-    private List<(DateOnly When, string Label, decimal Amount, bool IsCharge)> _ledgerLines = [];
+    private List<LedgerLine> _ledgerLines = [];
     private decimal _balance;
+
+    private sealed record LedgerLine(DateOnly When, string Label, decimal Amount, bool IsCharge, Guid? PaymentId, bool Voided);
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
 
     public class RecordAwardForm
@@ -354,9 +372,13 @@ else
         var charges = await db.Charges.Where(c => c.PersonId == PersonId).ToListAsync();
         var payments = await db.Payments.Where(p => p.PersonId == PersonId).ToListAsync();
         _balance = GymStation.Domain.Money.LedgerMath.Balance(charges, payments);
-        _ledgerLines = charges.Select(c => (c.RaisedOn, "CHARGE · " + c.Description.ToUpperInvariant(), c.Amount, true))
-            .Concat(payments.Select(p => (p.ReceivedOn, "PAYMENT", p.Amount, false)))
-            .OrderByDescending(l => l.Item1)
+        _ledgerLines = charges
+            .Select(c => new LedgerLine(c.RaisedOn, "CHARGE · " + c.Description.ToUpperInvariant(), c.Amount, true, null, false))
+            .Concat(payments.Select(p => new LedgerLine(
+                p.ReceivedOn,
+                p.Voided ? $"PAYMENT · VOID: {p.VoidReason?.ToUpperInvariant()}" : "PAYMENT",
+                p.Amount, false, p.Id, p.Voided)))
+            .OrderByDescending(l => l.When)
             .Take(8)
             .ToList();
 

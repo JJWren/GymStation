@@ -103,7 +103,122 @@ public static class AdminActionEndpoints
             var zone = TimeZoneInfo.FindSystemTimeZoneById(gym.TimeZoneId);
             var gymToday = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, zone).DateTime);
             var raised = await ledger.RaiseMonthlyChargesAsync(gymToday);
+
+            // The button means "run the cycle" — recurring expenses are part of it,
+            // exactly like the background worker's pass.
+            await ledger.MaterializeRecurringExpensesAsync(gymToday);
             return Results.Redirect($"/admin/dues?raised={raised}");
+        });
+
+        group.MapPost("/void-payment", async (
+            [FromForm] Guid paymentId,
+            [FromForm] Guid personId,
+            [FromForm] string reason,
+            ClaimsPrincipal user,
+            GymStationDbContext db,
+            LedgerService ledger) =>
+        {
+            var raw = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            Guid? voidedBy = null;
+            if (Guid.TryParse(raw, out var userId))
+            {
+                voidedBy = (await db.Persons.SingleOrDefaultAsync(p => p.UserId == userId))?.Id;
+            }
+
+            try
+            {
+                await ledger.VoidPaymentAsync(paymentId, voidedBy, reason);
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Redirect($"/admin/people/{personId}?failed=1");
+            }
+
+            return Results.Redirect($"/admin/people/{personId}");
+        });
+
+        group.MapPost("/update-plan", async ([FromForm] Guid planId, [FromForm] string name, [FromForm] decimal price, LedgerService ledger) =>
+        {
+            try
+            {
+                await ledger.UpdatePlanAsync(planId, name, price);
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Redirect("/admin/dues?failed=2");
+            }
+
+            return Results.Redirect("/admin/dues");
+        });
+
+        group.MapPost("/plan-archived", async ([FromForm] Guid planId, [FromForm] bool archived, LedgerService ledger) =>
+        {
+            try
+            {
+                await ledger.SetPlanArchivedAsync(planId, archived);
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Redirect("/admin/dues?failed=2");
+            }
+
+            return Results.Redirect("/admin/dues");
+        });
+
+        group.MapPost("/rename-category", async ([FromForm] Guid categoryId, [FromForm] string name, LedgerService ledger) =>
+        {
+            try
+            {
+                await ledger.RenameCategoryAsync(categoryId, name);
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Redirect("/admin/dues?failed=3");
+            }
+
+            return Results.Redirect("/admin/dues");
+        });
+
+        group.MapPost("/category-archived", async ([FromForm] Guid categoryId, [FromForm] bool archived, LedgerService ledger) =>
+        {
+            try
+            {
+                await ledger.SetCategoryArchivedAsync(categoryId, archived);
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Redirect("/admin/dues?failed=3");
+            }
+
+            return Results.Redirect("/admin/dues");
+        });
+
+        group.MapPost("/add-recurring", async ([FromForm] Guid categoryId, [FromForm] decimal amount, [FromForm] int dayOfMonth, [FromForm] string? note, LedgerService ledger) =>
+        {
+            try
+            {
+                await ledger.AddRecurringExpenseAsync(categoryId, amount, dayOfMonth, note);
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Redirect("/admin/dues?failed=4");
+            }
+
+            return Results.Redirect("/admin/dues");
+        });
+
+        group.MapPost("/recurring-active", async ([FromForm] Guid recurringId, [FromForm] bool active, LedgerService ledger) =>
+        {
+            try
+            {
+                await ledger.SetRecurringActiveAsync(recurringId, active);
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Redirect("/admin/dues?failed=4");
+            }
+
+            return Results.Redirect("/admin/dues");
         });
 
         group.MapPost("/assign-plan", async ([FromForm] Guid personId, [FromForm] Guid? planId, GymStationDbContext db) =>

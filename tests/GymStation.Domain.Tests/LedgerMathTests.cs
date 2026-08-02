@@ -80,4 +80,19 @@ public class LedgerMathTests
         Assert.Equal(-15m, arrears.Balance);
         Assert.Null(arrears.OldestUnpaidSince);
     }
+
+    [Fact]
+    public void VoidedPayments_DropOutOfEveryDerivedNumber()
+    {
+        var charges = new[] { ChargeOf(85, new DateOnly(2026, 7, 1)) };
+        var payment = PaymentOf(85, new DateOnly(2026, 7, 2));
+        payment.VoidedUtc = DateTimeOffset.UtcNow;
+        payment.VoidReason = "typo";
+
+        Assert.Equal(85m, LedgerMath.Balance(charges, [payment]));
+
+        var arrears = LedgerMath.Arrears(charges, [payment]);
+        Assert.Equal(85m, arrears.Balance);
+        Assert.Equal(new DateOnly(2026, 7, 1), arrears.OldestUnpaidSince);
+    }
 }

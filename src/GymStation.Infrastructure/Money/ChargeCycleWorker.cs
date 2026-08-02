@@ -57,6 +57,7 @@ public class ChargeCycleWorker(IServiceScopeFactory scopeFactory, ILogger<Charge
 
                 tenant.SetGym(gym.Id);
                 await ledger.RaiseMonthlyChargesAsync(gymToday, ct);
+                await ledger.MaterializeRecurringExpensesAsync(gymToday, ct);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
