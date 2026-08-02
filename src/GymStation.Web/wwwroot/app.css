@@ -238,6 +238,13 @@ a { color: var(--ink); }
 #blazor-error-ui { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 10; }
 .blazor-error-boundary::after { content: "An error has occurred."; }
 
+/* ---- pager (roster, dues, any long person list) ---- */
+.pager { display: flex; gap: 0.375rem; align-items: center; margin: 0.75rem 0; flex-wrap: wrap; }
+.pager-form { display: flex; gap: 0.375rem; align-items: center; }
+.pager-form input[type=number], .pager-form select { background: var(--panel); border: 1px solid var(--edge); border-radius: 0.375rem; padding: 0.4375rem 0.5rem; font: 600 0.625rem/1.2 var(--font-mono); color: var(--ink); }
+.pager-page { width: 3.5rem; text-align: center; }
+.pager-inert { opacity: .35; }
+
 /* ---- diary month calendar ---- */
 .diary-cal { margin-bottom: 0.75rem; }
 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.25rem; text-align: center; }

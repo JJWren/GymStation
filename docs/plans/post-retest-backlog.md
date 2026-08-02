@@ -39,6 +39,7 @@ gets meaningful drops instead of eighteen tiny ones.
 - [x] #29 — Drop-ins / visitors (live-roll quick-add, VISITORS chip, convert)
 - [x] #43 — Admin: member portraits from the person page (click-to-upload + crop, staff-only serving)
 - [ ] #23 — Interactive schedule editor
+- [x] #70 — Pagination for person-heavy lists (roster + dues, shared Pager)
 - [x] #22 — Responsive type-scale pass (fluid rem scale, tablet member column, breakpoint screenshots)
 
 ---
