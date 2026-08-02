@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.1.0](https://github.com/JJWren/GymStation/compare/v1.0.2...v1.1.0) (2026-08-02)
+
+
+### Features
+
+* edit person details from the person page — names, DOB, roles, archive ([#51](https://github.com/JJWren/GymStation/issues/51)) ([af08b33](https://github.com/JJWren/GymStation/commit/af08b3387c70bdf1ffc5badeb3e4df931c0b7ff5))
+
+
+### Bug Fixes
+
+* guardians belong to their children's gyms; sign-in routes by role ([#44](https://github.com/JJWren/GymStation/issues/44)) ([85a9d70](https://github.com/JJWren/GymStation/commit/85a9d7062454d302255b662c018e89cb4cb62926))
+* gym name links to the public page; public page recognizes signed-in visitors ([#49](https://github.com/JJWren/GymStation/issues/49)) ([311f916](https://github.com/JJWren/GymStation/commit/311f91637fca6d5653c1f9af01d680ee00d3ff77))
+* real bell icon in the member top bar ([#48](https://github.com/JJWren/GymStation/issues/48)) ([c59512d](https://github.com/JJWren/GymStation/commit/c59512db966fa232cff59f8492b9f1d2c0464cbe))
+* true belt ordering with stripes and degrees; red belts; NO BELT filter ([#47](https://github.com/JJWren/GymStation/issues/47)) ([d375673](https://github.com/JJWren/GymStation/commit/d375673af926a855a19a6e2aac43a1e8f3c95825))
+* viewport-height frames overflow under the desktop zoom ([#45](https://github.com/JJWren/GymStation/issues/45)) ([fd2578b](https://github.com/JJWren/GymStation/commit/fd2578bee6f54b77278020f22e61b48d5b0ca3ec))
+* weekly stat charts use Sunday-start calendar weeks with week dates ([#50](https://github.com/JJWren/GymStation/issues/50)) ([ee08d7c](https://github.com/JJWren/GymStation/commit/ee08d7c2a6c52868ea9ce0e9928c6cd70353372d))
+
 ## [1.0.2](https://github.com/JJWren/GymStation/compare/v1.0.1...v1.0.2) (2026-08-01)
 
 
