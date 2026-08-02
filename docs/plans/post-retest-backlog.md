@@ -12,8 +12,8 @@ section; the affected plans below already reflect the outcomes.
 
 | Wave | Issues | Why this order |
 |---|---|---|
-| 1 — correctness + quick wins | #32, #38, #34, #33, #36, #37, #40 | Real bugs and small fixes; #32 unblocks #34/#41 |
-| 2 — experience decisions | #39, #35, #41 | Need a decision or #32 first; medium size |
+| 1 — correctness + quick wins | #32, #38, #35, #33, #36, #37, #40 | Real bugs and small fixes; #32 unblocks #35/#41 |
+| 2 — experience decisions | #39, #34, #41 | Need a decision or #32 first; medium size |
 | 3 — features | #24, #25, #28, #26, #27, #29, #23, #22 | Big builds; #28 unblocks #25 images; #22 last so the type-scale pass sweeps the final UI |
 
 Releases: one release-please cut per wave (or sooner if a wave runs long) so the lab
@@ -21,15 +21,15 @@ gets meaningful drops instead of eighteen tiny ones.
 
 ## Loop status
 
-- [ ] #32 — Role-aware sign-in routing + guardian gym membership
-- [ ] #38 — Rank ordering: composite sort, red-belt degrees, NO BELT filter
-- [ ] #34 — Member schedule: full-day visibility (verify) + guardian states
-- [ ] #33 — Real bell icon
+- [x] #32 — Role-aware sign-in routing + guardian gym membership (PR #44)
+- [ ] #38 — Rank ordering: composite sort, red-belt degrees, NO BELT filter (PR #47 in gate)
+- [x] #35 — Member schedule: full-day visibility (verify) + guardian states (verified, no code)
+- [x] #33 — Real bell icon
 - [ ] #36 — Gym name → public page; public page knows you
 - [ ] #37 — Sunday-start calendar stat weeks with dates
 - [ ] #40 — Admin: edit person details (incl. DOB → IBJJF/Masters category)
 - [ ] #39 — Instructor experience
-- [ ] #35 — Theme toggle
+- [ ] #34 — Theme toggle
 - [ ] #41 — Guardian portal
 - [ ] #24 — Ledger management
 - [ ] #25 — Events v2
@@ -75,7 +75,7 @@ active-gym claim → Sarah landed on the admin shell's "no active gym" branch.
   `NO BELT` option (`rank=none` → people with no primary rank).
 - Verify: roster `sort=rank` matches the spec order on the seeded cast.
 
-### #34 — Member schedule: full-day visibility (verify-first) + guardian states
+### #35 — Member schedule: full-day visibility (verify-first) + guardian states
 
 - On the 1.0.2 rig, walk yesterday/today/tomorrow and a past week as ana.reyes:
   confirm past sessions and past days render (investigation says they should —
@@ -128,7 +128,7 @@ active-gym claim → Sarah landed on the admin shell's "no active gym" branch.
   else `/schedule`. Dual Admin+Instructor keeps the admin shell (reaches /teach
   from the rail).
 
-### #35 — Theme toggle (decision 3: per-user DB setting)
+### #34 — Theme toggle (decision 3: per-user DB setting)
 
 - `AppUser.PreferredThemeDark` (nullable bool; null = follow gym default) +
   migration; toggle posts to a small endpoint and re-renders.
@@ -222,7 +222,7 @@ Foundation:
 2. **Instructor experience (#39)** — instructor-specific landing ("Today: your
    sessions" + live-roll shortcuts) inside the member shell; schedule cards
    distinguish YOU TEACH from attendable. No third shell.
-3. **Theme persistence (#35)** — **per-user setting in the DB** (follows the user
+3. **Theme persistence (#34)** — **per-user setting in the DB** (follows the user
    across devices); gym default remains the fallback for users with no preference.
 4. **Schedule editor scope (#23)** — time rail + click-to-edit modal first;
    drag-move/resize lands as its own follow-up PR.
