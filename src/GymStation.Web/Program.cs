@@ -32,7 +32,8 @@ builder.Services.AddIdentityCore<AppUser>(o =>
         o.Password.RequiredLength = 10;
     })
     .AddEntityFrameworkStores<GymStationDbContext>()
-    .AddSignInManager();
+    .AddSignInManager()
+    .AddClaimsPrincipalFactory<GymClaimsPrincipalFactory>();
 
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
     .AddIdentityCookies();
