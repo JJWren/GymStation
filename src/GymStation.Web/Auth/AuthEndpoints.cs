@@ -133,6 +133,34 @@ public static class AuthEndpoints
             return Results.Redirect(destination);
         }).RequireAuthorization();
 
+        // Opt-in idle sign-out (#86): stored on the account like the theme, so a
+        // front-desk machine and a phone behave the same. 0 = off (the default).
+        group.MapPost("/idle-signout", async (
+            [FromForm] int minutes,
+            ClaimsPrincipal principal,
+            UserManager<AppUser> users) =>
+        {
+            // Only the values the settings form offers — anything else is a
+            // tampered/stale post and changes nothing.
+            if (minutes is not (0 or 15 or 30 or 60 or 120))
+            {
+                return Results.Redirect("/admin/settings?failed=1");
+            }
+
+            var user = await users.GetUserAsync(principal);
+            if (user is not null)
+            {
+                user.IdleSignOutMinutes = minutes == 0 ? null : minutes;
+                var updated = await users.UpdateAsync(user);
+                if (!updated.Succeeded)
+                {
+                    return Results.Redirect("/admin/settings?failed=1");
+                }
+            }
+
+            return Results.Redirect("/admin/settings");
+        }).RequireAuthorization();
+
         return app;
     }
 
