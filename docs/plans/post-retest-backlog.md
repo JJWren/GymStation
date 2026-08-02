@@ -32,7 +32,7 @@ gets meaningful drops instead of eighteen tiny ones.
 - [x] #34 — Theme toggle
 - [x] #41 — Guardian portal
 - [ ] #24 — Ledger management
-- [ ] #25 — Events v2
+- [x] #25 — Events v2 (detail+attendees+past; images follow #28)
 - [ ] #28 — Shared media upload (preview/crop)
 - [ ] #26 — Diary v2
 - [ ] #27 — Member check-in history

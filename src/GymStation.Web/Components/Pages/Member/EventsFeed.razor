@@ -17,7 +17,7 @@
         var interested = _counts.GetValueOrDefault((gymEvent.Id, RsvpStatus.Interested));
         <div class="form-card" style="margin-top:12px">
             <span class="chip @(gymEvent.Kind == GymEventKind.Tournament ? "chip--on" : null)">@gymEvent.Kind.ToString().ToUpperInvariant()</span>
-            <h3 style="font:700 16px/1.25 var(--font-body);margin:8px 0 2px">@gymEvent.Title</h3>
+            <h3 style="font:700 16px/1.25 var(--font-body);margin:8px 0 2px"><a href="/events/@gymEvent.Id" style="text-decoration:none">@gymEvent.Title</a></h3>
             <p class="cap">
                 @gymEvent.StartsOn.ToString("ddd dd MMM yyyy").ToUpperInvariant()
                 @(gymEvent.TimeInfo is null ? null : $" · {gymEvent.TimeInfo.ToUpperInvariant()}")
@@ -48,12 +48,37 @@
     {
         <p class="cap" style="margin-top:12px">NO UPCOMING EVENTS. YOUR GYM WILL PUSH TOURNAMENTS, SEMINARS, AND GRADINGS HERE.</p>
     }
+
+    <h2 class="section-h">Past</h2>
+    @foreach (var gymEvent in _past)
+    {
+        <div class="form-card" style="margin-bottom:8px;opacity:.75">
+            <div class="head-row">
+                <a href="/events/@gymEvent.Id" style="text-decoration:none"><b>@gymEvent.Title</b></a>
+                <span class="chip">@gymEvent.Kind.ToString().ToUpperInvariant()</span>
+            </div>
+            <p class="cap" style="margin:4px 0 0">@gymEvent.StartsOn.ToString("ddd dd MMM yyyy").ToUpperInvariant()</p>
+        </div>
+    }
+    @if (_past.Count == 0)
+    {
+        <p class="cap">NO PAST EVENTS IN THIS WINDOW.</p>
+    }
+    @if (_hasOlder)
+    {
+        <p class="cap" style="margin-top:8px"><a href="@($"/events?before={_windowStart:yyyy-MM-dd}")">OLDER →</a></p>
+    }
 </main>
 
 @code {
     [CascadingParameter] public HttpContext? HttpContext { get; set; }
 
+    [SupplyParameterFromQuery(Name = "before")] public string? BeforeRaw { get; set; }
+
     private List<GymEvent> _events = [];
+    private List<GymEvent> _past = [];
+    private bool _hasOlder;
+    private DateOnly _windowStart;
     private Dictionary<Guid, RsvpStatus?> _myRsvps = [];
     private Dictionary<(Guid, RsvpStatus), int> _counts = [];
 
@@ -65,6 +90,16 @@
             .Where(e => e.StartsOn >= today.AddDays(-1))
             .OrderBy(e => e.StartsOn)
             .ToListAsync();
+
+        // Past window: 12 months at a time, older pages via ?before=cursor.
+        var windowEnd = DateOnly.TryParse(BeforeRaw, out var before) ? before : today;
+        _windowStart = windowEnd.AddMonths(-12);
+        var cutoff = BeforeRaw is null ? windowEnd.AddDays(-1) : windowEnd;
+        _past = await db.GymEvents
+            .Where(e => e.StartsOn < cutoff && e.StartsOn >= _windowStart)
+            .OrderByDescending(e => e.StartsOn)
+            .ToListAsync();
+        _hasOlder = await db.GymEvents.AnyAsync(e => e.StartsOn < _windowStart);
 
         var eventIds = _events.Select(e => e.Id).ToList();
         var rsvps = await db.EventRsvps.Where(r => eventIds.Contains(r.EventId)).ToListAsync();

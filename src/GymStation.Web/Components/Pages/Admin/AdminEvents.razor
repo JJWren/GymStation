@@ -24,7 +24,7 @@
         {
             <div class="form-card" style="margin-bottom:8px">
                 <div class="head-row">
-                    <b>@gymEvent.Title</b>
+                    <a href="/events/@gymEvent.Id" style="text-decoration:none"><b>@gymEvent.Title</b></a>
                     <span class="chip">@gymEvent.Kind.ToString().ToUpperInvariant()</span>
                 </div>
                 <p class="cap" style="margin:4px 0">
@@ -44,7 +44,7 @@
         {
             <div class="form-card" style="margin-bottom:8px;opacity:.75">
                 <div class="head-row">
-                    <b>@gymEvent.Title</b>
+                    <a href="/events/@gymEvent.Id" style="text-decoration:none"><b>@gymEvent.Title</b></a>
                     <span class="chip">@gymEvent.Kind.ToString().ToUpperInvariant()</span>
                 </div>
                 <p class="cap" style="margin:4px 0">
