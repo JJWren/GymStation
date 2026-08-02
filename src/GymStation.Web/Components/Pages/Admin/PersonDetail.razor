@@ -5,6 +5,7 @@
 @inject IDbContextFactory<GymStationDbContext> DbFactory
 @inject RankService Ranks
 @inject GymStation.Infrastructure.Attendance.AttendanceService Attendance
+@inject GymStation.Infrastructure.People.PersonService People
 @inject NavigationManager Nav
 
 <PageTitle>@(_person?.DisplayName ?? "Person") · GymStation</PageTitle>
@@ -36,6 +37,10 @@ else
                 @if (_person.UserId is null)
                 {
                     <text> · NO LOGIN</text>
+                }
+                @if (_person.Archived)
+                {
+                    <text> · ARCHIVED</text>
                 }
             </p>
             @if (_current is not null)
@@ -201,6 +206,48 @@ else
                     }
                 }
             </div>
+
+            <h2 class="section-h">Edit person</h2>
+            <EditForm class="form-card" FormName="edit-person" Model="PersonForm" OnValidSubmit="SavePersonAsync">
+                <div class="form-grid">
+                    <div>
+                        <label for="epfirst">First name</label>
+                        <InputText id="epfirst" @bind-Value="PersonForm!.FirstName" />
+                    </div>
+                    <div>
+                        <label for="eplast">Last name</label>
+                        <InputText id="eplast" @bind-Value="PersonForm!.LastName" />
+                    </div>
+                    <div>
+                        <label for="epdob">Date of birth — drives the derived IBJJF/Masters category above</label>
+                        <InputDate id="epdob" @bind-Value="PersonForm!.DateOfBirth" />
+                    </div>
+                </div>
+                <div class="check-row" style="margin-top:10px">
+                    <label><InputCheckbox @bind-Value="PersonForm!.IsMember" /> MEMBER</label>
+                    <label><InputCheckbox @bind-Value="PersonForm!.IsInstructor" /> INSTRUCTOR</label>
+                    <label><InputCheckbox @bind-Value="PersonForm!.IsAdmin" /> ADMIN</label>
+                    <label><InputCheckbox @bind-Value="PersonForm!.IsOwner" /> OWNER</label>
+                </div>
+                @if (_editError is not null)
+                {
+                    <p class="validation-message">@_editError</p>
+                }
+                <p style="margin-top:12px"><button class="btn" type="submit">SAVE PERSON</button></p>
+            </EditForm>
+
+            <EditForm class="form-card" FormName="archive-person" Model="ArchiveMarker" OnValidSubmit="ToggleArchiveAsync" style="margin-top:10px">
+                <p class="cap" style="margin:0 0 8px">
+                    @(_person.Archived
+                        ? "ARCHIVED — HIDDEN FROM THE ROSTER AND ALL FILTERS. HISTORY AND LEDGER REMAIN."
+                        : "ARCHIVING HIDES THIS PERSON FROM THE ROSTER; HISTORY AND LEDGER REMAIN.")
+                </p>
+                @if (_archiveError is not null)
+                {
+                    <p class="validation-message">@_archiveError</p>
+                }
+                <button class="btn btn--ghost" type="submit">@(_person.Archived ? "UNARCHIVE" : "ARCHIVE")</button>
+            </EditForm>
         </section>
     </div>
 }
@@ -219,10 +266,20 @@ else
     [SupplyParameterFromForm(FormName = "instructor-profile")]
     public InstructorProfileForm? ProfileForm { get; set; }
 
+    [SupplyParameterFromForm(FormName = "edit-person")]
+    public EditPersonForm? PersonForm { get; set; }
+
+    [SupplyParameterFromForm(FormName = "archive-person")]
+    public ArchiveModel? ArchiveMarker { get; set; }
+
+    public class ArchiveModel;
+
     protected override void OnInitialized()
     {
         AwardForm ??= new();
         ProfileForm ??= new();
+        PersonForm ??= new();
+        ArchiveMarker ??= new();
     }
 
     private Person? _person;
@@ -233,6 +290,8 @@ else
     private List<string> _guardianEmails = [];
     private string? _ageGroup;
     private string? _awardError;
+    private string? _editError;
+    private string? _archiveError;
     private double _avgPerWeek;
     private int _verifiedHours;
     private List<int> _weeklyCounts = [];
@@ -256,6 +315,17 @@ else
         public string? Bio { get; set; }
         public decimal? PayRate { get; set; }
         public PayRateUnit PayRateUnit { get; set; } = PayRateUnit.PerClass;
+    }
+
+    public class EditPersonForm
+    {
+        public string FirstName { get; set; } = "";
+        public string LastName { get; set; } = "";
+        public DateOnly? DateOfBirth { get; set; }
+        public bool IsMember { get; set; }
+        public bool IsInstructor { get; set; }
+        public bool IsAdmin { get; set; }
+        public bool IsOwner { get; set; }
     }
 
     protected override async Task OnInitializedAsync()
@@ -304,6 +374,52 @@ else
                 PayRate = profile.PayRate,
                 PayRateUnit = profile.PayRateUnit,
             };
+        }
+
+        // Prefill unless THIS form was the one posted (another form's POST must not
+        // blank the edit fields).
+        if (string.IsNullOrEmpty(PersonForm!.FirstName) && string.IsNullOrEmpty(PersonForm.LastName))
+        {
+            PersonForm.FirstName = _person.FirstName;
+            PersonForm.LastName = _person.LastName;
+            PersonForm.DateOfBirth = _person.DateOfBirth;
+            PersonForm.IsMember = _person.Roles.HasFlag(PersonRoles.Member);
+            PersonForm.IsInstructor = _person.Roles.HasFlag(PersonRoles.Instructor);
+            PersonForm.IsAdmin = _person.Roles.HasFlag(PersonRoles.Admin);
+            PersonForm.IsOwner = _person.Roles.HasFlag(PersonRoles.Owner);
+        }
+    }
+
+    private async Task SavePersonAsync()
+    {
+        var form = PersonForm!;
+        var roles = PersonRoles.None;
+        if (form.IsMember) roles |= PersonRoles.Member;
+        if (form.IsInstructor) roles |= PersonRoles.Instructor;
+        if (form.IsAdmin) roles |= PersonRoles.Admin;
+        if (form.IsOwner) roles |= PersonRoles.Owner;
+
+        try
+        {
+            await People.UpdateAsync(PersonId, form.FirstName, form.LastName, form.DateOfBirth, roles);
+            Nav.NavigateTo($"/admin/people/{PersonId}");
+        }
+        catch (InvalidOperationException ex)
+        {
+            _editError = ex.Message;
+        }
+    }
+
+    private async Task ToggleArchiveAsync()
+    {
+        try
+        {
+            await People.SetArchivedAsync(PersonId, !_person!.Archived);
+            Nav.NavigateTo($"/admin/people/{PersonId}");
+        }
+        catch (InvalidOperationException ex)
+        {
+            _archiveError = ex.Message;
         }
     }
 

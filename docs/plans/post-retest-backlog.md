@@ -25,9 +25,9 @@ gets meaningful drops instead of eighteen tiny ones.
 - [ ] #38 — Rank ordering: composite sort, red-belt degrees, NO BELT filter (PR #47 in gate)
 - [x] #35 — Member schedule: full-day visibility (verify) + guardian states (verified, no code)
 - [x] #33 — Real bell icon
-- [ ] #36 — Gym name → public page; public page knows you
-- [ ] #37 — Sunday-start calendar stat weeks with dates
-- [ ] #40 — Admin: edit person details (incl. DOB → IBJJF/Masters category)
+- [x] #36 — Gym name → public page; public page knows you (PR #49)
+- [ ] #37 — Sunday-start calendar stat weeks with dates (PR #50 in gate)
+- [x] #40 — Admin: edit person details (incl. DOB → IBJJF/Masters category)
 - [ ] #39 — Instructor experience
 - [ ] #34 — Theme toggle
 - [ ] #41 — Guardian portal
@@ -37,6 +37,7 @@ gets meaningful drops instead of eighteen tiny ones.
 - [ ] #26 — Diary v2
 - [ ] #27 — Member check-in history
 - [ ] #29 — Drop-ins / visitors
+- [ ] #43 — Admin: member portraits from the person page (plain upload; crop joins #28)
 - [ ] #23 — Interactive schedule editor
 - [ ] #22 — Responsive type-scale pass
 
