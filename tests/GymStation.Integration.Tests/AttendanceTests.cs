@@ -34,12 +34,15 @@ public class AttendanceTests(PostgresFixture fixture)
         context.Persons.AddRange(member, kid);
         context.GuardianLinks.Add(new GuardianLink { Id = Guid.NewGuid(), GuardianUserId = guardianUserId, ChildPersonId = kid.Id });
 
-        var utcNow = DateTime.UtcNow;
+        // Date and time both come from the same shifted instant — taking Date from
+        // "now" and time from "now + 15 min" seeds a day-old session when the
+        // 15 minutes cross midnight.
+        var startAt = DateTime.UtcNow.AddMinutes(15);
         var session = new ClassSession
         {
             Id = Guid.NewGuid(),
-            Date = sessionDate ?? DateOnly.FromDateTime(utcNow),
-            StartTime = start ?? TimeOnly.FromDateTime(utcNow.AddMinutes(15)),
+            Date = sessionDate ?? DateOnly.FromDateTime(startAt),
+            StartTime = start ?? TimeOnly.FromDateTime(startAt),
             DurationMinutes = 60,
             Name = "No-Gi",
         };
