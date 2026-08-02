@@ -155,9 +155,15 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
     /// <summary>Voids (never deletes) a payment with an audit trail; every derived number drops it.</summary>
     public async Task VoidPaymentAsync(Guid paymentId, Guid? voidedByPersonId, string reason, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(reason))
+        reason = reason?.Trim() ?? "";
+        if (reason.Length == 0)
         {
             throw new InvalidOperationException("A void needs a reason — it stays in the audit trail.");
+        }
+
+        if (reason.Length > 300)
+        {
+            throw new InvalidOperationException("Keep the void reason under 300 characters.");
         }
 
         var payment = await db.Payments.SingleOrDefaultAsync(p => p.Id == paymentId, ct)
@@ -170,7 +176,7 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
 
         payment.VoidedUtc = DateTimeOffset.UtcNow;
         payment.VoidedByPersonId = voidedByPersonId;
-        payment.VoidReason = reason.Trim();
+        payment.VoidReason = reason;
         await db.SaveChangesAsync(ct);
     }
 
@@ -243,6 +249,11 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
             throw new InvalidOperationException("A plan name is required.");
         }
 
+        if (name.Length > 80)
+        {
+            throw new InvalidOperationException("Keep the plan name under 80 characters.");
+        }
+
         if (price < 0)
         {
             throw new InvalidOperationException("Price can't be negative — use 0 for a comped plan.");
@@ -278,6 +289,11 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
             throw new InvalidOperationException("A category name is required.");
         }
 
+        if (name.Length > 60)
+        {
+            throw new InvalidOperationException("Keep the category name under 60 characters.");
+        }
+
         var category = await db.ExpenseCategories.SingleOrDefaultAsync(c => c.Id == categoryId, ct)
             ?? throw new InvalidOperationException("Category not found in the active gym.");
 
@@ -308,6 +324,12 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
         if (dayOfMonth is < 1 or > 31)
         {
             throw new InvalidOperationException("Day of month must be between 1 and 31.");
+        }
+
+        note = note?.Trim();
+        if (note is { Length: > 300 })
+        {
+            throw new InvalidOperationException("Keep the note under 300 characters.");
         }
 
         _ = await db.ExpenseCategories.SingleOrDefaultAsync(c => c.Id == categoryId, ct)

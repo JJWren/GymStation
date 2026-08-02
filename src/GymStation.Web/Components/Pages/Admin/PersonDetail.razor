@@ -189,7 +189,7 @@ else
                                     <AntiforgeryToken />
                                     <input type="hidden" name="paymentId" value="@paymentId" />
                                     <input type="hidden" name="personId" value="@PersonId" />
-                                    <input type="text" name="reason" placeholder="reason" aria-label="Void reason" style="width:84px" />
+                                    <input type="text" name="reason" placeholder="reason" aria-label="Void reason" required maxlength="300" style="width:84px" />
                                     <button class="btn btn--ghost btn--xs" type="submit" title="Void this payment — it stays in the audit trail">VOID</button>
                                 </form>
                             }

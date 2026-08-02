@@ -81,7 +81,7 @@
                 <form method="post" action="/admin/actions/update-plan" class="row-form" style="margin:0">
                     <AntiforgeryToken />
                     <input type="hidden" name="planId" value="@plan.Id" />
-                    <input type="text" name="name" value="@plan.Name" aria-label="Plan name" style="flex:1;min-width:120px" />
+                    <input type="text" name="name" value="@plan.Name" aria-label="Plan name" required maxlength="80" style="flex:1;min-width:120px" />
                     <input type="number" name="price" value="@plan.Price" step="0.01" min="0" aria-label="Monthly price" style="width:90px" />
                     <button class="btn btn--ghost btn--xs" type="submit">SAVE</button>
                 </form>
@@ -213,7 +213,7 @@
                     <form method="post" action="/admin/actions/rename-category" class="row-form" style="margin:0">
                         <AntiforgeryToken />
                         <input type="hidden" name="categoryId" value="@category.Id" />
-                        <input type="text" name="name" value="@category.Name" aria-label="Category name" style="width:150px" />
+                        <input type="text" name="name" value="@category.Name" aria-label="Category name" required maxlength="60" style="width:150px" />
                         <button class="btn btn--ghost btn--xs" type="submit">SAVE</button>
                     </form>
                     <form method="post" action="/admin/actions/category-archived" style="margin:0">

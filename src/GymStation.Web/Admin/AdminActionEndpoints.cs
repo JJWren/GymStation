@@ -103,6 +103,10 @@ public static class AdminActionEndpoints
             var zone = TimeZoneInfo.FindSystemTimeZoneById(gym.TimeZoneId);
             var gymToday = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, zone).DateTime);
             var raised = await ledger.RaiseMonthlyChargesAsync(gymToday);
+
+            // The button means "run the cycle" — recurring expenses are part of it,
+            // exactly like the background worker's pass.
+            await ledger.MaterializeRecurringExpensesAsync(gymToday);
             return Results.Redirect($"/admin/dues?raised={raised}");
         });
 
