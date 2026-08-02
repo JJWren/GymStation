@@ -17,7 +17,7 @@
         var interested = _counts.GetValueOrDefault((gymEvent.Id, RsvpStatus.Interested));
         <div class="form-card" style="margin-top:0.75rem">
             <span class="chip @(gymEvent.Kind == GymEventKind.Tournament ? "chip--on" : null)">@gymEvent.Kind.ToString().ToUpperInvariant()</span>
-            <h3 style="font:700 1rem/1.25 var(--font-body);margin:0.5rem 0 2px"><a href="/events/@gymEvent.Id" style="text-decoration:none">@gymEvent.Title</a></h3>
+            <h3 style="font:700 1rem/1.25 var(--font-body);margin:0.5rem 0 0.125rem"><a href="/events/@gymEvent.Id" style="text-decoration:none">@gymEvent.Title</a></h3>
             <p class="cap">
                 @gymEvent.StartsOn.ToString("ddd dd MMM yyyy").ToUpperInvariant()
                 @(gymEvent.TimeInfo is null ? null : $" · {gymEvent.TimeInfo.ToUpperInvariant()}")
