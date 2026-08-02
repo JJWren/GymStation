@@ -22,32 +22,39 @@
                 <div><b>@(_gymName ?? "GYMSTATION")</b><i>GYMSTATION</i></div>
             </a>
         </div>
-        <NavLink class="tab" href="/" Match="NavLinkMatch.All">TODAY</NavLink>
-        <NavLink class="tab" href="/admin/roster">ROSTER</NavLink>
-        <NavLink class="tab" href="/admin/ranks">RANKS</NavLink>
-        <NavLink class="tab" href="/admin/schedule">SCHEDULE</NavLink>
-        <NavLink class="tab" href="/instructor/swaps">SWAPS</NavLink>
-        <NavLink class="tab" href="/admin/inbox">INBOX</NavLink>
-        <NavLink class="tab" href="/admin/dues">DUES</NavLink>
-        <NavLink class="tab" href="/admin/events">EVENTS</NavLink>
-        <NavLink class="tab" href="/admin/reports">REPORTS</NavLink>
-        <NavLink class="tab" href="/admin/settings">SETTINGS</NavLink>
-        <div class="foot">
-            GYMSTATION · V1
-            <form method="post" action="/auth/theme">
-                <AntiforgeryToken />
-                <input type="hidden" name="dark" value="@((!_dark).ToString())" />
-                <input type="hidden" name="back" value="@(new Uri(Nav.Uri).PathAndQuery)" />
-                <button type="submit">@(_dark ? "PAPER MODE" : "MAT MODE")</button>
-            </form>
-            <form method="post" action="/auth/logout">
-                <AntiforgeryToken />
-                <button type="submit">SIGN OUT</button>
-            </form>
-            @if (_email is not null)
-            {
-                <span class="signed-in-as">SIGNED IN AS @_email</span>
-            }
+        @* Narrow screens collapse the rail to a top bar; this summary is the
+           hamburger. Pure <details> — no JS, works under static SSR. *@
+        <details class="rail-menu">
+            <summary aria-label="Open navigation">☰</summary>
+        </details>
+        <div class="rail-tabs">
+            <NavLink class="tab" href="/" Match="NavLinkMatch.All">TODAY</NavLink>
+            <NavLink class="tab" href="/admin/roster">ROSTER</NavLink>
+            <NavLink class="tab" href="/admin/ranks">RANKS</NavLink>
+            <NavLink class="tab" href="/admin/schedule">SCHEDULE</NavLink>
+            <NavLink class="tab" href="/instructor/swaps">SWAPS</NavLink>
+            <NavLink class="tab" href="/admin/inbox">INBOX</NavLink>
+            <NavLink class="tab" href="/admin/dues">DUES</NavLink>
+            <NavLink class="tab" href="/admin/events">EVENTS</NavLink>
+            <NavLink class="tab" href="/admin/reports">REPORTS</NavLink>
+            <NavLink class="tab" href="/admin/settings">SETTINGS</NavLink>
+            <div class="foot">
+                GYMSTATION · V1
+                <form method="post" action="/auth/theme">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="dark" value="@((!_dark).ToString())" />
+                    <input type="hidden" name="back" value="@(new Uri(Nav.Uri).PathAndQuery)" />
+                    <button type="submit">@(_dark ? "PAPER MODE" : "MAT MODE")</button>
+                </form>
+                <form method="post" action="/auth/logout">
+                    <AntiforgeryToken />
+                    <button type="submit">SIGN OUT</button>
+                </form>
+                @if (_email is not null)
+                {
+                    <span class="signed-in-as">SIGNED IN AS @_email</span>
+                }
+            </div>
         </div>
     </nav>
     <main class="main">
