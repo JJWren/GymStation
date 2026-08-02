@@ -36,6 +36,24 @@ public class PersonService(GymStationDbContext db)
         await db.SaveChangesAsync(ct);
     }
 
+    /// <summary>Sets or clears a Person's contact number and text consent. Clearing the
+    /// number always clears consent with it — there is nothing left to consent to.</summary>
+    public async Task SetContactAsync(Guid personId, string? phoneNumber, bool smsAllowed, CancellationToken ct = default)
+    {
+        var person = await db.Persons.SingleOrDefaultAsync(p => p.Id == personId, ct)
+            ?? throw new InvalidOperationException("Person not found in the active gym.");
+
+        var trimmed = string.IsNullOrWhiteSpace(phoneNumber) ? null : phoneNumber.Trim();
+        if (trimmed is { Length: > 30 })
+        {
+            throw new InvalidOperationException("Phone numbers are 30 characters max.");
+        }
+
+        person.PhoneNumber = trimmed;
+        person.SmsAllowed = trimmed is not null && smsAllowed;
+        await db.SaveChangesAsync(ct);
+    }
+
     /// <summary>Quick-add from the live roll: a walk-in with a name and nothing else.</summary>
     public async Task<Person> AddVisitorAsync(string firstName, string lastName, CancellationToken ct = default)
     {

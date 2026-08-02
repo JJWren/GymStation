@@ -23,6 +23,13 @@ public class Person : ITenantOwned
     /// <summary>Needed for IBJJF age groups (derived from birth year, never stored) and kids ladders.</summary>
     public DateOnly? DateOfBirth { get; set; }
 
+    /// <summary>Contact number; members manage their own, staff may enter one too.</summary>
+    public string? PhoneNumber { get; set; }
+
+    /// <summary>Consent to text this number. Staff-entered numbers default to NO consent —
+    /// only flipped deliberately (ideally by the member themselves).</summary>
+    public bool SmsAllowed { get; set; }
+
     public DateOnly JoinedOn { get; set; }
 
     /// <summary>Stored path in the file store; null renders the silhouette placeholder.</summary>
