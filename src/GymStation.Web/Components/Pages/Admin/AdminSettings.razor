@@ -33,6 +33,14 @@
                         }
                     </InputSelect>
                 </div>
+                <div>
+                    <label for="sopen">Mat opens (HH:mm — the schedule's time rail starts here)</label>
+                    <InputText id="sopen" @bind-Value="Form!.Open" />
+                </div>
+                <div>
+                    <label for="sclose">Mat closes (HH:mm)</label>
+                    <InputText id="sclose" @bind-Value="Form!.Close" />
+                </div>
             </div>
             <label for="sacc">Tenant accent — your gym's color on buttons, links, tags, stamps, and the public page (#rrggbb, WCAG-checked against both modes)</label>
             <InputText id="sacc" @bind-Value="Form!.AccentColorHex" />
@@ -112,6 +120,8 @@
         public string TimeZoneId { get; set; } = "America/Chicago";
         public string AccentColorHex { get; set; } = "#C9503B";
         public bool DefaultThemeDark { get; set; } = true;
+        public string Open { get; set; } = "06:00";
+        public string Close { get; set; } = "22:00";
     }
 
     protected override async Task OnInitializedAsync()
@@ -127,6 +137,8 @@
             Form.TimeZoneId = gym?.TimeZoneId ?? "America/Chicago";
             Form.AccentColorHex = _settings.AccentColorHex;
             Form.DefaultThemeDark = _settings.DefaultThemeDark;
+            Form.Open = _settings.OpenTime.ToString("HH\\:mm");
+            Form.Close = _settings.CloseTime.ToString("HH\\:mm");
         }
 
         BuildTimeZones();
@@ -176,6 +188,12 @@
             return;
         }
 
+        if (!TimeOnly.TryParse(form.Open, out var open) || !TimeOnly.TryParse(form.Close, out var close) || close <= open)
+        {
+            _error = "Mat hours need valid HH:mm times with close after open.";
+            return;
+        }
+
         // Entities loaded during OnInitializedAsync belong to a context that is already
         // disposed — re-load inside this handler's own context so the changes track.
         await using var db = await DbFactory.CreateDbContextAsync();
@@ -188,6 +206,8 @@
         settings.CheckInWindowMinutes = form.CheckInWindowMinutes;
         settings.AccentColorHex = form.AccentColorHex;
         settings.DefaultThemeDark = form.DefaultThemeDark;
+        settings.OpenTime = open;
+        settings.CloseTime = close;
 
         var gym = await db.Gyms.SingleAsync(g => g.Id == db.CurrentGymId);
         gym.TimeZoneId = form.TimeZoneId;

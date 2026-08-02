@@ -23,47 +23,159 @@
     · OPEN CLAIMS: @(_settings?.OpenClaimsEnabled == true ? "ON" : "OFF")
 </p>
 
-<div class="week-grid">
+<div class="rail-grid" style="grid-template-rows:auto repeat(@_slots, var(--slot-h))">
+    <div></div>
     @for (var i = 0; i < 7; i++)
     {
-        var date = _weekStart.AddDays(i);
-        <div class="day-col">
-            <h3>@date.ToString("ddd dd").ToUpperInvariant()</h3>
-            @foreach (var session in _sessions.Where(s => s.Date == date))
+        <h3 style="grid-column:@(i + 2);grid-row:1">@_weekStart.AddDays(i).ToString("ddd dd").ToUpperInvariant()</h3>
+    }
+    @for (var i = 0; i < 7; i++)
+    {
+        <div class="rail-col" style="grid-column:@(i + 2);grid-row:2 / span @_slots" aria-hidden="true"></div>
+    }
+    @foreach (var (time, row) in _hourMarks)
+    {
+        <span class="rail-time" style="grid-row:@row" aria-hidden="true">@time.ToString("HH\\:mm")</span>
+    }
+    @foreach (var card in _cards)
+    {
+        <a class="rail-ses @(card.Session.Status == SessionStatus.Cancelled ? "rail-ses--cancelled" : null)"
+           style="grid-column:@card.Column;grid-row:@card.Row / span @card.Span;width:calc(@card.WidthPercent.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)% - 3px);margin-left:@card.LeftPercent.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%"
+           href="/admin/schedule?start=@_weekStart.ToString("yyyy-MM-dd")&edit=@card.Session.Id"
+           aria-label="Edit @card.Session.Name, @card.Session.Date.ToString("dddd dd MMMM"), @card.Session.StartTime.ToString("HH\\:mm")">
+            <b>@card.Session.StartTime.ToString("HH\\:mm")</b>
+            <span>@card.Session.Name</span>
+            <i>@(_personNames.GetValueOrDefault(card.Session.InstructorPersonId ?? Guid.Empty, "UNASSIGNED").ToUpperInvariant())</i>
+            @if (card.Session.Status == SessionStatus.Cancelled)
             {
-                <div class="ses @(session.Status == SessionStatus.Cancelled ? "ses--cancelled" : null)">
-                    <div class="t">@session.StartTime.ToString("HH\\:mm")</div>
-                    <div class="n">@session.Name</div>
-                    <div class="c">@(_personNames.GetValueOrDefault(session.InstructorPersonId ?? Guid.Empty, "UNASSIGNED").ToUpperInvariant())</div>
-                    <div>
-                        @foreach (var type in session.ClassTypes)
-                        {
-                            <span class="tag" style="border-color:@type.ColorHex;color:@type.ColorHex">@type.Name</span>
-                        }
-                    </div>
-                    @if (session.Status == SessionStatus.Cancelled)
-                    {
-                        <span class="stamp stamp--bad">CANCELLED</span>
-                        <form method="post" action="/admin/actions/reopen-session" class="row-form">
-                            <AntiforgeryToken />
-                            <input type="hidden" name="sessionId" value="@session.Id" />
-                            <button type="submit" class="btn btn--ghost btn--xs">RE-OPEN</button>
-                        </form>
-                    }
-                    else
-                    {
-                        <form method="post" action="/admin/actions/cancel-session" class="row-form">
-                            <AntiforgeryToken />
-                            <input type="hidden" name="sessionId" value="@session.Id" />
-                            <input type="text" name="reason" placeholder="reason" aria-label="Cancellation reason" />
-                            <button type="submit" class="btn btn--ghost btn--xs">CANCEL</button>
-                        </form>
-                    }
-                </div>
+                <em>CANCELLED</em>
             }
-        </div>
+        </a>
     }
 </div>
+<p class="cap" style="margin-top:6px">
+    MAT HOURS @_open.ToString("HH\\:mm")–@_close.ToString("HH\\:mm") (SET IN SETTINGS) ·
+    CLICK A CLASS TO EDIT THE OCCURRENCE, CANCEL IT, OR CHANGE ITS WEEKLY TEMPLATE
+</p>
+
+@if (_editSession is { } editing)
+{
+    <div class="modal-wrap" role="dialog" aria-modal="true" aria-label="Edit class">
+        <a class="modal-scrim" href="/admin/schedule?start=@_weekStart.ToString("yyyy-MM-dd")" aria-label="Close editor"></a>
+        <div class="modal-card">
+            <div class="head-row">
+                <h2 class="section-h" style="margin:0">@editing.Name.ToUpperInvariant() · @editing.Date.ToString("ddd dd MMM").ToUpperInvariant()</h2>
+                <a class="btn btn--ghost btn--xs" href="/admin/schedule?start=@_weekStart.ToString("yyyy-MM-dd")">✕ CLOSE</a>
+            </div>
+
+            <EditForm class="form-card" FormName="edit-session" Model="SessionForm" OnValidSubmit="SaveSessionAsync" style="margin-top:10px">
+                <label for="esname">Name</label>
+                <InputText id="esname" @bind-Value="SessionForm!.Name" />
+                <div class="form-grid">
+                    <div>
+                        <label for="esstart">Start (HH:mm)</label>
+                        <InputText id="esstart" @bind-Value="SessionForm!.Start" />
+                    </div>
+                    <div>
+                        <label for="esdur">Duration (min)</label>
+                        <InputNumber id="esdur" @bind-Value="SessionForm!.DurationMinutes" />
+                    </div>
+                </div>
+                <label for="esinst">Instructor</label>
+                <InputSelect id="esinst" @bind-Value="SessionForm!.InstructorPersonId">
+                    <option value="">— unassigned —</option>
+                    @foreach (var (id, name) in _instructors)
+                    {
+                        <option value="@id">@name</option>
+                    }
+                </InputSelect>
+                @if (_sessionError is not null)
+                {
+                    <p class="validation-message">@_sessionError</p>
+                }
+                <p style="margin-top:12px"><button class="btn" type="submit">SAVE THIS SESSION</button></p>
+                <p class="cap" style="margin:6px 0 0">CHANGES THIS OCCURRENCE ONLY · TIME CHANGES NOTIFY STAFF AND CHECKED-IN MEMBERS</p>
+            </EditForm>
+
+            <div class="form-card" style="margin-top:10px">
+                @if (editing.Status == SessionStatus.Cancelled)
+                {
+                    <span class="stamp stamp--bad">CANCELLED@(editing.CancelledReason is { Length: > 0 } why ? $" · {why.ToUpperInvariant()}" : null)</span>
+                    <form method="post" action="/admin/actions/reopen-session" class="row-form">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="sessionId" value="@editing.Id" />
+                        <button type="submit" class="btn btn--ghost btn--xs">RE-OPEN</button>
+                    </form>
+                }
+                else
+                {
+                    <form method="post" action="/admin/actions/cancel-session" class="row-form" style="margin:0">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="sessionId" value="@editing.Id" />
+                        <input type="text" name="reason" placeholder="reason" aria-label="Cancellation reason" />
+                        <button type="submit" class="btn btn--ghost btn--xs">CANCEL SESSION</button>
+                    </form>
+                }
+            </div>
+
+            @if (_editTemplate is { } template)
+            {
+                <h2 class="section-h">Weekly template — every @template.Day.ToString().ToUpperInvariant()</h2>
+                <EditForm class="form-card" FormName="edit-template" Model="TemplateEdit" OnValidSubmit="SaveTemplateAsync">
+                    <label for="etname">Name</label>
+                    <InputText id="etname" @bind-Value="TemplateEdit!.Name" />
+                    <div class="form-grid">
+                        <div>
+                            <label for="etday">Day</label>
+                            <InputSelect id="etday" @bind-Value="TemplateEdit!.Day">
+                                @foreach (var day in Enum.GetValues<DayOfWeek>())
+                                {
+                                    <option value="@day">@day</option>
+                                }
+                            </InputSelect>
+                        </div>
+                        <div>
+                            <label for="etstart">Start (HH:mm)</label>
+                            <InputText id="etstart" @bind-Value="TemplateEdit!.Start" />
+                        </div>
+                        <div>
+                            <label for="etdur">Duration (min)</label>
+                            <InputNumber id="etdur" @bind-Value="TemplateEdit!.DurationMinutes" />
+                        </div>
+                        <div>
+                            <label for="etinst">Default instructor</label>
+                            <InputSelect id="etinst" @bind-Value="TemplateEdit!.InstructorPersonId">
+                                <option value="">— unassigned —</option>
+                                @foreach (var (id, name) in _instructors)
+                                {
+                                    <option value="@id">@name</option>
+                                }
+                            </InputSelect>
+                        </div>
+                    </div>
+                    <label>Class types</label>
+                    <div class="check-row">
+                        @foreach (var type in _types)
+                        {
+                            <label><input type="checkbox" name="TemplateEdit.TypeIds" value="@type.Id" checked="@TemplateEdit!.TypeIds.Contains(type.Id)" /> @type.Name</label>
+                        }
+                    </div>
+                    @if (_templateEditError is not null)
+                    {
+                        <p class="validation-message">@_templateEditError</p>
+                    }
+                    <p style="margin-top:12px"><button class="btn" type="submit">SAVE TEMPLATE</button></p>
+                    <p class="cap" style="margin:6px 0 0">APPLIES TO WEEKS NOT YET ON THE CALENDAR · OCCURRENCES ALREADY MATERIALIZED (INCLUDING THIS ONE) KEEP THEIR OWN VALUES</p>
+                </EditForm>
+
+                <EditForm FormName="pause-template" Model="PauseMarker" OnValidSubmit="PauseTemplateAsync" style="margin-top:10px">
+                    <button class="btn btn--ghost btn--xs" type="submit" style="color:var(--bad)"
+                            onclick="return confirm('Pause this weekly class? It stops appearing on future weeks; existing occurrences stay.')">PAUSE WEEKLY TEMPLATE</button>
+                </EditForm>
+            }
+        </div>
+    </div>
+}
 
 <div class="detail-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;margin-top:20px">
     <section>
@@ -168,6 +280,21 @@
             <p style="margin-top:14px"><button class="btn" type="submit">+ CLASS TEMPLATE</button></p>
         </EditForm>
 
+        @if (_pausedTemplates.Count > 0)
+        {
+            <h2 class="section-h">Paused templates</h2>
+            <EditForm class="form-card" FormName="restore-template" Model="RestoreForm" OnValidSubmit="RestoreTemplateAsync">
+                <label for="rtid">These no longer appear on future weeks</label>
+                <InputSelect id="rtid" @bind-Value="RestoreForm!.TemplateId">
+                    @foreach (var paused in _pausedTemplates)
+                    {
+                        <option value="@paused.Id">@paused.Name · @paused.Day @paused.StartTime.ToString("HH\\:mm")</option>
+                    }
+                </InputSelect>
+                <p style="margin-top:10px"><button class="btn btn--ghost btn--xs" type="submit">RESTORE TO SCHEDULE</button></p>
+            </EditForm>
+        }
+
         <h2 class="section-h">Class tags</h2>
         <EditForm class="form-card" FormName="add-type" Model="TypeForm" OnValidSubmit="AddTypeAsync">
             <div class="form-grid">
@@ -187,6 +314,9 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "start")] public string? StartRaw { get; set; }
+    [SupplyParameterFromQuery(Name = "edit")] public string? EditRaw { get; set; }
+
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
 
     [SupplyParameterFromForm(FormName = "add-template")]
     public AddTemplateForm? TemplateForm { get; set; }
@@ -194,24 +324,57 @@
     [SupplyParameterFromForm(FormName = "add-type")]
     public AddTypeForm? TypeForm { get; set; }
 
+    [SupplyParameterFromForm(FormName = "edit-session")]
+    public EditSessionForm? SessionForm { get; set; }
+
+    [SupplyParameterFromForm(FormName = "edit-template")]
+    public EditTemplateForm? TemplateEdit { get; set; }
+
+    [SupplyParameterFromForm(FormName = "pause-template")]
+    public MarkerModel? PauseMarker { get; set; }
+
+    [SupplyParameterFromForm(FormName = "restore-template")]
+    public RestoreTemplateForm? RestoreForm { get; set; }
+
+    public class MarkerModel;
+
     protected override void OnInitialized()
     {
         TemplateForm ??= new();
         TypeForm ??= new();
+        SessionForm ??= new();
+        TemplateEdit ??= new();
+        PauseMarker ??= new();
+        RestoreForm ??= new();
 
         // The form binder nulls collections that arrive with no posted fields
         // (zero checked checkboxes posts nothing for TypeIds).
         TemplateForm.TypeIds ??= [];
+        TemplateEdit.TypeIds ??= [];
     }
 
     private DateOnly _weekStart;
     private List<ClassSession> _sessions = [];
     private List<SubstitutionRequest> _requests = [];
     private List<ClassType> _types = [];
+    private List<ClassTemplate> _pausedTemplates = [];
     private List<(Guid Id, string Name)> _instructors = [];
     private Dictionary<Guid, string> _personNames = [];
     private GymSettings? _settings;
     private string? _templateError;
+    private string? _sessionError;
+    private string? _templateEditError;
+
+    private ClassSession? _editSession;
+    private ClassTemplate? _editTemplate;
+
+    private record RailCard(ClassSession Session, int Column, int Row, int Span, double WidthPercent, double LeftPercent);
+
+    private TimeOnly _open = new(6, 0);
+    private TimeOnly _close = new(22, 0);
+    private int _slots = 32;
+    private List<RailCard> _cards = [];
+    private List<(TimeOnly Time, int Row)> _hourMarks = [];
 
     public class AddTemplateForm
     {
@@ -227,6 +390,29 @@
     {
         public string Name { get; set; } = "";
         public string ColorHex { get; set; } = "#707886";
+    }
+
+    public class EditSessionForm
+    {
+        public string Name { get; set; } = "";
+        public string Start { get; set; } = "18:00";
+        public int DurationMinutes { get; set; } = 60;
+        public Guid? InstructorPersonId { get; set; }
+    }
+
+    public class EditTemplateForm
+    {
+        public string Name { get; set; } = "";
+        public DayOfWeek Day { get; set; } = DayOfWeek.Monday;
+        public string Start { get; set; } = "18:00";
+        public int DurationMinutes { get; set; } = 60;
+        public Guid? InstructorPersonId { get; set; }
+        public List<Guid> TypeIds { get; set; } = [];
+    }
+
+    public class RestoreTemplateForm
+    {
+        public Guid? TemplateId { get; set; }
     }
 
     protected override async Task OnInitializedAsync()
@@ -253,6 +439,117 @@
             .Where(id => id != Guid.Empty)
             .Distinct().ToList();
         _personNames = await db.Persons.Where(p => nameIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id, p => p.DisplayName);
+
+        _pausedTemplates = await db.ClassTemplates.Where(t => !t.Active).OrderBy(t => t.Name).ToListAsync();
+        RestoreForm!.TemplateId ??= _pausedTemplates.FirstOrDefault()?.Id;
+
+        BuildRail();
+
+        if (Guid.TryParse(EditRaw, out var editId))
+        {
+            _editSession = _sessions.FirstOrDefault(s => s.Id == editId);
+            if (_editSession?.TemplateId is { } templateId)
+            {
+                _editTemplate = await db.ClassTemplates
+                    .Include(t => t.ClassTypes)
+                    .SingleOrDefaultAsync(t => t.Id == templateId);
+            }
+
+            // Prefill unless THIS form was the one posted (a failed submit keeps
+            // the binder's values so validation messages match what's on screen).
+            var postedHandler = HttpContext?.Request.Method == "POST"
+                ? HttpContext.Request.Form["_handler"].ToString()
+                : null;
+
+            if (_editSession is { } session && postedHandler != "edit-session")
+            {
+                SessionForm!.Name = session.Name;
+                SessionForm.Start = session.StartTime.ToString("HH\\:mm");
+                SessionForm.DurationMinutes = session.DurationMinutes;
+                SessionForm.InstructorPersonId = session.InstructorPersonId;
+            }
+
+            if (_editTemplate is { } template && postedHandler != "edit-template")
+            {
+                TemplateEdit!.Name = template.Name;
+                TemplateEdit.Day = template.Day;
+                TemplateEdit.Start = template.StartTime.ToString("HH\\:mm");
+                TemplateEdit.DurationMinutes = template.DurationMinutes;
+                TemplateEdit.InstructorPersonId = template.DefaultInstructorPersonId;
+                TemplateEdit.TypeIds = template.ClassTypes.Select(t => t.Id).ToList();
+            }
+        }
+    }
+
+    private static int MinutesOf(TimeOnly time) => (int)time.ToTimeSpan().TotalMinutes;
+
+    private void BuildRail()
+    {
+        _open = _settings?.OpenTime ?? new TimeOnly(6, 0);
+        _close = _settings?.CloseTime ?? new TimeOnly(22, 0);
+        if (_close <= _open)
+        {
+            (_open, _close) = (new TimeOnly(6, 0), new TimeOnly(22, 0));
+        }
+
+        var totalMinutes = MinutesOf(_close) - MinutesOf(_open);
+        _slots = (totalMinutes + 29) / 30;
+
+        _hourMarks = [];
+        for (var time = new TimeOnly(_open.Hour, 0); time < _close; time = time.AddHours(1))
+        {
+            if (time < _open)
+            {
+                continue;
+            }
+
+            _hourMarks.Add((time, (MinutesOf(time) - MinutesOf(_open)) / 30 + 2));
+        }
+
+        _cards = [];
+        for (var day = 0; day < 7; day++)
+        {
+            var date = _weekStart.AddDays(day);
+            var todays = _sessions.Where(s => s.Date == date)
+                .OrderBy(s => s.StartTime).ThenBy(s => s.Name).ToList();
+
+            // Greedy lanes: concurrent sessions share the column width side by side.
+            var laneEnds = new List<int>();
+            var lanes = new int[todays.Count];
+            for (var i = 0; i < todays.Count; i++)
+            {
+                var startMin = MinutesOf(todays[i].StartTime);
+                var placed = false;
+                for (var lane = 0; lane < laneEnds.Count; lane++)
+                {
+                    if (laneEnds[lane] <= startMin)
+                    {
+                        lanes[i] = lane;
+                        laneEnds[lane] = startMin + todays[i].DurationMinutes;
+                        placed = true;
+                        break;
+                    }
+                }
+
+                if (!placed)
+                {
+                    lanes[i] = laneEnds.Count;
+                    laneEnds.Add(startMin + todays[i].DurationMinutes);
+                }
+            }
+
+            var laneCount = Math.Max(1, laneEnds.Count);
+            for (var i = 0; i < todays.Count; i++)
+            {
+                var session = todays[i];
+                var startMin = Math.Clamp(MinutesOf(session.StartTime) - MinutesOf(_open), 0, Math.Max(0, totalMinutes - 15));
+                var endMin = Math.Clamp(startMin + session.DurationMinutes, startMin + 15, totalMinutes);
+                var row = startMin / 30 + 2;
+                var span = Math.Max(1, (endMin - startMin + 29) / 30);
+                var width = 100.0 / laneCount;
+                _cards.Add(new RailCard(session, day + 2, row, span, width, lanes[i] * width));
+            }
+        }
     }
 
     private static DateOnly MondayOf(DateOnly date)
@@ -284,6 +581,80 @@
         });
         await db.SaveChangesAsync();
         Nav.NavigateTo($"/admin/schedule?start={_weekStart:yyyy-MM-dd}");
+    }
+
+    private string WeekUrl => $"/admin/schedule?start={_weekStart:yyyy-MM-dd}";
+
+    private async Task SaveSessionAsync()
+    {
+        var form = SessionForm!;
+        if (_editSession is null)
+        {
+            return;
+        }
+
+        if (!TimeOnly.TryParse(form.Start, out var start))
+        {
+            _sessionError = "Start must be a valid HH:mm time.";
+            return;
+        }
+
+        try
+        {
+            await Schedule.UpdateSessionAsync(_editSession.Id, form.Name, start, form.DurationMinutes, form.InstructorPersonId);
+            Nav.NavigateTo(WeekUrl);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _sessionError = ex.Message;
+        }
+    }
+
+    private async Task SaveTemplateAsync()
+    {
+        var form = TemplateEdit!;
+        if (_editTemplate is null || _editSession is null)
+        {
+            return;
+        }
+
+        if (!TimeOnly.TryParse(form.Start, out var start))
+        {
+            _templateEditError = "Start must be a valid HH:mm time.";
+            return;
+        }
+
+        try
+        {
+            await Schedule.UpdateTemplateAsync(
+                _editTemplate.Id, form.Name, form.Day, start, form.DurationMinutes, form.InstructorPersonId, form.TypeIds);
+            Nav.NavigateTo($"{WeekUrl}&edit={_editSession.Id}");
+        }
+        catch (InvalidOperationException ex)
+        {
+            _templateEditError = ex.Message;
+        }
+    }
+
+    private async Task PauseTemplateAsync()
+    {
+        if (_editTemplate is null)
+        {
+            return;
+        }
+
+        await Schedule.SetTemplateActiveAsync(_editTemplate.Id, false);
+        Nav.NavigateTo(WeekUrl);
+    }
+
+    private async Task RestoreTemplateAsync()
+    {
+        if (RestoreForm!.TemplateId is { } templateId)
+        {
+            await Schedule.SetTemplateActiveAsync(templateId, true);
+        }
+
+        Nav.NavigateTo(WeekUrl);
     }
 
     private async Task AddTypeAsync()

@@ -238,6 +238,22 @@ a { color: var(--ink); }
 #blazor-error-ui { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 10; }
 .blazor-error-boundary::after { content: "An error has occurred."; }
 
+/* ---- schedule time rail + editor modal ---- */
+.rail-grid { --slot-h: 25px; display: grid; grid-template-columns: 46px repeat(7, minmax(0, 1fr)); column-gap: 6px; margin-top: 8px; }
+.rail-grid h3 { font: 600 10px/1 var(--font-mono); letter-spacing: .12em; color: var(--ink-dim); padding: 0 0 8px 2px; margin: 0; }
+.rail-time { grid-column: 1; font: 600 8.5px/1 var(--font-mono); color: var(--ink-faint); text-align: right; padding-right: 8px; transform: translateY(-4px); }
+.rail-col { border-left: 1px solid #232a35; background: repeating-linear-gradient(to bottom, rgba(120, 135, 155, .12) 0 1px, transparent 1px var(--slot-h)); }
+.rail-ses { display: block; min-width: 0; overflow: hidden; background: var(--surface); border: 1px solid var(--edge); border-left: 3px solid var(--tenant); border-radius: 7px; padding: 4px 6px; text-decoration: none; font: 600 9px/1.35 var(--font-mono); color: var(--ink-dim); }
+.rail-ses b { color: var(--ink); }
+.rail-ses span { display: block; font: 600 10px/1.2 var(--font-body); color: var(--ink); white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+.rail-ses i { font-style: normal; letter-spacing: .06em; font-size: 8px; color: var(--ink-faint); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rail-ses em { font-style: normal; color: var(--bad); font-size: 8px; letter-spacing: .1em; }
+.rail-ses:hover { border-color: var(--tenant); }
+.rail-ses--cancelled { opacity: .55; border-left-color: var(--bad); }
+.modal-wrap { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 18px; }
+.modal-scrim { position: absolute; inset: 0; background: rgba(8, 11, 15, .74); }
+.modal-card { position: relative; z-index: 1; width: min(560px, 100%); max-height: 88vh; overflow: auto; background: var(--panel); border-radius: 14px; padding: 16px; box-shadow: 0 18px 60px rgba(0, 0, 0, .55); }
+
 /* ---- diary month calendar ---- */
 .diary-cal { margin-bottom: 12px; }
 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }

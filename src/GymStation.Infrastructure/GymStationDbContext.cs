@@ -71,6 +71,10 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
         {
             e.HasKey(s => s.GymId);
             e.Property(s => s.AccentColorHex).HasMaxLength(9);
+
+            // Explicit defaults so pre-existing rows land on real mat hours, not 00:00.
+            e.Property(s => s.OpenTime).HasDefaultValue(new TimeOnly(6, 0));
+            e.Property(s => s.CloseTime).HasDefaultValue(new TimeOnly(22, 0));
             e.HasQueryFilter(s => CurrentGymId != null && s.GymId == CurrentGymId);
         });
 
