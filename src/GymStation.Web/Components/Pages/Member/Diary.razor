@@ -12,9 +12,9 @@
 
 <PageTitle>Diary · GymStation</PageTitle>
 
-<main class="member-shell" style="padding-top:6px">
+<main class="member-shell" style="padding-top:0.375rem">
     <div class="head-row">
-        <h1 class="page-title" style="font-size:20px">DIARY</h1>
+        <h1 class="page-title" style="font-size:1.25rem">DIARY</h1>
         <span class="chip" style="border-color:var(--ok);color:var(--ok)">🔒 ONLY YOU CAN SEE THIS</span>
     </div>
 
@@ -52,7 +52,7 @@
         @for (var i = 0; i < Form!.Rolls.Count; i++)
         {
             var index = i;
-            <div class="row-form" style="margin-bottom:6px">
+            <div class="row-form" style="margin-bottom:0.375rem">
                 <InputSelect @bind-Value="Form!.Rolls[index].PartnerPersonId" aria-label="Partner from roster">
                     <option value="">— partner —</option>
                     @foreach (var (id, name) in _partners)
@@ -66,7 +66,7 @@
                         aria-label="Remove roll @(index + 1)" style="color:var(--bad)">×</button>
             </div>
         }
-        <p style="margin:6px 0 0">
+        <p style="margin:0.375rem 0 0">
             <button class="btn btn--ghost btn--xs" type="submit" name="Form.AddPartner" value="true">+ PARTNER</button>
         </p>
 
@@ -74,12 +74,12 @@
         {
             <p class="validation-message">@_error</p>
         }
-        <p style="margin-top:12px"><button class="btn" type="submit">+ SAVE ENTRY</button></p>
+        <p style="margin-top:0.75rem"><button class="btn" type="submit">+ SAVE ENTRY</button></p>
     </EditForm>
 
     <h2 class="section-h">Entries</h2>
     <div class="diary-cal form-card">
-        <div class="head-row" style="margin-bottom:8px">
+        <div class="head-row" style="margin-bottom:0.5rem">
             <a class="btn btn--ghost btn--xs" href="/diary?month=@_month.AddMonths(-1).ToString("yyyy-MM")"
                aria-label="Previous month">‹</a>
             <b class="mono" style="color:var(--ink)">@_month.ToString("MMMM yyyy").ToUpperInvariant()</b>
@@ -114,14 +114,14 @@
 
     @if (_onDay is { } selected)
     {
-        <p style="margin:0 0 10px">
+        <p style="margin:0 0 0.625rem">
             <a class="chip chip--on" href="/diary?month=@_month.ToString("yyyy-MM")">SHOWING @selected.ToString("dd MMM").ToUpperInvariant() · SHOW WHOLE MONTH ×</a>
         </p>
     }
 
     @foreach (var entry in Shown)
     {
-        <div class="form-card" style="margin-bottom:10px">
+        <div class="form-card" style="margin-bottom:0.625rem">
             <div class="head-row">
                 <a class="mono" style="color:var(--ink)" href="/diary/entry/@entry.Id"
                    title="Open this entry"><b>@entry.EntryDate.ToString("ddd dd MMM yyyy").ToUpperInvariant()</b> →</a>
@@ -131,11 +131,11 @@
             </div>
             @if (!string.IsNullOrWhiteSpace(entry.Notes))
             {
-                <p style="margin:6px 0;color:var(--ink-dim)">@entry.Notes</p>
+                <p style="margin:0.375rem 0;color:var(--ink-dim)">@entry.Notes</p>
             }
             @foreach (var roll in entry.Rolls)
             {
-                <div class="head-row" style="border-top:1px dashed #2c3440;padding:5px 0">
+                <div class="head-row" style="border-top:1px dashed #2c3440;padding:0.3125rem 0">
                     <span class="mono" style="color:var(--ink)">@roll.PartnerLabel.ToUpperInvariant()</span>
                     <span class="mono">@roll.Summary</span>
                 </div>
@@ -148,7 +148,7 @@
             @(_onDay is { } d ? $"NO ENTRIES ON {d.ToString("dd MMM yyyy").ToUpperInvariant()}." : "NO ENTRIES THIS MONTH. LOG WHAT YOU LEARNED TONIGHT.")
             @if (_latestEntryDate is { } latest && (latest < _month || latest >= _month.AddMonths(1)))
             {
-                <a href="/diary?month=@latest.ToString("yyyy-MM")" style="margin-left:6px">LAST ENTRY: @latest.ToString("MMM yyyy").ToUpperInvariant() →</a>
+                <a href="/diary?month=@latest.ToString("yyyy-MM")" style="margin-left:0.375rem">LAST ENTRY: @latest.ToString("MMM yyyy").ToUpperInvariant() →</a>
             }
         </p>
     }

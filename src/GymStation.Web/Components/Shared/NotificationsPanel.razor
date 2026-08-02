@@ -4,7 +4,7 @@
 @inject NavigationManager Nav
 
 <div class="head-row">
-    <h1 class="page-title" style="font-size:20px">NOTIFICATIONS</h1>
+    <h1 class="page-title" style="font-size:1.25rem">NOTIFICATIONS</h1>
     @if (_items.Any(n => n.ReadUtc == null))
     {
         <EditForm FormName="mark-read" Model="Marker" OnValidSubmit="MarkAllReadAsync">
@@ -19,9 +19,9 @@
 }
 @foreach (var item in _items)
 {
-    <div class="form-card" style="margin-bottom:8px;@(item.ReadUtc == null ? "border-left:3px solid var(--tenant)" : "opacity:.72")">
+    <div class="form-card" style="margin-bottom:0.5rem;@(item.ReadUtc == null ? "border-left:0.1875rem solid var(--tenant)" : "opacity:.72")">
         <b>@item.Title</b>
-        <p style="margin:4px 0">@item.Body</p>
+        <p style="margin:0.25rem 0">@item.Body</p>
         <p class="cap">
             @item.CreatedUtc.ToLocalTime().ToString("ddd dd MMM HH:mm").ToUpperInvariant()
             @if (item.LinkPath is not null)

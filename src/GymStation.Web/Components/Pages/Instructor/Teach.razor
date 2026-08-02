@@ -8,9 +8,9 @@
 
 <PageTitle>Teach · GymStation</PageTitle>
 
-<main class="member-shell" style="padding-top:6px">
-    <h1 class="page-title" style="font-size:20px">TEACH</h1>
-    <p class="cap" style="margin-top:4px">YOUR SESSIONS · NEXT 14 DAYS — LIVE ROLL, COVER REQUESTS, AND WHAT'S WAITING ON YOU</p>
+<main class="member-shell" style="padding-top:0.375rem">
+    <h1 class="page-title" style="font-size:1.25rem">TEACH</h1>
+    <p class="cap" style="margin-top:0.25rem">YOUR SESSIONS · NEXT 14 DAYS — LIVE ROLL, COVER REQUESTS, AND WHAT'S WAITING ON YOU</p>
 
     @if (Failed)
     {
@@ -24,13 +24,13 @@
     }
     @foreach (var session in _mySessions)
     {
-        <div class="ses" style="margin-bottom:10px">
+        <div class="ses" style="margin-bottom:0.625rem">
             <div class="head-row">
                 <span class="t">@session.Date.ToString("ddd dd MMM").ToUpperInvariant() · @session.StartTime.ToString("HH\\:mm")</span>
                 <a class="chip" href="/instructor/roll/@session.Id">LIVE ROLL →</a>
             </div>
-            <div class="n" style="font-size:16px">@session.Name</div>
-            <form method="post" action="/instructor/actions/request-sub" class="row-form" style="margin-top:8px">
+            <div class="n" style="font-size:1rem">@session.Name</div>
+            <form method="post" action="/instructor/actions/request-sub" class="row-form" style="margin-top:0.5rem">
                 <AntiforgeryToken />
                 <input type="hidden" name="back" value="teach" />
                 <input type="hidden" name="sessionId" value="@session.Id" />
@@ -53,9 +53,9 @@
     }
     @foreach (var request in _actionable)
     {
-        <div class="form-card" style="margin-bottom:10px">
+        <div class="form-card" style="margin-bottom:0.625rem">
             <b>@request.Session.Name · @request.Session.Date.ToString("ddd dd MMM").ToUpperInvariant() @request.Session.StartTime.ToString("HH\\:mm")</b>
-            <p class="cap" style="margin:4px 0 8px">
+            <p class="cap" style="margin:0.25rem 0 0.5rem">
                 @(request.ProposedSubPersonId is null ? "OPEN REQUEST" : "NAMED TO YOU") ·
                 REQUESTED BY @_names.GetValueOrDefault(request.RequestedByPersonId, "?").ToUpperInvariant()
             </p>
@@ -68,7 +68,7 @@
         </div>
     }
 
-    <p class="cap" style="margin-top:14px"><a href="/instructor/swaps">ALL SUBSTITUTIONS →</a> · <a href="/schedule">FULL SCHEDULE →</a></p>
+    <p class="cap" style="margin-top:0.875rem"><a href="/instructor/swaps">ALL SUBSTITUTIONS →</a> · <a href="/schedule">FULL SCHEDULE →</a></p>
 </main>
 
 @code {

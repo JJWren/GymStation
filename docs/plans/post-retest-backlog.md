@@ -37,9 +37,9 @@ gets meaningful drops instead of eighteen tiny ones.
 - [x] #26 — Diary v2 (partner rows, entry edit/delete, month calendar)
 - [ ] #27 — Member check-in history
 - [x] #29 — Drop-ins / visitors (live-roll quick-add, VISITORS chip, convert)
-- [ ] #43 — Admin: member portraits from the person page (plain upload; crop joins #28)
+- [x] #43 — Admin: member portraits from the person page (click-to-upload + crop, staff-only serving)
 - [x] #23 — Interactive schedule editor (gym hours, time rail, edit modal; drag deferred)
-- [ ] #22 — Responsive type-scale pass
+- [x] #22 — Responsive type-scale pass (fluid rem scale, tablet member column, breakpoint screenshots)
 
 ---
 

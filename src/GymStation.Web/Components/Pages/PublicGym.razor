@@ -41,8 +41,8 @@ else
                 <p class="pub-tag">SCHEDULE · INSTRUCTORS · VISIT</p>
                 @if (_signedInEmail is { } email)
                 {
-                    <p class="pub-tag" style="margin:0 0 10px">SIGNED IN AS @email.ToUpperInvariant()</p>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <p class="pub-tag" style="margin:0 0 0.625rem">SIGNED IN AS @email.ToUpperInvariant()</p>
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
                         <a class="btn" href="@_portalPath">BACK TO YOUR PORTAL</a>
                         <form method="post" action="/auth/logout" style="margin:0">
                             <AntiforgeryToken />
@@ -84,10 +84,10 @@ else
                 {
                     <div class="patch">
                         <div class="avatar" role="img" aria-label="Portrait placeholder"></div>
-                        <b style="display:block;margin-top:8px">@person.DisplayName</b>
+                        <b style="display:block;margin-top:0.5rem">@person.DisplayName</b>
                         @if (experience is not null)
                         {
-                            <i style="display:block;font:9px/1.6 var(--font-mono);color:var(--ink-faint);font-style:normal;letter-spacing:.06em">@experience.ToUpperInvariant()</i>
+                            <i style="display:block;font:0.5625rem/1.6 var(--font-mono);color:var(--ink-faint);font-style:normal;letter-spacing:.06em">@experience.ToUpperInvariant()</i>
                         }
                     </div>
                 }

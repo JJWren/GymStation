@@ -58,6 +58,69 @@ public static class MediaEndpoints
             return Results.Redirect("/admin/settings");
         }).RequireAuthorization("GymStaff").ValidateAntiforgery();
 
+        // Member portraits: staff-only on both sides — stored under the gym's folder,
+        // never reachable through the anonymous /media/ route below.
+        app.MapPost("/admin/actions/upload-portrait", async (HttpRequest request, GymStationDbContext db, IFileStore store) =>
+        {
+            var form = await request.ReadFormAsync();
+            var file = form.Files.GetFile("file");
+
+            if (!Guid.TryParse(form["personId"], out var personId))
+            {
+                return Results.Redirect("/admin/roster");
+            }
+
+            if (file is null || file.Length == 0 || file.Length > MaxUploadBytes)
+            {
+                return Results.Redirect($"/admin/people/{personId}?failed=1");
+            }
+
+            var extension = Path.GetExtension(file.FileName);
+            if (!AllowedTypes.ContainsKey(extension))
+            {
+                return Results.Redirect($"/admin/people/{personId}?failed=1");
+            }
+
+            var person = await db.Persons.SingleOrDefaultAsync(p => p.Id == personId);
+            if (person is null)
+            {
+                return Results.Redirect("/admin/roster");
+            }
+
+            var path = $"gyms/{person.GymId}/portraits/{person.Id}{extension.ToLowerInvariant()}";
+            await using (var content = file.OpenReadStream())
+            {
+                await store.SaveAsync(content, path);
+            }
+
+            person.PortraitPath = path;
+            await db.SaveChangesAsync();
+            return Results.Redirect($"/admin/people/{personId}");
+        }).RequireAuthorization("GymStaff").ValidateAntiforgery();
+
+        app.MapGet("/admin/media/portrait/{personId:guid}", async (Guid personId, HttpContext http, GymStationDbContext db, IFileStore store) =>
+        {
+            var person = await db.Persons.SingleOrDefaultAsync(p => p.Id == personId);
+            if (person?.PortraitPath is not { } path
+                // Defense in depth: only ever open THIS person's portrait key, even if
+                // the stored value was tampered with — never an arbitrary store path.
+                || !path.StartsWith($"gyms/{person.GymId}/portraits/{person.Id}", StringComparison.OrdinalIgnoreCase)
+                || !AllowedTypes.TryGetValue(Path.GetExtension(path), out var contentType))
+            {
+                return Results.NotFound();
+            }
+
+            var stream = await store.OpenReadAsync(path);
+            if (stream is null)
+            {
+                return Results.NotFound();
+            }
+
+            // Replacements reuse the same URL — don't let browsers keep the old face.
+            http.Response.Headers.CacheControl = "no-store";
+            return Results.Stream(stream, contentType);
+        }).RequireAuthorization("GymStaff");
+
         // Public pages need logos/heroes without auth. ONLY those two public asset kinds
         // are servable — nothing else that may ever land in the file store (e.g. member
         // portraits) is reachable through this endpoint.

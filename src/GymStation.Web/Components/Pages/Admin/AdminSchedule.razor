@@ -40,7 +40,7 @@
     @foreach (var card in _cards)
     {
         <a class="rail-ses @(card.Session.Status == SessionStatus.Cancelled ? "rail-ses--cancelled" : null)"
-           style="grid-column:@card.Column;grid-row:@card.Row / span @card.Span;width:calc(@card.WidthPercent.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)% - 3px);margin-left:@card.LeftPercent.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%"
+           style="grid-column:@card.Column;grid-row:@card.Row / span @card.Span;width:calc(@card.WidthPercent.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)% - 0.1875rem);margin-left:@card.LeftPercent.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%"
            href="/admin/schedule?start=@_weekStart.ToString("yyyy-MM-dd")&edit=@card.Session.Id"
            aria-label="Edit @card.Session.Name, @card.Session.Date.ToString("dddd dd MMMM"), @card.Session.StartTime.ToString("HH\\:mm")">
             <b>@card.Session.StartTime.ToString("HH\\:mm")</b>
@@ -53,7 +53,7 @@
         </a>
     }
 </div>
-<p class="cap" style="margin-top:6px">
+<p class="cap" style="margin-top:0.375rem">
     MAT HOURS @_open.ToString("HH\\:mm")–@_close.ToString("HH\\:mm") (SET IN SETTINGS) ·
     CLICK A CLASS TO EDIT THE OCCURRENCE, CANCEL IT, OR CHANGE ITS WEEKLY TEMPLATE
 </p>
@@ -68,7 +68,7 @@
                 <a class="btn btn--ghost btn--xs" href="/admin/schedule?start=@_weekStart.ToString("yyyy-MM-dd")">✕ CLOSE</a>
             </div>
 
-            <EditForm class="form-card" FormName="edit-session" Model="SessionForm" OnValidSubmit="SaveSessionAsync" style="margin-top:10px">
+            <EditForm class="form-card" FormName="edit-session" Model="SessionForm" OnValidSubmit="SaveSessionAsync" style="margin-top:0.625rem">
                 <label for="esname">Name</label>
                 <InputText id="esname" @bind-Value="SessionForm!.Name" />
                 <div class="form-grid">
@@ -93,11 +93,11 @@
                 {
                     <p class="validation-message">@_sessionError</p>
                 }
-                <p style="margin-top:12px"><button class="btn" type="submit">SAVE THIS SESSION</button></p>
-                <p class="cap" style="margin:6px 0 0">CHANGES THIS OCCURRENCE ONLY · TIME CHANGES NOTIFY STAFF AND CHECKED-IN MEMBERS</p>
+                <p style="margin-top:0.75rem"><button class="btn" type="submit">SAVE THIS SESSION</button></p>
+                <p class="cap" style="margin:0.375rem 0 0">CHANGES THIS OCCURRENCE ONLY · TIME CHANGES NOTIFY STAFF AND CHECKED-IN MEMBERS</p>
             </EditForm>
 
-            <div class="form-card" style="margin-top:10px">
+            <div class="form-card" style="margin-top:0.625rem">
                 @if (editing.Status == SessionStatus.Cancelled)
                 {
                     <span class="stamp stamp--bad">CANCELLED@(editing.CancelledReason is { Length: > 0 } why ? $" · {why.ToUpperInvariant()}" : null)</span>
@@ -164,11 +164,11 @@
                     {
                         <p class="validation-message">@_templateEditError</p>
                     }
-                    <p style="margin-top:12px"><button class="btn" type="submit">SAVE TEMPLATE</button></p>
-                    <p class="cap" style="margin:6px 0 0">APPLIES TO WEEKS NOT YET ON THE CALENDAR · OCCURRENCES ALREADY MATERIALIZED (INCLUDING THIS ONE) KEEP THEIR OWN VALUES</p>
+                    <p style="margin-top:0.75rem"><button class="btn" type="submit">SAVE TEMPLATE</button></p>
+                    <p class="cap" style="margin:0.375rem 0 0">APPLIES TO WEEKS NOT YET ON THE CALENDAR · OCCURRENCES ALREADY MATERIALIZED (INCLUDING THIS ONE) KEEP THEIR OWN VALUES</p>
                 </EditForm>
 
-                <EditForm FormName="pause-template" Model="PauseMarker" OnValidSubmit="PauseTemplateAsync" style="margin-top:10px">
+                <EditForm FormName="pause-template" Model="PauseMarker" OnValidSubmit="PauseTemplateAsync" style="margin-top:0.625rem">
                     <button class="btn btn--ghost btn--xs" type="submit" style="color:var(--bad)"
                             onclick="return confirm('Pause this weekly class? It stops appearing on future weeks; existing occurrences stay.')">PAUSE WEEKLY TEMPLATE</button>
                 </EditForm>
@@ -177,7 +177,7 @@
     </div>
 }
 
-<div class="detail-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;margin-top:20px">
+<div class="detail-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:1.125rem;align-items:start;margin-top:1.25rem">
     <section>
         <h2 class="section-h">Substitutions</h2>
         @if (_requests.Count == 0)
@@ -186,9 +186,9 @@
         }
         @foreach (var request in _requests)
         {
-            <div class="form-card" style="margin-bottom:10px">
+            <div class="form-card" style="margin-bottom:0.625rem">
                 <b>@request.Session.Name · @request.Session.Date.ToString("ddd dd MMM").ToUpperInvariant() @request.Session.StartTime.ToString("HH\\:mm")</b>
-                <p class="cap" style="margin:4px 0 8px">
+                <p class="cap" style="margin:0.25rem 0 0.5rem">
                     @_personNames.GetValueOrDefault(request.RequestedByPersonId, "?").ToUpperInvariant() OUT ·
                     @(request.ProposedSubPersonId is { } p ? "PROPOSED: " + _personNames.GetValueOrDefault(p, "?").ToUpperInvariant() : "OPEN REQUEST")
                     @(request.EscalatedUtc is not null ? " · ESCALATED" : null)
@@ -212,7 +212,7 @@
 
         <h2 class="section-h">Gym setting — swap workflow</h2>
         <div class="form-card">
-            <p class="cap" style="margin:0 0 8px">
+            <p class="cap" style="margin:0 0 0.5rem">
                 ADMIN-GATE: AN ACCEPTED OR CLAIMED COVER WAITS FOR YOUR APPROVAL BEFORE IT TAKES EFFECT.
                 AUTO-APPLY: IT TAKES EFFECT THE MOMENT A COACH ACCEPTS.<br />
                 OPEN CLAIMS: COACHES MAY POST A REQUEST WITHOUT NAMING A SUB, SO ANY COACH CAN CLAIM IT.
@@ -277,7 +277,7 @@
             {
                 <p class="validation-message">@_templateError</p>
             }
-            <p style="margin-top:14px"><button class="btn" type="submit">+ CLASS TEMPLATE</button></p>
+            <p style="margin-top:0.875rem"><button class="btn" type="submit">+ CLASS TEMPLATE</button></p>
         </EditForm>
 
         @if (_pausedTemplates.Count > 0)
@@ -291,7 +291,7 @@
                         <option value="@paused.Id">@paused.Name · @paused.Day @paused.StartTime.ToString("HH\\:mm")</option>
                     }
                 </InputSelect>
-                <p style="margin-top:10px"><button class="btn btn--ghost btn--xs" type="submit">RESTORE TO SCHEDULE</button></p>
+                <p style="margin-top:0.625rem"><button class="btn btn--ghost btn--xs" type="submit">RESTORE TO SCHEDULE</button></p>
             </EditForm>
         }
 
@@ -307,7 +307,7 @@
                     <InputText id="ctcolor" @bind-Value="TypeForm!.ColorHex" />
                 </div>
             </div>
-            <p style="margin-top:14px"><button class="btn btn--ghost" type="submit">+ TAG</button></p>
+            <p style="margin-top:0.875rem"><button class="btn btn--ghost" type="submit">+ TAG</button></p>
         </EditForm>
     </section>
 </div>

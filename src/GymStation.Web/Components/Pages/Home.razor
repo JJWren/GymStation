@@ -41,22 +41,22 @@ else
     }
     @if (_unfilledSwaps > 0)
     {
-        <div class="form-card" style="margin-bottom:8px"><div class="head-row"><b><a href="/admin/schedule">@_unfilledSwaps session(s) need cover</a></b><span class="stamp stamp--warn">UNFILLED</span></div></div>
+        <div class="form-card" style="margin-bottom:0.5rem"><div class="head-row"><b><a href="/admin/schedule">@_unfilledSwaps session(s) need cover</a></b><span class="stamp stamp--warn">UNFILLED</span></div></div>
     }
     @if (_pendingApprovals > 0)
     {
-        <div class="form-card" style="margin-bottom:8px"><div class="head-row"><b><a href="/admin/schedule">@_pendingApprovals substitution(s) await approval</a></b><span class="stamp stamp--warn">APPROVE</span></div></div>
+        <div class="form-card" style="margin-bottom:0.5rem"><div class="head-row"><b><a href="/admin/schedule">@_pendingApprovals substitution(s) await approval</a></b><span class="stamp stamp--warn">APPROVE</span></div></div>
     }
     @if (_behindCount > 0)
     {
-        <div class="form-card" style="margin-bottom:8px"><div class="head-row"><b><a href="/admin/dues">@_behindCount member(s) behind on dues</a></b><span class="stamp stamp--bad">DUE $@_outstanding.ToString("N0")</span></div></div>
+        <div class="form-card" style="margin-bottom:0.5rem"><div class="head-row"><b><a href="/admin/dues">@_behindCount member(s) behind on dues</a></b><span class="stamp stamp--bad">DUE $@_outstanding.ToString("N0")</span></div></div>
     }
 
     <h2 class="section-h">Today's sessions</h2>
     @foreach (var session in _today)
     {
         var (confirmed, pending) = _counts.GetValueOrDefault(session.Id);
-        <div class="ses @(session.Status == SessionStatus.Cancelled ? "ses--cancelled" : null)" style="max-width:520px">
+        <div class="ses @(session.Status == SessionStatus.Cancelled ? "ses--cancelled" : null)" style="max-width:32.5rem">
             <div class="head-row">
                 <span class="t">@session.StartTime.ToString("HH\\:mm") · @session.Name</span>
                 <a class="chip" href="/instructor/roll/@session.Id">ROLL →</a>

@@ -17,17 +17,17 @@
 <h1 class="page-title">EVENTS</h1>
 <p class="page-sub">TOURNAMENTS · SEMINARS · GRADINGS — PUBLISHED TO EVERY MEMBER'S FEED</p>
 
-<div class="detail-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start">
+<div class="detail-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:1.125rem;align-items:start">
     <section>
         <h2 class="section-h">Upcoming</h2>
         @foreach (var gymEvent in _events)
         {
-            <div class="form-card" style="margin-bottom:8px">
+            <div class="form-card" style="margin-bottom:0.5rem">
                 <div class="head-row">
                     <a href="/events/@gymEvent.Id" style="text-decoration:none"><b>@gymEvent.Title</b></a>
                     <span class="chip">@gymEvent.Kind.ToString().ToUpperInvariant()</span>
                 </div>
-                <p class="cap" style="margin:4px 0">
+                <p class="cap" style="margin:0.25rem 0">
                     @gymEvent.StartsOn.ToString("ddd dd MMM yyyy").ToUpperInvariant()
                     · @_counts.GetValueOrDefault((gymEvent.Id, RsvpStatus.Going)) GOING
                     · @_counts.GetValueOrDefault((gymEvent.Id, RsvpStatus.Interested)) INTERESTED
@@ -42,12 +42,12 @@
         <h2 class="section-h">Past — last 12 months</h2>
         @foreach (var gymEvent in _past)
         {
-            <div class="form-card" style="margin-bottom:8px;opacity:.75">
+            <div class="form-card" style="margin-bottom:0.5rem;opacity:.75">
                 <div class="head-row">
                     <a href="/events/@gymEvent.Id" style="text-decoration:none"><b>@gymEvent.Title</b></a>
                     <span class="chip">@gymEvent.Kind.ToString().ToUpperInvariant()</span>
                 </div>
-                <p class="cap" style="margin:4px 0">
+                <p class="cap" style="margin:0.25rem 0">
                     @gymEvent.StartsOn.ToString("ddd dd MMM yyyy").ToUpperInvariant()
                     · @_counts.GetValueOrDefault((gymEvent.Id, RsvpStatus.Going)) GOING
                     · @_counts.GetValueOrDefault((gymEvent.Id, RsvpStatus.Interested)) INTERESTED
@@ -94,7 +94,7 @@
             {
                 <p class="validation-message">@_error</p>
             }
-            <p style="margin-top:12px"><button class="btn" type="submit">PUBLISH — NOTIFIES MEMBERS</button></p>
+            <p style="margin-top:0.75rem"><button class="btn" type="submit">PUBLISH — NOTIFIES MEMBERS</button></p>
         </EditForm>
     </section>
 </div>
