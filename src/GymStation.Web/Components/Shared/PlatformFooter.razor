@@ -1,6 +1,7 @@
 @* One quiet line, platform-wide: the legal pages live at platform routes,
-   outside any gym's space, so every shell links the same four. *@
-<footer class="platform-foot">
+   outside any gym's space, so every shell links the same four. A <nav>, not a
+   <footer> — PublicGym embeds it inside its own <footer>, and footers can't nest. *@
+<nav class="platform-foot" aria-label="Platform links">
     <a href="/legal/privacy">PRIVACY</a>
     <span aria-hidden="true">·</span>
     <a href="/legal/terms">TERMS</a>
@@ -8,4 +9,4 @@
     <a href="/legal/cookies">COOKIES</a>
     <span aria-hidden="true">·</span>
     <a href="/help">HELP</a>
-</footer>
+</nav>
