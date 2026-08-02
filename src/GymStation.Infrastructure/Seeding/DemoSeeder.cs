@@ -109,7 +109,8 @@ public class DemoSeeder(GymStationDbContext db, TenantContext tenant)
         Award(webb, adult[1], 3, new DateOnly(2025, 8, 30));
         Award(omar, adult[2], 4, new DateOnly(2023, 2, 11));
         Award(tom, adult[0], 2, new DateOnly(2026, 2, 7));
-        Award(leo, kidsLadder[1], 1, new DateOnly(2026, 5, 16));
+        // kidsLadder[2] = Grey (index 0 is now the kids White belt): Leo stays grey.
+        Award(leo, kidsLadder[2], 1, new DateOnly(2026, 5, 16));
 
         foreach (var (person, index) in generatedAdults.Select((p, i) => (p, i)))
         {

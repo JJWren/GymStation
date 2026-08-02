@@ -33,9 +33,12 @@ public class RankTests(PostgresFixture fixture)
             var adult = systems.Single(s => s.Id == IbjjfSeed.AdultSystemId);
             var kids = systems.Single(s => s.Id == IbjjfSeed.KidsSystemId);
 
-            Assert.Equal(5, adult.Ranks.Count);
-            Assert.Equal(12, kids.Ranks.Count);
+            // 5 core belts + the 7th–9th degree red belts; kids: White + the 12 grade belts.
+            Assert.Equal(8, adult.Ranks.Count);
+            Assert.Equal(13, kids.Ranks.Count);
             Assert.Equal(6, adult.Ranks.Single(r => r.Name == "Black").MaxStripes);
+            Assert.Equal(0, adult.Ranks.Single(r => r.Name == "Red").MaxStripes);
+            Assert.Equal(0, kids.Ranks.Single(r => r.Name == "White").Order);
         }
 
         await using (var noTenant = fixture.CreateContext())

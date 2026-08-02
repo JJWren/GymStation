@@ -52,6 +52,13 @@ public static class IbjjfSeed
             Adult("04", "Brown", 4, "#7A5230", Black, 4),
             Adult("05", "Black", 5, Black, RedBar, 6),
 
+            // Degrees past black are their own belts (no stripes): 7th, 8th, 9th.
+            Adult("06", "Red & Black", 6, "#521A1E", Black, 0),
+            Adult("07", "Red & White", 7, RedBar, "#E9E6DC", 0),
+            Adult("08", "Red", 8, RedBar, "#7A1218", 0),
+
+            // Order 0 slots kids White ahead of the greys without renumbering.
+            Kids("00", "White", 0, "#E9E6DC"),
             Kids("01", "Grey-White", 1, "#B8BDC6"),
             Kids("02", "Grey", 2, "#9BA1AB"),
             Kids("03", "Grey-Black", 3, "#7E848E"),
