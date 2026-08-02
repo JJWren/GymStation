@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.3.0](https://github.com/JJWren/GymStation/compare/v1.2.0...v1.3.0) (2026-08-02)
+
+
+### Features
+
+* crop-and-position media uploads for logo and hero ([#59](https://github.com/JJWren/GymStation/issues/59)) ([e03b651](https://github.com/JJWren/GymStation/commit/e03b651e48042b1d28ec59aea5df146190ea511b))
+* diary v2 — partner rows, entry edit/delete, month calendar ([#60](https://github.com/JJWren/GymStation/issues/60)) ([2ba9e6e](https://github.com/JJWren/GymStation/commit/2ba9e6e0f599e3eaf04b6aea11b19cd7677090d2))
+* drop-in visitors — live-roll quick-add, roster chip, conversion ([#62](https://github.com/JJWren/GymStation/issues/62)) ([768586d](https://github.com/JJWren/GymStation/commit/768586d8320e4d847836efdb09c79bbf2e96746e))
+* event detail pages with attendee lists and past-events browsing ([#57](https://github.com/JJWren/GymStation/issues/57)) ([49fe9a8](https://github.com/JJWren/GymStation/commit/49fe9a89eb00fc8b4320fb9548c54bb9d66e20f1))
+* fluid rem type scale replaces the desktop zoom stopgap ([#65](https://github.com/JJWren/GymStation/issues/65)) ([9219064](https://github.com/JJWren/GymStation/commit/9219064a41bb80e5af88f90d352b8d0d781c4ee2))
+* ledger management — void payments, plan and category management, recurring expenses ([#56](https://github.com/JJWren/GymStation/issues/56)) ([e497e03](https://github.com/JJWren/GymStation/commit/e497e038cfe0fd1785c13f513cc59185f1d3a741))
+* member check-in history with range chips and paging ([#72](https://github.com/JJWren/GymStation/issues/72)) ([e4e4a00](https://github.com/JJWren/GymStation/commit/e4e4a00a7b0fa8f2aff9ec227a60c3581921b0be))
+* member portraits — click-to-upload with crop on the person page ([#63](https://github.com/JJWren/GymStation/issues/63)) ([cc59dff](https://github.com/JJWren/GymStation/commit/cc59dff4529f8e46471f27fc7120ce17cefad9ca))
+* paginate person-heavy lists with a full pager ([#75](https://github.com/JJWren/GymStation/issues/75)) ([a43eed6](https://github.com/JJWren/GymStation/commit/a43eed67d6b018efaf9e570db47c05cfefbf853e))
+* schedule editor — gym hours, time rail, click-to-edit modal ([#73](https://github.com/JJWren/GymStation/issues/73)) ([e957e66](https://github.com/JJWren/GymStation/commit/e957e66e287f1c339ea467f0d436d5a5114274e4))
+* show the signed-in account under the sign-out button ([#67](https://github.com/JJWren/GymStation/issues/67)) ([9d2dfca](https://github.com/JJWren/GymStation/commit/9d2dfca455718c5e25195b4ed0e279cca14dadc9))
+
+
+### Bug Fixes
+
+* live roll gains role-aware back navigation ([#74](https://github.com/JJWren/GymStation/issues/74)) ([2dd09d2](https://github.com/JJWren/GymStation/commit/2dd09d2fe1396cfd04e5ede92efe1df1bf530759))
+
 ## [1.2.0](https://github.com/JJWren/GymStation/compare/v1.1.0...v1.2.0) (2026-08-02)
 
 
