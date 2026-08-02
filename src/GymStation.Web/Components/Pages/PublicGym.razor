@@ -1,10 +1,12 @@
 @page "/{Slug}"
 @attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+@using System.Security.Claims
 @using GymStation.Domain.People
 @using GymStation.Domain.Scheduling
 @using GymStation.Domain.Tenancy
 @using GymStation.Infrastructure.Tenancy
 @inject IDbContextFactory<GymStationDbContext> DbFactory
+@inject GymMembershipService Memberships
 @inject TenantContext Tenant
 
 @if (_gym is null)
@@ -37,7 +39,21 @@ else
                 }
                 <h1>@_gym.Name.ToUpperInvariant()</h1>
                 <p class="pub-tag">SCHEDULE · INSTRUCTORS · VISIT</p>
-                <a class="btn" href="/login">MEMBER SIGN-IN</a>
+                @if (_signedInEmail is { } email)
+                {
+                    <p class="pub-tag" style="margin:0 0 10px">SIGNED IN AS @email.ToUpperInvariant()</p>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                        <a class="btn" href="@_portalPath">BACK TO YOUR PORTAL</a>
+                        <form method="post" action="/auth/logout" style="margin:0">
+                            <AntiforgeryToken />
+                            <button class="btn btn--ghost" type="submit">SIGN OUT</button>
+                        </form>
+                    </div>
+                }
+                else
+                {
+                    <a class="btn" href="/login">MEMBER SIGN-IN</a>
+                }
             </div>
         </header>
 
@@ -88,6 +104,10 @@ else
 @code {
     [Parameter] public string Slug { get; set; } = "";
 
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+
+    private string? _signedInEmail;
+    private string _portalPath = "/schedule";
     private Gym? _gym;
     private GymSettings? _settings;
     private string _accent = "#C9503B";
@@ -104,8 +124,25 @@ else
             return;
         }
 
-        // Anonymous request: no claim hydrated the tenant — the slug is the tenant here.
+        // The visitor's own active gym (claim-hydrated by the middleware) — captured
+        // BEFORE the slug overrides the tenant, so "back to your portal" routes by
+        // where they belong, not by whichever gym's page they're looking at.
+        var activeGymId = Tenant.CurrentGymId;
+
+        // The slug is the tenant for everything this page renders.
         Tenant.SetGym(_gym.Id);
+
+        // A signed-in visitor gets their identity and a way back to their portal
+        // instead of a sign-in button they don't need.
+        if (HttpContext?.User.Identity?.IsAuthenticated == true)
+        {
+            _signedInEmail = HttpContext.User.Identity.Name;
+            var raw = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (Guid.TryParse(raw, out var userId))
+            {
+                _portalPath = await Memberships.LandingPathAsync(userId, activeGymId ?? _gym.Id);
+            }
+        }
 
         _settings = await db.GymSettings.SingleOrDefaultAsync();
         if (_settings is not null)
