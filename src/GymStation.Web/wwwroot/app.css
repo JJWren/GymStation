@@ -327,3 +327,25 @@ html { font-size: clamp(106.25%, 16.25% + 1.125vw, 140%); }
     .member-shell { max-width: 35rem; }
     .member-frame { max-width: 37.5rem; }
 }
+
+/* ---- Platform pages: /legal/* and /help, plus the one-line footer (#85).
+   These live outside any gym's space, so they run on base vars only —
+   no tenant accent, same in every gym. ---- */
+.legal-shell { max-width: 38rem; margin: 6vh auto 3rem; padding: 0 1.25rem; }
+.legal-shell .legal-home { display: block; font: 600 0.625rem/1 var(--font-mono); letter-spacing: .22em; color: var(--ink-faint); text-decoration: none; text-align: center; }
+.legal-shell .legal-home:hover { color: var(--ink); }
+.legal-shell h1 { font: 1.625rem/1.1 var(--font-display); text-align: center; margin: 0.625rem 0 0.25rem; }
+.legal-shell .legal-date { font: 600 0.5625rem/1 var(--font-mono); letter-spacing: .18em; color: var(--ink-faint); text-align: center; margin: 0 0 2.25rem; }
+.legal-shell h2 { font: 700 0.6875rem/1 var(--font-mono); letter-spacing: .16em; color: var(--ink-dim); margin: 1.875rem 0 0.625rem; }
+.legal-shell p { font: 0.8125rem/1.7 var(--font-mono); color: var(--ink); margin: 0 0 0.8125rem; }
+.legal-shell a { color: var(--ink); }
+.legal-shell .legal-note { color: var(--ink-faint); }
+
+.platform-foot { display: flex; gap: 0.5rem; justify-content: center; align-items: center; margin-top: 3rem; font: 600 0.5625rem/1 var(--font-mono); letter-spacing: .14em; color: var(--ink-faint); }
+.platform-foot a { color: var(--ink-faint); text-decoration: none; }
+.platform-foot a:hover { color: var(--ink); text-decoration: underline; }
+
+/* Contextual placements: rail foot (admin), member shell bottom, public landing. */
+.foot .platform-foot { margin-top: 0.5rem; justify-content: flex-start; gap: 0.375rem; flex-wrap: wrap; }
+.member-body > .platform-foot { margin: 2rem 0 0.875rem; }
+.pub-foot .platform-foot { margin-top: 0; }
