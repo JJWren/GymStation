@@ -21,7 +21,7 @@ else
     <main class="roll-board">
         @* Role-derived (not a query param) so the way out survives the action
            redirects, which drop query strings. *@
-        <p class="roll-nav">
+        <nav class="roll-nav" aria-label="Leave the roll board">
             @if (_isStaff)
             {
                 <a class="btn btn--ghost btn--xs" href="/">← DASHBOARD</a>
@@ -34,7 +34,7 @@ else
             {
                 <a class="btn btn--ghost btn--xs" href="/">← BACK</a>
             }
-        </p>
+        </nav>
         <div class="roll-head">
             <h1>@_session.Name.ToUpperInvariant() · @_session.StartTime.ToString("HH\\:mm")</h1>
             <span>@_session.Date.ToString("ddd dd MMM").ToUpperInvariant() · AUTO-CONFIRM @CheckInWindow.AutoConfirmAt(_session).ToString("HH\\:mm")</span>
