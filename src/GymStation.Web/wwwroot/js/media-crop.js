@@ -28,6 +28,14 @@
         canvas.height = Math.round(previewWidth / aspect);
         var ctx = canvas.getContext('2d');
 
+        // Only take over from the plain form when every API the crop path needs
+        // exists; otherwise leave the no-JS upload untouched.
+        if (!ctx || typeof canvas.toBlob !== 'function' || typeof window.fetch !== 'function'
+            || typeof window.FormData !== 'function' || typeof FormData.prototype.set !== 'function'
+            || !window.URL || typeof URL.createObjectURL !== 'function') {
+            return;
+        }
+
         var img = null;
         var scale = 1;
         var minScale = 1;
@@ -126,13 +134,14 @@
                 img, offsetX * factor, offsetY * factor, img.width * scale * factor, img.height * scale * factor);
 
             out.toBlob(function (blob) {
-                var data = new FormData();
-                data.append('kind', form.dataset.kind);
-                data.append('file', blob, 'crop.webp');
-                var token = form.querySelector('input[name=__RequestVerificationToken]');
-                if (token) {
-                    data.append('__RequestVerificationToken', token.value);
+                if (!blob) {
+                    alert('Could not encode the cropped image — try a different file.');
+                    return;
                 }
+                // Start from the real form so hidden fields (kind, antiforgery
+                // token, future extras) ride along; only the file is replaced.
+                var data = new FormData(form);
+                data.set('file', blob, 'crop.webp');
                 applyBtn.disabled = true;
                 fetch(form.action, { method: 'POST', body: data })
                     .then(function (res) {

@@ -3,7 +3,7 @@
 @* Progressive crop-and-upload: without JS this is the plain file form; with JS
    (wwwroot/js/media-crop.js) picking a file opens a drag/zoom crop preview and
    APPLY posts the cropped image to the same endpoint. *@
-<form method="post" action="/admin/actions/upload-media" enctype="multipart/form-data"
+<form method="post" action="@Action" enctype="multipart/form-data"
       class="media-crop" data-media-crop data-kind="@Kind"
       data-aspect="@Aspect.ToString(CultureInfo.InvariantCulture)" data-out-width="@OutWidth">
     <AntiforgeryToken />
@@ -24,6 +24,9 @@
 </form>
 
 @code {
+    /// <summary>Endpoint the form posts to; override for non-settings uploads.</summary>
+    [Parameter] public string Action { get; set; } = "/admin/actions/upload-media";
+
     /// <summary>Upload kind understood by the media endpoint ("logo", "hero").</summary>
     [Parameter, EditorRequired] public string Kind { get; set; } = "";
 
