@@ -39,7 +39,7 @@ gets meaningful drops instead of eighteen tiny ones.
 - [x] #29 — Drop-ins / visitors (live-roll quick-add, VISITORS chip, convert)
 - [ ] #43 — Admin: member portraits from the person page (plain upload; crop joins #28)
 - [ ] #23 — Interactive schedule editor
-- [ ] #22 — Responsive type-scale pass
+- [x] #22 — Responsive type-scale pass (fluid rem scale, tablet member column, breakpoint screenshots)
 
 ---
 
