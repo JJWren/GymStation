@@ -2,8 +2,10 @@
 @using GymStation.Infrastructure
 @using GymStation.Infrastructure.Tenancy
 @using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
 @inject IDbContextFactory<GymStationDbContext> DbFactory
 @inject ITenantContext Tenant
+@inject NavigationManager Nav
 
 <div class="app-frame @(_dark ? null : "theme-light")" style="--tenant:@_accent">
     <nav class="rail" aria-label="Admin sections">
@@ -32,6 +34,12 @@
         <NavLink class="tab" href="/admin/settings">SETTINGS</NavLink>
         <div class="foot">
             GYMSTATION · V1
+            <form method="post" action="/auth/theme">
+                <AntiforgeryToken />
+                <input type="hidden" name="dark" value="@((!_dark).ToString())" />
+                <input type="hidden" name="back" value="@(new Uri(Nav.Uri).PathAndQuery)" />
+                <button type="submit">@(_dark ? "PAPER MODE" : "MAT MODE")</button>
+            </form>
             <form method="post" action="/auth/logout">
                 <AntiforgeryToken />
                 <button type="submit">SIGN OUT</button>
@@ -50,6 +58,8 @@
 </div>
 
 @code {
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+
     private string? _gymName;
     private string? _gymSlug;
     private string _accent = "#C9503B";
@@ -75,6 +85,19 @@
 
                 _dark = settings.DefaultThemeDark;
                 _logoPath = settings.LogoPath;
+            }
+
+            // A saved per-user choice beats the gym default; null follows the gym.
+            var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (Guid.TryParse(raw, out var userId))
+            {
+                var preference = await db.Users.Where(u => u.Id == userId)
+                    .Select(u => u.PreferredThemeDark)
+                    .FirstOrDefaultAsync();
+                if (preference is { } dark)
+                {
+                    _dark = dark;
+                }
             }
         }
     }
