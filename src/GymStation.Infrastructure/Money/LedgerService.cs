@@ -143,12 +143,214 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
         var monthEnd = monthStart.AddMonths(1).AddDays(-1);
 
         var collected = await db.Payments
-            .Where(p => p.ReceivedOn >= monthStart && p.ReceivedOn <= monthEnd)
+            .Where(p => p.VoidedUtc == null && p.ReceivedOn >= monthStart && p.ReceivedOn <= monthEnd)
             .SumAsync(p => (decimal?)p.Amount, ct) ?? 0m;
 
         var dues = await DuesAsync(ct);
         var chargedPeople = await db.Charges.Select(c => c.PersonId).Distinct().CountAsync(ct);
 
         return (collected, dues.Sum(d => d.Balance), chargedPeople - dues.Count, dues.Count);
+    }
+
+    /// <summary>Voids (never deletes) a payment with an audit trail; every derived number drops it.</summary>
+    public async Task VoidPaymentAsync(Guid paymentId, Guid? voidedByPersonId, string reason, CancellationToken ct = default)
+    {
+        reason = reason?.Trim() ?? "";
+        if (reason.Length == 0)
+        {
+            throw new InvalidOperationException("A void needs a reason — it stays in the audit trail.");
+        }
+
+        if (reason.Length > 300)
+        {
+            throw new InvalidOperationException("Keep the void reason under 300 characters.");
+        }
+
+        var payment = await db.Payments.SingleOrDefaultAsync(p => p.Id == paymentId, ct)
+            ?? throw new InvalidOperationException("Payment not found in the active gym.");
+
+        if (payment.Voided)
+        {
+            throw new InvalidOperationException("This payment is already voided.");
+        }
+
+        payment.VoidedUtc = DateTimeOffset.UtcNow;
+        payment.VoidedByPersonId = voidedByPersonId;
+        payment.VoidReason = reason;
+        await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// Materializes this month's due recurring expenses (rent, insurance) into real
+    /// Expense rows. Idempotent per (recurring, date) via the unique index.
+    /// </summary>
+    public async Task<int> MaterializeRecurringExpensesAsync(DateOnly gymToday, CancellationToken ct = default)
+    {
+        var monthStart = new DateOnly(gymToday.Year, gymToday.Month, 1);
+        var daysInMonth = DateTime.DaysInMonth(gymToday.Year, gymToday.Month);
+
+        var active = await db.RecurringExpenses.Where(r => r.Active).ToListAsync(ct);
+        if (active.Count == 0)
+        {
+            return 0;
+        }
+
+        var ids = active.Select(r => r.Id).ToList();
+        var alreadyThisMonth = (await db.Expenses
+                .Where(x => x.RecurringExpenseId != null && ids.Contains(x.RecurringExpenseId.Value)
+                    && x.SpentOn >= monthStart && x.SpentOn < monthStart.AddMonths(1))
+                .Select(x => x.RecurringExpenseId!.Value)
+                .ToListAsync(ct))
+            .ToHashSet();
+
+        var created = 0;
+        foreach (var recurring in active.Where(r => !alreadyThisMonth.Contains(r.Id)))
+        {
+            var spentOn = new DateOnly(gymToday.Year, gymToday.Month, Math.Clamp(recurring.DayOfMonth, 1, daysInMonth));
+            if (spentOn > gymToday)
+            {
+                continue; // not due yet this month
+            }
+
+            db.Expenses.Add(new Expense
+            {
+                Id = Guid.NewGuid(),
+                CategoryId = recurring.CategoryId,
+                Amount = recurring.Amount,
+                SpentOn = spentOn,
+                Note = recurring.Note ?? "Recurring",
+                RecurringExpenseId = recurring.Id,
+            });
+            created++;
+        }
+
+        if (created > 0)
+        {
+            try
+            {
+                await db.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: "23505" })
+            {
+                // A concurrent pass materialized the same rows; the index kept it correct.
+                db.ChangeTracker.Clear();
+                return 0;
+            }
+        }
+
+        return created;
+    }
+
+    public async Task UpdatePlanAsync(Guid planId, string name, decimal price, CancellationToken ct = default)
+    {
+        name = name.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new InvalidOperationException("A plan name is required.");
+        }
+
+        if (name.Length > 80)
+        {
+            throw new InvalidOperationException("Keep the plan name under 80 characters.");
+        }
+
+        if (price < 0)
+        {
+            throw new InvalidOperationException("Price can't be negative — use 0 for a comped plan.");
+        }
+
+        var plan = await db.MembershipPlans.SingleOrDefaultAsync(p => p.Id == planId, ct)
+            ?? throw new InvalidOperationException("Plan not found in the active gym.");
+
+        if (await db.MembershipPlans.AnyAsync(p => p.Id != planId && p.Name == name, ct))
+        {
+            throw new InvalidOperationException($"A plan named '{name}' already exists.");
+        }
+
+        // Price changes affect FUTURE cycles only — raised charges are history.
+        plan.Name = name;
+        plan.Price = price;
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task SetPlanArchivedAsync(Guid planId, bool archived, CancellationToken ct = default)
+    {
+        var plan = await db.MembershipPlans.SingleOrDefaultAsync(p => p.Id == planId, ct)
+            ?? throw new InvalidOperationException("Plan not found in the active gym.");
+        plan.Archived = archived;
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task RenameCategoryAsync(Guid categoryId, string name, CancellationToken ct = default)
+    {
+        name = name.Trim().ToUpperInvariant();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new InvalidOperationException("A category name is required.");
+        }
+
+        if (name.Length > 60)
+        {
+            throw new InvalidOperationException("Keep the category name under 60 characters.");
+        }
+
+        var category = await db.ExpenseCategories.SingleOrDefaultAsync(c => c.Id == categoryId, ct)
+            ?? throw new InvalidOperationException("Category not found in the active gym.");
+
+        if (await db.ExpenseCategories.AnyAsync(c => c.Id != categoryId && c.Name == name, ct))
+        {
+            throw new InvalidOperationException($"A category named '{name}' already exists.");
+        }
+
+        category.Name = name;
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task SetCategoryArchivedAsync(Guid categoryId, bool archived, CancellationToken ct = default)
+    {
+        var category = await db.ExpenseCategories.SingleOrDefaultAsync(c => c.Id == categoryId, ct)
+            ?? throw new InvalidOperationException("Category not found in the active gym.");
+        category.Archived = archived;
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task AddRecurringExpenseAsync(Guid categoryId, decimal amount, int dayOfMonth, string? note, CancellationToken ct = default)
+    {
+        if (amount <= 0)
+        {
+            throw new InvalidOperationException("The amount must be positive.");
+        }
+
+        if (dayOfMonth is < 1 or > 31)
+        {
+            throw new InvalidOperationException("Day of month must be between 1 and 31.");
+        }
+
+        note = note?.Trim();
+        if (note is { Length: > 300 })
+        {
+            throw new InvalidOperationException("Keep the note under 300 characters.");
+        }
+
+        _ = await db.ExpenseCategories.SingleOrDefaultAsync(c => c.Id == categoryId, ct)
+            ?? throw new InvalidOperationException("Category not found in the active gym.");
+
+        db.RecurringExpenses.Add(new RecurringExpense
+        {
+            Id = Guid.NewGuid(),
+            CategoryId = categoryId,
+            Amount = amount,
+            DayOfMonth = dayOfMonth,
+            Note = note,
+        });
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task SetRecurringActiveAsync(Guid recurringId, bool active, CancellationToken ct = default)
+    {
+        var recurring = await db.RecurringExpenses.SingleOrDefaultAsync(r => r.Id == recurringId, ct)
+            ?? throw new InvalidOperationException("Recurring expense not found in the active gym.");
+        recurring.Active = active;
+        await db.SaveChangesAsync(ct);
     }
 }

@@ -48,6 +48,7 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<ExpenseCategory> ExpenseCategories => Set<ExpenseCategory>();
     public DbSet<Expense> Expenses => Set<Expense>();
+    public DbSet<RecurringExpense> RecurringExpenses => Set<RecurringExpense>();
     public DbSet<TrainingEntry> TrainingEntries => Set<TrainingEntry>();
     public DbSet<TrainingRoll> TrainingRolls => Set<TrainingRoll>();
     public DbSet<GymEvent> GymEvents => Set<GymEvent>();
@@ -211,6 +212,8 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
         {
             e.Property(p => p.Amount).HasPrecision(10, 2);
             e.Property(p => p.Note).HasMaxLength(300);
+            e.Property(p => p.VoidReason).HasMaxLength(300);
+            e.Ignore(p => p.Voided);
             e.HasOne(p => p.Person).WithMany().HasForeignKey(p => p.PersonId).OnDelete(DeleteBehavior.Cascade);
             e.HasQueryFilter(p => CurrentGymId != null && p.GymId == CurrentGymId);
         });
@@ -228,6 +231,16 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
             e.Property(x => x.Note).HasMaxLength(300);
             e.HasOne(x => x.Category).WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(x => new { x.GymId, x.SpentOn });
+            // One materialized row per recurring expense per date — reruns can't double-log.
+            e.HasIndex(x => new { x.RecurringExpenseId, x.SpentOn }).IsUnique().HasFilter("\"RecurringExpenseId\" IS NOT NULL");
+            e.HasQueryFilter(x => CurrentGymId != null && x.GymId == CurrentGymId);
+        });
+
+        builder.Entity<RecurringExpense>(e =>
+        {
+            e.Property(x => x.Amount).HasPrecision(10, 2);
+            e.Property(x => x.Note).HasMaxLength(300);
+            e.HasOne(x => x.Category).WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
             e.HasQueryFilter(x => CurrentGymId != null && x.GymId == CurrentGymId);
         });
 

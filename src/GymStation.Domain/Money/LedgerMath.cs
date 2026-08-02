@@ -8,13 +8,14 @@ public record ArrearsInfo(decimal Balance, DateOnly? OldestUnpaidSince);
 /// </summary>
 public static class LedgerMath
 {
+    // Voided payments are excluded HERE, once — callers pass raw rows and can't forget.
     public static decimal Balance(IEnumerable<Charge> charges, IEnumerable<Payment> payments)
-        => charges.Sum(c => c.Amount) - payments.Sum(p => p.Amount);
+        => charges.Sum(c => c.Amount) - payments.Where(p => !p.Voided).Sum(p => p.Amount);
 
     public static ArrearsInfo Arrears(IEnumerable<Charge> charges, IEnumerable<Payment> payments)
     {
         var ordered = charges.OrderBy(c => c.RaisedOn).ToList();
-        var remainingPaid = payments.Sum(p => p.Amount);
+        var remainingPaid = payments.Where(p => !p.Voided).Sum(p => p.Amount);
         var balance = ordered.Sum(c => c.Amount) - remainingPaid;
 
         foreach (var charge in ordered)
