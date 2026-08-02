@@ -487,7 +487,11 @@
     {
         _open = _settings?.OpenTime ?? new TimeOnly(6, 0);
         _close = _settings?.CloseTime ?? new TimeOnly(22, 0);
-        if (_close <= _open)
+
+        // Settings enforce sane hours, but seeded/hand-edited rows may not —
+        // anything narrower than one slot falls back to the defaults instead of
+        // feeding Math.Clamp a min above its max below.
+        if (MinutesOf(_close) - MinutesOf(_open) < 30)
         {
             (_open, _close) = (new TimeOnly(6, 0), new TimeOnly(22, 0));
         }

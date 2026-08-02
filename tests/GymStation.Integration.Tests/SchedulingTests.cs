@@ -92,6 +92,8 @@ public class SchedulingTests(PostgresFixture fixture)
             () => schedule.UpdateSessionAsync(session.Id, "No-Gi", new TimeOnly(19, 0), 5, null));
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => schedule.UpdateSessionAsync(session.Id, "No-Gi", new TimeOnly(19, 0), 60, Guid.NewGuid()));
+        await Assert.ThrowsAsync<InvalidOperationException>( // real person, but not an Instructor
+            () => schedule.UpdateSessionAsync(session.Id, "No-Gi", new TimeOnly(19, 0), 60, admin.Id));
 
         // Instructor-only swap: no time change, no notification noise.
         await schedule.UpdateSessionAsync(session.Id, "No-Gi", new TimeOnly(18, 0), 90, sub.Id);

@@ -86,6 +86,15 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
         }
     }
 
+    private async Task ValidateInstructorAsync(Guid? instructorPersonId, CancellationToken ct)
+    {
+        if (instructorPersonId is { } id && !await db.Persons.AnyAsync(
+                p => p.Id == id && !p.Archived && p.Roles.HasFlag(Domain.People.PersonRoles.Instructor), ct))
+        {
+            throw new InvalidOperationException("Pick an active person with the Instructor role.");
+        }
+    }
+
     /// <summary>Edits ONE occurrence in place. Time changes notify the same audience a
     /// cancellation would — staff, the instructor, and everyone already checked in.</summary>
     public async Task UpdateSessionAsync(
@@ -97,10 +106,7 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
         var session = await db.ClassSessions.SingleOrDefaultAsync(s => s.Id == sessionId, ct)
             ?? throw new InvalidOperationException("Session not found in the active gym.");
 
-        if (instructorPersonId is { } iid && !await db.Persons.AnyAsync(p => p.Id == iid && !p.Archived, ct))
-        {
-            throw new InvalidOperationException("Instructor not found in the active gym.");
-        }
+        await ValidateInstructorAsync(instructorPersonId, ct);
 
         var timeChanged = session.StartTime != start || session.DurationMinutes != durationMinutes;
 
@@ -151,9 +157,15 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
             .SingleOrDefaultAsync(t => t.Id == templateId, ct)
             ?? throw new InvalidOperationException("Template not found in the active gym.");
 
-        if (instructorPersonId is { } iid && !await db.Persons.AnyAsync(p => p.Id == iid && !p.Archived, ct))
+        await ValidateInstructorAsync(instructorPersonId, ct);
+
+        // Every posted type id must resolve — a stale/tampered id must not silently
+        // erase tags that were meant to be kept.
+        var distinctTypeIds = typeIds.Distinct().ToList();
+        var types = await db.ClassTypes.Where(t => distinctTypeIds.Contains(t.Id)).ToListAsync(ct);
+        if (types.Count != distinctTypeIds.Count)
         {
-            throw new InvalidOperationException("Instructor not found in the active gym.");
+            throw new InvalidOperationException("One of the class types no longer exists — reload and try again.");
         }
 
         template.Name = name.Trim();
@@ -163,7 +175,7 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
         template.DefaultInstructorPersonId = instructorPersonId;
 
         template.ClassTypes.Clear();
-        template.ClassTypes.AddRange(await db.ClassTypes.Where(t => typeIds.Contains(t.Id)).ToListAsync(ct));
+        template.ClassTypes.AddRange(types);
 
         await db.SaveChangesAsync(ct);
     }

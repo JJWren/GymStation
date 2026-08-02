@@ -188,9 +188,10 @@
             return;
         }
 
-        if (!TimeOnly.TryParse(form.Open, out var open) || !TimeOnly.TryParse(form.Close, out var close) || close <= open)
+        if (!TimeOnly.TryParse(form.Open, out var open) || !TimeOnly.TryParse(form.Close, out var close) || close <= open
+            || open.Minute % 30 != 0 || close.Minute % 30 != 0 || (close - open).TotalMinutes < 30)
         {
-            _error = "Mat hours need valid HH:mm times with close after open.";
+            _error = "Mat hours need HH:00 or HH:30 times, close after open, spanning at least 30 minutes.";
             return;
         }
 
