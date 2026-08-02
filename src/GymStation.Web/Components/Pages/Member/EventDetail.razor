@@ -1,0 +1,116 @@
+@page "/events/{EventId:guid}"
+@attribute [Authorize]
+@layout MemberLayout
+@using System.Security.Claims
+@using GymStation.Domain.Events
+@inject IDbContextFactory<GymStationDbContext> DbFactory
+
+<PageTitle>@(_gymEvent?.Title ?? "Event") · GymStation</PageTitle>
+
+<main class="member-shell" style="padding-top:6px">
+    @if (_gymEvent is null)
+    {
+        <h1 class="page-title" style="font-size:20px">EVENT</h1>
+        <p class="cap" style="margin-top:10px">EVENT NOT FOUND. <a href="/events">BACK TO EVENTS</a></p>
+    }
+    else
+    {
+        <p class="cap" style="margin:0 0 4px"><a href="/events">EVENTS</a> → @_gymEvent.Title.ToUpperInvariant()</p>
+        <span class="chip @(_gymEvent.Kind == GymEventKind.Tournament ? "chip--on" : null)">@_gymEvent.Kind.ToString().ToUpperInvariant()</span>
+        <h1 class="page-title" style="font-size:20px;margin-top:8px">@_gymEvent.Title</h1>
+        <p class="cap" style="margin-top:4px">
+            @_gymEvent.StartsOn.ToString("dddd dd MMMM yyyy").ToUpperInvariant()
+            @(_gymEvent.TimeInfo is null ? null : $" · {_gymEvent.TimeInfo.ToUpperInvariant()}")
+            @(_gymEvent.Location is null ? null : $" · {_gymEvent.Location.ToUpperInvariant()}")
+        </p>
+
+        @if (!string.IsNullOrWhiteSpace(_gymEvent.Details))
+        {
+            <div class="form-card" style="margin-top:12px">
+                <p style="color:var(--ink-dim)">@_gymEvent.Details</p>
+            </div>
+        }
+
+        <div class="row-form" style="margin-top:12px">
+            <form method="post" action="/member/actions/rsvp">
+                <AntiforgeryToken />
+                <input type="hidden" name="back" value="detail" />
+                <input type="hidden" name="eventId" value="@_gymEvent.Id" />
+                <input type="hidden" name="status" value="going" />
+                <button class="btn btn--xs @(_mine == RsvpStatus.Going ? null : "btn--ghost")" type="submit">@(_mine == RsvpStatus.Going ? "✓ GOING" : "GOING")</button>
+            </form>
+            <form method="post" action="/member/actions/rsvp">
+                <AntiforgeryToken />
+                <input type="hidden" name="back" value="detail" />
+                <input type="hidden" name="eventId" value="@_gymEvent.Id" />
+                <input type="hidden" name="status" value="interested" />
+                <button class="btn btn--xs @(_mine == RsvpStatus.Interested ? null : "btn--ghost")" type="submit">@(_mine == RsvpStatus.Interested ? "✓ INTERESTED" : "INTERESTED")</button>
+            </form>
+        </div>
+
+        <h2 class="section-h">Going · @_going.Count</h2>
+        <div class="form-card">
+            @if (_going.Count == 0)
+            {
+                <p class="cap" style="margin:0">NOBODY YET — BE FIRST.</p>
+            }
+            @foreach (var name in _going)
+            {
+                <span class="chip" style="margin:0 4px 4px 0">@name</span>
+            }
+        </div>
+
+        <h2 class="section-h">Interested · @_interested.Count</h2>
+        <div class="form-card">
+            @if (_interested.Count == 0)
+            {
+                <p class="cap" style="margin:0">NOBODY YET.</p>
+            }
+            @foreach (var name in _interested)
+            {
+                <span class="chip" style="margin:0 4px 4px 0">@name</span>
+            }
+        </div>
+
+        <p class="cap" style="margin-top:12px">RSVPS ARE VISIBLE INSIDE YOUR GYM ONLY.</p>
+    }
+</main>
+
+@code {
+    [Parameter] public Guid EventId { get; set; }
+
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+
+    private GymEvent? _gymEvent;
+    private RsvpStatus? _mine;
+    private List<string> _going = [];
+    private List<string> _interested = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _gymEvent = await db.GymEvents.SingleOrDefaultAsync(e => e.Id == EventId);
+        if (_gymEvent is null)
+        {
+            return;
+        }
+
+        var rsvps = await db.EventRsvps.Where(r => r.EventId == EventId).ToListAsync();
+        var personIds = rsvps.Select(r => r.PersonId).ToList();
+        var names = await db.Persons.Where(p => personIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, p => p.DisplayName);
+
+        _going = [.. rsvps.Where(r => r.Status == RsvpStatus.Going).Select(r => names.GetValueOrDefault(r.PersonId, "?")).OrderBy(n => n)];
+        _interested = [.. rsvps.Where(r => r.Status == RsvpStatus.Interested).Select(r => names.GetValueOrDefault(r.PersonId, "?")).OrderBy(n => n)];
+
+        var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (Guid.TryParse(raw, out var userId))
+        {
+            var me = await db.Persons.SingleOrDefaultAsync(p => p.UserId == userId && !p.Archived);
+            if (me is not null)
+            {
+                _mine = rsvps.SingleOrDefault(r => r.PersonId == me.Id)?.Status;
+            }
+        }
+    }
+}
