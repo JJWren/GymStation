@@ -57,9 +57,13 @@ public static class MemberActionEndpoints
         group.MapPost("/rsvp", async (
             [FromForm] Guid eventId,
             [FromForm] string status,
+            [FromForm] string? back,
             ClaimsPrincipal user,
             GymStationDbContext db) =>
         {
+            // Allow-listed, never caller-controlled paths — no open redirect.
+            var destination = back == "detail" ? $"/events/{eventId}" : "/events";
+
             RsvpStatus? target = status switch
             {
                 "going" => RsvpStatus.Going,
@@ -70,13 +74,13 @@ public static class MemberActionEndpoints
             var raw = user.FindFirstValue(ClaimTypes.NameIdentifier);
             if (target is null || !Guid.TryParse(raw, out var userId))
             {
-                return Results.Redirect("/events");
+                return Results.Redirect(destination);
             }
 
             var me = await db.Persons.SingleOrDefaultAsync(p => p.UserId == userId && !p.Archived);
             if (me is null || !await db.GymEvents.AnyAsync(e => e.Id == eventId))
             {
-                return Results.Redirect("/events");
+                return Results.Redirect(destination);
             }
 
             var existing = await db.EventRsvps.SingleOrDefaultAsync(r => r.EventId == eventId && r.PersonId == me.Id);
@@ -104,7 +108,7 @@ public static class MemberActionEndpoints
                 // request already recorded the RSVP; treat as a no-op.
             }
 
-            return Results.Redirect("/events");
+            return Results.Redirect(destination);
         });
 
         return app;
