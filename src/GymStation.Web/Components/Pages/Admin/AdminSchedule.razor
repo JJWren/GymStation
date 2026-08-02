@@ -597,7 +597,7 @@
             return;
         }
 
-        if (!TimeOnly.TryParse(form.Start, out var start))
+        if (!TimeOnly.TryParseExact(form.Start, "HH\\:mm", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var start))
         {
             _sessionError = "Start must be a valid HH:mm time.";
             return;
@@ -622,7 +622,7 @@
             return;
         }
 
-        if (!TimeOnly.TryParse(form.Start, out var start))
+        if (!TimeOnly.TryParseExact(form.Start, "HH\\:mm", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var start))
         {
             _templateEditError = "Start must be a valid HH:mm time.";
             return;

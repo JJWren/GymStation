@@ -276,7 +276,7 @@ a { color: var(--ink); }
 html { font-size: clamp(100%, 25% + 0.9375vw, 128.125%); }
 
 /* Tablet widths: the phone-shaped member column reads awkward floating in a
-   744–51.25rem viewport (iPad mini portrait) — let it breathe instead. */
+   744–820px viewport (iPad mini portrait) — let it breathe instead. */
 @media (min-width: 700px) and (max-width: 1279px) {
     .member-shell { max-width: 35rem; }
     .member-frame { max-width: 37.5rem; }
