@@ -23,6 +23,16 @@
 {
     <p class="auth-error" role="alert">That payment couldn't be recorded — the amount must be positive.</p>
 }
+@if (FailedFlag is 2 or 3 or 4)
+{
+    <p class="auth-error" role="alert">
+        @(FailedFlag == 2
+            ? "That plan change was rejected — the name must be unique and the price non-negative."
+            : FailedFlag == 3
+                ? "That category change was rejected — the name must be unique."
+                : "That recurring expense was rejected — positive amount, day between 1 and 31.")
+    </p>
+}
 @if (Raised is { } raisedCount)
 {
     <p class="cap" role="status" style="color:var(--ok)">@(raisedCount > 0 ? $"RAISED {raisedCount} CHARGE(S) FOR {_month.ToString("MMMM").ToUpperInvariant()}." : "NOTHING TO RAISE — THIS MONTH'S CHARGES ALREADY EXIST FOR EVERY PLANNED MEMBER.")</p>
@@ -65,11 +75,37 @@
 
     <section>
         <h2 class="section-h">Membership plans</h2>
-        @foreach (var plan in _plans)
+        @foreach (var plan in _plans.Where(p => !p.Archived))
         {
-            <div class="form-card" style="margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
-                <span><b>@plan.Name</b><br /><span class="cap">@plan.Cadence.ToString().ToUpperInvariant() · @_planCounts.GetValueOrDefault(plan.Id) MEMBERS</span></span>
-                <span class="mono" style="color:var(--ink)">$@plan.Price.ToString("N0")</span>
+            <div class="form-card" style="margin-bottom:8px">
+                <form method="post" action="/admin/actions/update-plan" class="row-form" style="margin:0">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="planId" value="@plan.Id" />
+                    <input type="text" name="name" value="@plan.Name" aria-label="Plan name" style="flex:1;min-width:120px" />
+                    <input type="number" name="price" value="@plan.Price" step="0.01" min="0" aria-label="Monthly price" style="width:90px" />
+                    <button class="btn btn--ghost btn--xs" type="submit">SAVE</button>
+                </form>
+                <div class="head-row" style="margin-top:6px">
+                    <span class="cap" style="margin:0">@plan.Cadence.ToString().ToUpperInvariant() · @_planCounts.GetValueOrDefault(plan.Id) MEMBERS · PRICE CHANGES AFFECT FUTURE CYCLES ONLY</span>
+                    <form method="post" action="/admin/actions/plan-archived" style="margin:0">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="planId" value="@plan.Id" />
+                        <input type="hidden" name="archived" value="True" />
+                        <button class="btn btn--ghost btn--xs" type="submit">ARCHIVE</button>
+                    </form>
+                </div>
+            </div>
+        }
+        @foreach (var plan in _plans.Where(p => p.Archived))
+        {
+            <div class="form-card head-row" style="margin-bottom:8px;opacity:.55">
+                <span class="mono">@plan.Name.ToUpperInvariant() · $@plan.Price.ToString("N0") · ARCHIVED</span>
+                <form method="post" action="/admin/actions/plan-archived" style="margin:0">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="planId" value="@plan.Id" />
+                    <input type="hidden" name="archived" value="False" />
+                    <button class="btn btn--ghost btn--xs" type="submit">UNARCHIVE</button>
+                </form>
             </div>
         }
         <EditForm class="form-card" FormName="add-plan" Model="PlanForm" OnValidSubmit="AddPlanAsync">
@@ -135,6 +171,61 @@
             }
             <p style="margin-top:12px"><button class="btn btn--ghost" type="submit">+ EXPENSE</button></p>
         </EditForm>
+
+        <h2 class="section-h">Recurring — auto-logged monthly</h2>
+        <div class="form-card">
+            @foreach (var recurring in _recurrings)
+            {
+                <div class="head-row" style="padding:4px 0;@(recurring.Active ? null : "opacity:.55")">
+                    <span class="mono">@recurring.Category.Name.ToUpperInvariant() · $@recurring.Amount.ToString("N0") · DAY @recurring.DayOfMonth</span>
+                    <form method="post" action="/admin/actions/recurring-active" style="margin:0">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="recurringId" value="@recurring.Id" />
+                        <input type="hidden" name="active" value="@((!recurring.Active).ToString())" />
+                        <button class="btn btn--ghost btn--xs" type="submit">@(recurring.Active ? "PAUSE" : "RESUME")</button>
+                    </form>
+                </div>
+            }
+            @if (_recurrings.Count == 0)
+            {
+                <p class="cap" style="margin:0 0 6px">NOTHING RECURRING YET — RENT AND INSURANCE BELONG HERE.</p>
+            }
+            <form method="post" action="/admin/actions/add-recurring" class="row-form" style="margin-top:8px">
+                <AntiforgeryToken />
+                <select name="categoryId" aria-label="Category">
+                    @foreach (var category in _categories)
+                    {
+                        <option value="@category.Id">@category.Name</option>
+                    }
+                </select>
+                <input type="number" name="amount" step="0.01" min="0.01" placeholder="amount" aria-label="Amount" style="width:84px" />
+                <input type="number" name="dayOfMonth" min="1" max="31" value="1" aria-label="Day of month" style="width:56px" />
+                <button class="btn btn--ghost btn--xs" type="submit">+ RECURRING</button>
+            </form>
+            <p class="cap">MATERIALIZES INTO THE LOG ON ITS DAY EACH MONTH · SHORT MONTHS USE THEIR LAST DAY.</p>
+        </div>
+
+        <h2 class="section-h">Expense categories</h2>
+        <div class="form-card">
+            @foreach (var category in _allCategories)
+            {
+                <div class="head-row" style="padding:4px 0;@(category.Archived ? "opacity:.55" : null)">
+                    <form method="post" action="/admin/actions/rename-category" class="row-form" style="margin:0">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="categoryId" value="@category.Id" />
+                        <input type="text" name="name" value="@category.Name" aria-label="Category name" style="width:150px" />
+                        <button class="btn btn--ghost btn--xs" type="submit">SAVE</button>
+                    </form>
+                    <form method="post" action="/admin/actions/category-archived" style="margin:0">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="categoryId" value="@category.Id" />
+                        <input type="hidden" name="archived" value="@((!category.Archived).ToString())" />
+                        <button class="btn btn--ghost btn--xs" type="submit">@(category.Archived ? "UNARCHIVE" : "ARCHIVE")</button>
+                    </form>
+                </div>
+            }
+            <p class="cap">ARCHIVED CATEGORIES KEEP THEIR HISTORY BUT LEAVE THE PICKERS.</p>
+        </div>
     </section>
 </div>
 
@@ -165,6 +256,8 @@
     private Dictionary<Guid, int> _planCounts = [];
     private List<Expense> _expenses = [];
     private List<ExpenseCategory> _categories = [];
+    private List<ExpenseCategory> _allCategories = [];
+    private List<RecurringExpense> _recurrings = [];
     private string? _planError;
     private string? _expenseError;
 
@@ -191,7 +284,7 @@
         {
             _dues = _dues.Where(d => d.Name.Contains(Q.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
         }
-        _plans = await db.MembershipPlans.Where(p => !p.Archived).OrderBy(p => p.Price).ToListAsync();
+        _plans = await db.MembershipPlans.OrderBy(p => p.Archived).ThenBy(p => p.Price).ToListAsync();
 
         var counts = await db.Persons.Where(p => !p.Archived && p.MembershipPlanId != null)
             .GroupBy(p => p.MembershipPlanId!.Value)
@@ -205,7 +298,10 @@
             .Where(x => x.SpentOn >= monthStart && x.SpentOn <= monthEnd)
             .OrderByDescending(x => x.SpentOn)
             .ToListAsync();
-        _categories = await db.ExpenseCategories.Where(c => !c.Archived).OrderBy(c => c.Name).ToListAsync();
+        _allCategories = await db.ExpenseCategories.OrderBy(c => c.Archived).ThenBy(c => c.Name).ToListAsync();
+        _categories = _allCategories.Where(c => !c.Archived).ToList();
+        _recurrings = await db.RecurringExpenses.Include(r => r.Category)
+            .OrderByDescending(r => r.Active).ThenBy(r => r.Category.Name).ToListAsync();
     }
 
     private async Task AddPlanAsync()

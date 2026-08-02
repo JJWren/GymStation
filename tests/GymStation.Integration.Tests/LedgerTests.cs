@@ -124,6 +124,79 @@ public class LedgerTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task VoidingAPayment_RestoresTheBalance_WithAuditTrail()
+    {
+        var (tenant, planned, _, _) = await SeedAsync();
+
+        await using var context = fixture.CreateContext(tenant);
+        var ledger = new LedgerService(context, new NotificationService(context));
+        await ledger.RaiseMonthlyChargesAsync(new DateOnly(2026, 8, 1));
+        await ledger.RecordPaymentAsync(planned.Id, 85m, new DateOnly(2026, 8, 2), null, null);
+
+        Assert.Equal(0m, (await ledger.ArrearsForAsync(planned.Id)).Balance);
+
+        var payment = await context.Payments.SingleAsync(p => p.PersonId == planned.Id);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => ledger.VoidPaymentAsync(payment.Id, null, "  "));
+
+        await ledger.VoidPaymentAsync(payment.Id, null, "wrong member");
+        Assert.Equal(85m, (await ledger.ArrearsForAsync(planned.Id)).Balance);
+        Assert.Contains(await ledger.DuesAsync(), d => d.PersonId == planned.Id);
+
+        var (collected, _, _, _) = await ledger.MonthSummaryAsync(new DateOnly(2026, 8, 1));
+        Assert.Equal(0m, collected);
+
+        // Voiding twice is refused; the row itself survives with its audit trail.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => ledger.VoidPaymentAsync(payment.Id, null, "again"));
+        Assert.Equal("wrong member", (await context.Payments.SingleAsync(p => p.Id == payment.Id)).VoidReason);
+    }
+
+    [Fact]
+    public async Task RecurringExpenses_MaterializeOncePerMonth()
+    {
+        var (tenant, _, _, _) = await SeedAsync();
+
+        await using var context = fixture.CreateContext(tenant);
+        var category = new ExpenseCategory { Id = Guid.NewGuid(), Name = "RENT" };
+        context.ExpenseCategories.Add(category);
+        await context.SaveChangesAsync();
+
+        var ledger = new LedgerService(context, new NotificationService(context));
+        await ledger.AddRecurringExpenseAsync(category.Id, 4200m, 1, null);
+
+        Assert.Equal(1, await ledger.MaterializeRecurringExpensesAsync(new DateOnly(2026, 8, 15)));
+        Assert.Equal(0, await ledger.MaterializeRecurringExpensesAsync(new DateOnly(2026, 8, 20)));
+
+        var expense = await context.Expenses.SingleAsync(x => x.RecurringExpenseId != null);
+        Assert.Equal(new DateOnly(2026, 8, 1), expense.SpentOn);
+        Assert.Equal(4200m, expense.Amount);
+
+        // Paused recurrings stop materializing in later months.
+        var recurring = await context.RecurringExpenses.SingleAsync();
+        await ledger.SetRecurringActiveAsync(recurring.Id, false);
+        Assert.Equal(0, await ledger.MaterializeRecurringExpensesAsync(new DateOnly(2026, 9, 15)));
+    }
+
+    [Fact]
+    public async Task ArchivedPlans_StopFutureCycles_AndPriceEditsAffectFutureOnly()
+    {
+        var (tenant, planned, _, plan) = await SeedAsync();
+
+        await using var context = fixture.CreateContext(tenant);
+        var ledger = new LedgerService(context, new NotificationService(context));
+
+        await ledger.RaiseMonthlyChargesAsync(new DateOnly(2026, 8, 1));
+        await ledger.UpdatePlanAsync(plan.Id, "Adult Unlimited", 95m);
+        await ledger.RaiseMonthlyChargesAsync(new DateOnly(2026, 9, 1));
+
+        var charges = await context.Charges.Where(c => c.PersonId == planned.Id).OrderBy(c => c.RaisedOn).ToListAsync();
+        Assert.Equal(85m, charges[0].Amount); // history untouched
+        Assert.Equal(95m, charges[1].Amount); // future cycle uses the new price
+
+        await ledger.SetPlanArchivedAsync(plan.Id, true);
+        Assert.Equal(0, await ledger.RaiseMonthlyChargesAsync(new DateOnly(2026, 10, 1)));
+    }
+
+    [Fact]
     public async Task ZeroPricePlans_AreCompedAndRaiseNothing()
     {
         var (tenant, planned, _, _) = await SeedAsync();
