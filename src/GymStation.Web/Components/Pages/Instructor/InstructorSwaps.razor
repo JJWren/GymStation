@@ -16,7 +16,7 @@
     <p class="auth-error" role="alert">That action couldn't be completed — the request may have changed state, or open claims are disabled.</p>
 }
 
-<div class="detail-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start">
+<div class="detail-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:1.125rem;align-items:start">
     <section>
         <h2 class="section-h">My upcoming sessions — request cover</h2>
         @if (_mySessions.Count == 0)
@@ -25,10 +25,10 @@
         }
         @foreach (var session in _mySessions)
         {
-            <div class="form-card" style="margin-bottom:10px">
+            <div class="form-card" style="margin-bottom:0.625rem">
                 <b>@session.Name · @session.Date.ToString("ddd dd MMM").ToUpperInvariant() @session.StartTime.ToString("HH\\:mm")</b>
-                <a class="chip" href="/instructor/roll/@session.Id" style="margin-left:8px">LIVE ROLL →</a>
-                <form method="post" action="/instructor/actions/request-sub" class="row-form" style="margin-top:8px">
+                <a class="chip" href="/instructor/roll/@session.Id" style="margin-left:0.5rem">LIVE ROLL →</a>
+                <form method="post" action="/instructor/actions/request-sub" class="row-form" style="margin-top:0.5rem">
                     <AntiforgeryToken />
                     <input type="hidden" name="sessionId" value="@session.Id" />
                     <select name="proposedSubPersonId" aria-label="Proposed substitute">
@@ -46,7 +46,7 @@
         <h2 class="section-h">My requests</h2>
         @foreach (var request in _myRequests)
         {
-            <div class="form-card" style="margin-bottom:10px">
+            <div class="form-card" style="margin-bottom:0.625rem">
                 <b>@request.Session.Name · @request.Session.Date.ToString("ddd dd MMM").ToUpperInvariant()</b>
                 <span class="stamp stamp--dim">@request.Status.ToString().ToUpperInvariant()</span>
                 @if (request.Status is SubstitutionStatus.Requested or SubstitutionStatus.PendingApproval)
@@ -69,9 +69,9 @@
         }
         @foreach (var request in _actionable)
         {
-            <div class="form-card" style="margin-bottom:10px">
+            <div class="form-card" style="margin-bottom:0.625rem">
                 <b>@request.Session.Name · @request.Session.Date.ToString("ddd dd MMM").ToUpperInvariant() @request.Session.StartTime.ToString("HH\\:mm")</b>
-                <p class="cap" style="margin:4px 0 8px">
+                <p class="cap" style="margin:0.25rem 0 0.5rem">
                     @(request.ProposedSubPersonId is null ? "OPEN REQUEST" : "NAMED TO YOU") ·
                     REQUESTED BY @_names.GetValueOrDefault(request.RequestedByPersonId, "?").ToUpperInvariant()
                 </p>

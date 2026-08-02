@@ -15,7 +15,7 @@
     <p class="auth-error" role="alert">That change was rejected — check the file type/size or the values and try again.</p>
 }
 
-<div class="detail-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start">
+<div class="detail-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:1.125rem;align-items:start">
     <section>
         <h2 class="section-h">Gym settings</h2>
         <EditForm class="form-card" FormName="gym-settings" Model="Form" OnValidSubmit="SaveAsync">
@@ -36,14 +36,14 @@
             </div>
             <label for="sacc">Tenant accent — your gym's color on buttons, links, tags, stamps, and the public page (#rrggbb, WCAG-checked against both modes)</label>
             <InputText id="sacc" @bind-Value="Form!.AccentColorHex" />
-            <div class="check-row" style="margin-top:10px">
+            <div class="check-row" style="margin-top:0.625rem">
                 <label><InputCheckbox @bind-Value="Form!.DefaultThemeDark" /> DARK (MAT) AS THE GYM'S DEFAULT MODE — UNCHECK FOR PAPER LEDGER</label>
             </div>
             @if (_error is not null)
             {
                 <p class="validation-message">@_error</p>
             }
-            <p style="margin-top:12px"><button class="btn" type="submit">SAVE SETTINGS</button></p>
+            <p style="margin-top:0.75rem"><button class="btn" type="submit">SAVE SETTINGS</button></p>
             <p class="cap">BELT COLORS ARE NOT THEMEABLE — RANK RENDERING IS IDENTICAL IN EVERY GYM.</p>
         </EditForm>
     </section>
@@ -54,19 +54,19 @@
             <div class="row-form" style="align-items:center">
                 @if (_settings?.LogoPath is { } logo)
                 {
-                    <img src="/media/@logo" alt="Gym logo" style="width:44px;height:44px;border-radius:8px;object-fit:cover" />
+                    <img src="/media/@logo" alt="Gym logo" style="width:2.75rem;height:2.75rem;border-radius:0.5rem;object-fit:cover" />
                 }
                 else
                 {
-                    <span class="crest" style="width:44px;height:44px;border-radius:8px;background:var(--tenant);display:inline-block"></span>
+                    <span class="crest" style="width:2.75rem;height:2.75rem;border-radius:0.5rem;background:var(--tenant);display:inline-block"></span>
                 }
                 <MediaCropUpload Kind="logo" Label="logo" Aspect="1" OutWidth="512"
                                  Hint="SQUARE — RENDERS AT ~44PX ON THE RAIL AND TOP BAR" />
             </div>
-            <div class="row-form" style="align-items:center;margin-top:14px">
+            <div class="row-form" style="align-items:center;margin-top:0.875rem">
                 @if (_settings?.HeroPath is { } hero)
                 {
-                    <img src="/media/@hero" alt="Public page hero" style="width:96px;height:44px;border-radius:8px;object-fit:cover" />
+                    <img src="/media/@hero" alt="Public page hero" style="width:6rem;height:2.75rem;border-radius:0.5rem;object-fit:cover" />
                 }
                 else
                 {

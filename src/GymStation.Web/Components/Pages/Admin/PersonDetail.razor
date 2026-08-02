@@ -20,14 +20,22 @@ else
 
     @if (Failed)
     {
-        <p class="auth-error" role="alert">That action was rejected — check the amount or plan and try again.</p>
+        <p class="auth-error" role="alert">That action was rejected — it didn't pass validation. Check the values and try again.</p>
     }
 
-    <header class="patch" style="display:flex;gap:18px;align-items:center">
-        <div class="avatar avatar--l" role="img" aria-label="Portrait placeholder"></div>
+    <header class="patch" style="display:flex;gap:1.125rem;align-items:center">
+        <label for="portrait-file" style="cursor:pointer;position:relative;z-index:1" title="Click to upload a new portrait">
+            <span class="avatar avatar--l" style="display:block" role="img"
+                  aria-label="@(_person.PortraitPath is null ? "Portrait placeholder — click to upload" : $"Portrait of {_person.DisplayName} — click to replace")">
+                @if (_person.PortraitPath is not null)
+                {
+                    <img src="/admin/media/portrait/@_person.Id" alt="" />
+                }
+            </span>
+        </label>
         <div style="flex:1;position:relative;z-index:1">
             <h1 class="page-title">@_person.DisplayName.ToUpperInvariant()</h1>
-            <p class="cap" style="margin:4px 0 10px">
+            <p class="cap" style="margin:0.25rem 0 0.625rem">
                 @_person.Roles.ToString().ToUpperInvariant()
                 @if (_ageGroup is not null)
                 {
@@ -38,6 +46,10 @@ else
                 {
                     <text> · NO LOGIN</text>
                 }
+                @if (_person.Visitor)
+                {
+                    <text> · VISITOR</text>
+                }
                 @if (_person.Archived)
                 {
                     <text> · ARCHIVED</text>
@@ -47,26 +59,34 @@ else
             {
                 <BeltBar Size="l" BandColorHex="@_current.Rank.BandColorHex" BarColorHex="@_current.Rank.BarColorHex"
                          Stripes="@_current.Stripes" Label="@($"{_current.Rank.Name}, {_current.Stripes} stripes")" />
-                <p class="cap" style="margin-top:6px">@_current.Rank.Name.ToUpperInvariant() · @_current.Stripes STRIPES · @RankProgress.FormatDuration(Today.ToDateTime(TimeOnly.MinValue) - _current.AtRankSince.ToDateTime(TimeOnly.MinValue)) AT RANK</p>
+                <p class="cap" style="margin-top:0.375rem">@_current.Rank.Name.ToUpperInvariant() · @_current.Stripes STRIPES · @RankProgress.FormatDuration(Today.ToDateTime(TimeOnly.MinValue) - _current.AtRankSince.ToDateTime(TimeOnly.MinValue)) AT RANK</p>
             }
         </div>
     </header>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start" class="detail-cols">
+    <div style="margin:0.625rem 0 0.25rem">
+        <MediaCropUpload Kind="portrait" Label="portrait" Aspect="1" OutWidth="512"
+                         Action="/admin/actions/upload-portrait" InputId="portrait-file"
+                         Hint="SQUARE · 512×512 OR LARGER · STAFF-ONLY, NEVER PUBLIC">
+            <input type="hidden" name="personId" value="@_person.Id" />
+        </MediaCropUpload>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.125rem;align-items:start" class="detail-cols">
         <section>
             <h2 class="section-h">Attendance — gym-verified</h2>
             <div class="form-card">
-                <div class="filters" style="margin-bottom:8px">
+                <div class="filters" style="margin-bottom:0.5rem">
                     <span class="chip chip--on">@_avgPerWeek /WK · 12W</span>
                     <span class="chip">@_verifiedHours VERIFIED HRS</span>
                 </div>
-                <div style="display:flex;gap:3px;height:68px" aria-label="Confirmed sessions per Sunday-start calendar week, last 12 weeks, oldest to newest">
+                <div style="display:flex;gap:0.1875rem;height:4.25rem" aria-label="Confirmed sessions per Sunday-start calendar week, last 12 weeks, oldest to newest">
                     @foreach (var week in _weeklyCounts)
                     {
                         <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:1px;height:100%">
-                            <span style="font:600 7.5px/1 var(--font-mono);color:var(--ink-faint);text-align:center">@week.Count</span>
+                            <span style="font:600 0.4688rem/1 var(--font-mono);color:var(--ink-faint);text-align:center">@week.Count</span>
                             <i style="display:block;background:var(--tenant);opacity:.75;border-radius:2px 2px 0 0;height:@(_weeklyPeak == 0 ? 0 : Math.Max(week.Count > 0 ? 3 : 0, week.Count * 72 / _weeklyPeak))%"></i>
-                            <b style="font:600 7px/1.5 var(--font-mono);color:var(--ink-faint);text-align:center">@week.WeekStart.ToString("M/d")</b>
+                            <b style="font:600 0.4375rem/1.5 var(--font-mono);color:var(--ink-faint);text-align:center">@week.WeekStart.ToString("M/d")</b>
                         </div>
                     }
                 </div>
@@ -121,14 +141,14 @@ else
                         <InputDate id="on" @bind-Value="AwardForm!.AwardedOn" />
                     </div>
                 </div>
-                <div class="check-row" style="margin-top:10px">
+                <div class="check-row" style="margin-top:0.625rem">
                     <label><InputCheckbox @bind-Value="AwardForm!.SelfReported" /> SELF-REPORTED (PRE-APP HISTORY)</label>
                 </div>
                 @if (_awardError is not null)
                 {
                     <p class="validation-message">@_awardError</p>
                 }
-                <p style="margin-top:14px"><button class="btn" type="submit">RECORD AWARD</button></p>
+                <p style="margin-top:0.875rem"><button class="btn" type="submit">RECORD AWARD</button></p>
             </EditForm>
         </section>
 
@@ -155,13 +175,13 @@ else
                             </InputSelect>
                         </div>
                     </div>
-                    <p style="margin-top:14px"><button class="btn" type="submit">SAVE PROFILE</button></p>
+                    <p style="margin-top:0.875rem"><button class="btn" type="submit">SAVE PROFILE</button></p>
                 </EditForm>
             }
 
             <h2 class="section-h">Membership &amp; ledger</h2>
             <div class="form-card">
-                <form method="post" action="/admin/actions/assign-plan" class="row-form" style="margin:0 0 10px">
+                <form method="post" action="/admin/actions/assign-plan" class="row-form" style="margin:0 0 0.625rem">
                     <AntiforgeryToken />
                     <input type="hidden" name="personId" value="@PersonId" />
                     <select name="planId" aria-label="Membership plan">
@@ -175,9 +195,9 @@ else
                 </form>
                 @foreach (var line in _ledgerLines)
                 {
-                    <div class="head-row" style="border-bottom:1px dashed #2c3440;padding:5px 0;@(line.Voided ? "opacity:.55" : null)">
+                    <div class="head-row" style="border-bottom:1px dashed #2c3440;padding:0.3125rem 0;@(line.Voided ? "opacity:.55" : null)">
                         <span class="mono" style="@(line.Voided ? "text-decoration:line-through" : null)">@line.When.ToString("dd MMM").ToUpperInvariant() · @line.Label</span>
-                        <span style="display:flex;gap:8px;align-items:center">
+                        <span style="display:flex;gap:0.5rem;align-items:center">
                             @if (line.Voided)
                             {
                                 <span class="stamp stamp--bad">VOID</span>
@@ -189,14 +209,14 @@ else
                                     <AntiforgeryToken />
                                     <input type="hidden" name="paymentId" value="@paymentId" />
                                     <input type="hidden" name="personId" value="@PersonId" />
-                                    <input type="text" name="reason" placeholder="reason" aria-label="Void reason" required maxlength="300" style="width:84px" />
+                                    <input type="text" name="reason" placeholder="reason" aria-label="Void reason" required maxlength="300" style="width:5.25rem" />
                                     <button class="btn btn--ghost btn--xs" type="submit" title="Void this payment — it stays in the audit trail">VOID</button>
                                 </form>
                             }
                         </span>
                     </div>
                 }
-                <div class="head-row" style="padding:8px 0">
+                <div class="head-row" style="padding:0.5rem 0">
                     <span class="cap">BALANCE · DERIVED, NEVER EDITED</span>
                     <b class="mono" style="color:@(_balance > 0 ? "var(--bad)" : "var(--ink)")">$@_balance.ToString("N2")</b>
                 </div>
@@ -204,7 +224,7 @@ else
                     <AntiforgeryToken />
                     <input type="hidden" name="personId" value="@PersonId" />
                     <input type="hidden" name="back" value="person" />
-                    <input type="number" name="amount" value="@(_balance > 0 ? _balance : null)" step="0.01" min="0.01" aria-label="Payment amount" style="width:110px" />
+                    <input type="number" name="amount" value="@(_balance > 0 ? _balance : null)" step="0.01" min="0.01" aria-label="Payment amount" style="width:6.875rem" />
                     <button class="btn btn--xs" type="submit">RECORD PAYMENT</button>
                 </form>
             </div>
@@ -240,21 +260,22 @@ else
                         <InputDate id="epdob" @bind-Value="PersonForm!.DateOfBirth" />
                     </div>
                 </div>
-                <div class="check-row" style="margin-top:10px">
+                <div class="check-row" style="margin-top:0.625rem">
                     <label><InputCheckbox @bind-Value="PersonForm!.IsMember" /> MEMBER</label>
                     <label><InputCheckbox @bind-Value="PersonForm!.IsInstructor" /> INSTRUCTOR</label>
                     <label><InputCheckbox @bind-Value="PersonForm!.IsAdmin" /> ADMIN</label>
                     <label><InputCheckbox @bind-Value="PersonForm!.IsOwner" /> OWNER</label>
+                    <label><InputCheckbox @bind-Value="PersonForm!.IsVisitor" /> VISITOR — UNTICK & ASSIGN A PLAN TO CONVERT</label>
                 </div>
                 @if (_editError is not null)
                 {
                     <p class="validation-message">@_editError</p>
                 }
-                <p style="margin-top:12px"><button class="btn" type="submit">SAVE PERSON</button></p>
+                <p style="margin-top:0.75rem"><button class="btn" type="submit">SAVE PERSON</button></p>
             </EditForm>
 
-            <EditForm class="form-card" FormName="archive-person" Model="ArchiveMarker" OnValidSubmit="ToggleArchiveAsync" style="margin-top:10px">
-                <p class="cap" style="margin:0 0 8px">
+            <EditForm class="form-card" FormName="archive-person" Model="ArchiveMarker" OnValidSubmit="ToggleArchiveAsync" style="margin-top:0.625rem">
+                <p class="cap" style="margin:0 0 0.5rem">
                     @(_person.Archived
                         ? "ARCHIVED — HIDDEN FROM THE ROSTER AND ALL FILTERS. HISTORY AND LEDGER REMAIN."
                         : "ARCHIVING HIDES THIS PERSON FROM THE ROSTER; HISTORY AND LEDGER REMAIN.")
@@ -345,6 +366,7 @@ else
         public bool IsInstructor { get; set; }
         public bool IsAdmin { get; set; }
         public bool IsOwner { get; set; }
+        public bool IsVisitor { get; set; }
     }
 
     protected override async Task OnInitializedAsync()
@@ -414,6 +436,7 @@ else
             PersonForm.IsInstructor = _person.Roles.HasFlag(PersonRoles.Instructor);
             PersonForm.IsAdmin = _person.Roles.HasFlag(PersonRoles.Admin);
             PersonForm.IsOwner = _person.Roles.HasFlag(PersonRoles.Owner);
+            PersonForm.IsVisitor = _person.Visitor;
         }
     }
 
@@ -428,7 +451,7 @@ else
 
         try
         {
-            await People.UpdateAsync(PersonId, form.FirstName, form.LastName, form.DateOfBirth, roles);
+            await People.UpdateAsync(PersonId, form.FirstName, form.LastName, form.DateOfBirth, roles, form.IsVisitor);
             Nav.NavigateTo($"/admin/people/{PersonId}");
         }
         catch (InvalidOperationException ex)

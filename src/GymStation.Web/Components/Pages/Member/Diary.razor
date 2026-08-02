@@ -1,7 +1,9 @@
 @page "/diary"
 @attribute [Authorize]
 @layout MemberLayout
+@using System.Globalization
 @using System.Security.Claims
+@using GymStation.Domain.Attendance
 @using GymStation.Domain.Training
 @using GymStation.Infrastructure.Training
 @inject IDbContextFactory<GymStationDbContext> DbFactory
@@ -10,14 +12,15 @@
 
 <PageTitle>Diary · GymStation</PageTitle>
 
-<main class="member-shell" style="padding-top:6px">
+<main class="member-shell" style="padding-top:0.375rem">
     <div class="head-row">
-        <h1 class="page-title" style="font-size:20px">DIARY</h1>
+        <h1 class="page-title" style="font-size:1.25rem">DIARY</h1>
         <span class="chip" style="border-color:var(--ok);color:var(--ok)">🔒 ONLY YOU CAN SEE THIS</span>
     </div>
 
     <h2 class="section-h">New entry</h2>
     <EditForm class="form-card" FormName="add-entry" Model="Form" OnValidSubmit="AddAsync">
+        <button type="submit" hidden tabindex="-1" aria-hidden="true"></button>
         <div class="form-grid">
             <div>
                 <label for="dkind">Kind</label>
@@ -49,7 +52,7 @@
         @for (var i = 0; i < Form!.Rolls.Count; i++)
         {
             var index = i;
-            <div class="row-form" style="margin-bottom:6px">
+            <div class="row-form" style="margin-bottom:0.375rem">
                 <InputSelect @bind-Value="Form!.Rolls[index].PartnerPersonId" aria-label="Partner from roster">
                     <option value="">— partner —</option>
                     @foreach (var (id, name) in _partners)
@@ -59,47 +62,103 @@
                 </InputSelect>
                 <InputText @bind-Value="Form!.Rolls[index].PartnerText" placeholder="or free text" aria-label="Partner free text" />
                 <InputText @bind-Value="Form!.Rolls[index].Summary" placeholder="2x5min · even" aria-label="Roll summary" />
+                <button class="btn btn--ghost btn--xs" type="submit" name="Form.RemoveRoll" value="@index"
+                        aria-label="Remove roll @(index + 1)" style="color:var(--bad)">×</button>
             </div>
         }
+        <p style="margin:0.375rem 0 0">
+            <button class="btn btn--ghost btn--xs" type="submit" name="Form.AddPartner" value="true">+ PARTNER</button>
+        </p>
 
         @if (_error is not null)
         {
             <p class="validation-message">@_error</p>
         }
-        <p style="margin-top:12px"><button class="btn" type="submit">+ SAVE ENTRY</button></p>
+        <p style="margin-top:0.75rem"><button class="btn" type="submit">+ SAVE ENTRY</button></p>
     </EditForm>
 
     <h2 class="section-h">Entries</h2>
-    @foreach (var entry in _entries)
+    <div class="diary-cal form-card">
+        <div class="head-row" style="margin-bottom:0.5rem">
+            <a class="btn btn--ghost btn--xs" href="/diary?month=@_month.AddMonths(-1).ToString("yyyy-MM")"
+               aria-label="Previous month">‹</a>
+            <b class="mono" style="color:var(--ink)">@_month.ToString("MMMM yyyy").ToUpperInvariant()</b>
+            <a class="btn btn--ghost btn--xs" href="/diary?month=@_month.AddMonths(1).ToString("yyyy-MM")"
+               aria-label="Next month">›</a>
+        </div>
+        <div class="cal-grid">
+            @foreach (var head in new[] { "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT" })
+            {
+                <span class="cal-head" aria-hidden="true">@head[..1]</span>
+            }
+            @foreach (var day in _calendarDays)
+            {
+                @if (day.Month != _month.Month)
+                {
+                    <span class="cal-cell cal-cell--out"></span>
+                }
+                else if (_entryDays.Contains(day.Day))
+                {
+                    <a class="cal-cell cal-cell--has @(day == _onDay ? "cal-cell--sel" : null) @(day == _today ? "cal-cell--today" : null)"
+                       href="/diary?month=@_month.ToString("yyyy-MM")&on=@day.ToString("yyyy-MM-dd")"
+                       aria-label="Entries on @day.ToString("dd MMMM yyyy")">@day.Day</a>
+                }
+                else
+                {
+                    <span class="cal-cell @(day == _today ? "cal-cell--today" : null)"
+                          aria-label="@day.ToString("dd MMMM yyyy") — no entries">@day.Day</span>
+                }
+            }
+        </div>
+    </div>
+
+    @if (_onDay is { } selected)
     {
-        <div class="form-card" style="margin-bottom:10px">
+        <p style="margin:0 0 0.625rem">
+            <a class="chip chip--on" href="/diary?month=@_month.ToString("yyyy-MM")">SHOWING @selected.ToString("dd MMM").ToUpperInvariant() · SHOW WHOLE MONTH ×</a>
+        </p>
+    }
+
+    @foreach (var entry in Shown)
+    {
+        <div class="form-card" style="margin-bottom:0.625rem">
             <div class="head-row">
-                <b class="mono" style="color:var(--ink)">@entry.EntryDate.ToString("ddd dd MMM yyyy").ToUpperInvariant()</b>
+                <a class="mono" style="color:var(--ink)" href="/diary/entry/@entry.Id"
+                   title="Open this entry"><b>@entry.EntryDate.ToString("ddd dd MMM yyyy").ToUpperInvariant()</b> →</a>
                 <span class="chip @(entry.Kind == TrainingEntryKind.SelfReported ? "chip--on" : null)">
                     @(entry.Kind switch { TrainingEntryKind.RollLog => "ROLL LOG", TrainingEntryKind.SelfReported => $"SELF · {entry.SelfReportedMinutes}MIN", _ => "LESSON" })
                 </span>
             </div>
             @if (!string.IsNullOrWhiteSpace(entry.Notes))
             {
-                <p style="margin:6px 0;color:var(--ink-dim)">@entry.Notes</p>
+                <p style="margin:0.375rem 0;color:var(--ink-dim)">@entry.Notes</p>
             }
             @foreach (var roll in entry.Rolls)
             {
-                <div class="head-row" style="border-top:1px dashed #2c3440;padding:5px 0">
+                <div class="head-row" style="border-top:1px dashed #2c3440;padding:0.3125rem 0">
                     <span class="mono" style="color:var(--ink)">@roll.PartnerLabel.ToUpperInvariant()</span>
                     <span class="mono">@roll.Summary</span>
                 </div>
             }
         </div>
     }
-    @if (_entries.Count == 0)
+    @if (Shown.Count == 0)
     {
-        <p class="cap">NO ENTRIES YET. LOG WHAT YOU LEARNED TONIGHT.</p>
+        <p class="cap">
+            @(_onDay is { } d ? $"NO ENTRIES ON {d.ToString("dd MMM yyyy").ToUpperInvariant()}." : "NO ENTRIES THIS MONTH. LOG WHAT YOU LEARNED TONIGHT.")
+            @if (_latestEntryDate is { } latest && (latest < _month || latest >= _month.AddMonths(1)))
+            {
+                <a href="/diary?month=@latest.ToString("yyyy-MM")" style="margin-left:0.375rem">LAST ENTRY: @latest.ToString("MMM yyyy").ToUpperInvariant() →</a>
+            }
+        </p>
     }
 </main>
 
 @code {
     [CascadingParameter] public HttpContext? HttpContext { get; set; }
+
+    [SupplyParameterFromQuery(Name = "month")] public string? MonthRaw { get; set; }
+    [SupplyParameterFromQuery(Name = "on")] public string? OnRaw { get; set; }
 
     [SupplyParameterFromForm(FormName = "add-entry")]
     public EntryForm? Form { get; set; }
@@ -109,7 +168,7 @@
         Form ??= new();
 
         // The form binder nulls collections that arrive with no posted fields.
-        Form.Rolls ??= [new(), new(), new()];
+        Form.Rolls ??= [];
     }
 
     private List<TrainingEntry> _entries = [];
@@ -117,9 +176,22 @@
     private List<(Guid Id, string Name)> _partners = [];
     private string? _error;
 
+    private DateOnly _today;
+    private DateOnly _month;
+    private DateOnly? _onDay;
+    private DateOnly? _latestEntryDate;
+    private List<DateOnly> _calendarDays = [];
+    private HashSet<int> _entryDays = [];
+
+    private List<TrainingEntry> Shown => _onDay is { } day
+        ? _entries.Where(e => e.EntryDate == day).ToList()
+        : _entries;
+
     public class RollRow
     {
-        public Guid? PartnerPersonId { get; set; }
+        // String on purpose: the select posts "" for "no partner", and an empty
+        // string aimed at a Guid? makes the form binder drop the whole collection.
+        public string? PartnerPersonId { get; set; }
         public string? PartnerText { get; set; }
         public string? Summary { get; set; }
     }
@@ -131,7 +203,11 @@
         public Guid? SessionId { get; set; }
         public string? Notes { get; set; }
         public int? SelfReportedMinutes { get; set; }
-        public List<RollRow> Rolls { get; set; } = [new(), new(), new()];
+        public List<RollRow> Rolls { get; set; } = [];
+
+        // Set by the +PARTNER / × submit buttons; a plain save posts neither.
+        public bool AddPartner { get; set; }
+        public int? RemoveRoll { get; set; }
     }
 
     private Guid _userId;
@@ -144,13 +220,20 @@
             return;
         }
 
-        _entries = await DiaryService.GetMineAsync(_userId);
+        _today = DateOnly.FromDateTime(DateTime.Today);
+        _month = ResolveMonth();
+        _onDay = ResolveOnDay();
+        BuildCalendar();
+
+        _entries = await DiaryService.GetMonthAsync(_userId, _month);
+        _entryDays = _entries.Select(e => e.EntryDate.Day).ToHashSet();
+        _latestEntryDate = (await DiaryService.GetMineAsync(_userId, take: 1)).FirstOrDefault()?.EntryDate;
 
         await using var db = await DbFactory.CreateDbContextAsync();
         var me = await db.Persons.SingleOrDefaultAsync(p => p.UserId == _userId && !p.Archived);
         if (me is not null)
         {
-            var cutoff = DateOnly.FromDateTime(DateTime.Today).AddDays(-7);
+            var cutoff = _today.AddDays(-7);
             _recentSessions = await db.AttendanceRecords
                 .Where(a => a.PersonId == me.Id && a.Session.Date >= cutoff)
                 .Select(a => a.Session)
@@ -165,17 +248,74 @@
         }
     }
 
+    private DateOnly ResolveMonth()
+    {
+        var current = new DateOnly(_today.Year, _today.Month, 1);
+        if (!DateOnly.TryParseExact($"{MonthRaw}-01", "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
+        {
+            return current;
+        }
+
+        var min = new DateOnly(2000, 1, 1);
+        var max = current.AddYears(1);
+        return parsed < min ? min : parsed > max ? max : parsed;
+    }
+
+    private DateOnly? ResolveOnDay()
+    {
+        if (!DateOnly.TryParseExact(OnRaw, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
+        {
+            return null;
+        }
+
+        // The day filter only applies inside the month being shown.
+        return parsed >= _month && parsed < _month.AddMonths(1) ? parsed : null;
+    }
+
+    private void BuildCalendar()
+    {
+        _calendarDays = [];
+        var cursor = StatWeeks.SundayOf(_month);
+        var monthEnd = _month.AddMonths(1);
+        while (cursor < monthEnd || cursor.DayOfWeek != DayOfWeek.Sunday)
+        {
+            _calendarDays.Add(cursor);
+            cursor = cursor.AddDays(1);
+        }
+    }
+
     private async Task AddAsync()
     {
         var form = Form!;
+
+        // The row buttons re-render the form with the adjusted list instead of saving.
+        if (form.AddPartner)
+        {
+            form.AddPartner = false;
+            form.Rolls.Add(new());
+            return;
+        }
+
+        if (form.RemoveRoll is { } removeAt)
+        {
+            form.RemoveRoll = null;
+            if (removeAt >= 0 && removeAt < form.Rolls.Count)
+            {
+                form.Rolls.RemoveAt(removeAt);
+            }
+
+            return;
+        }
+
         var partnerNames = _partners.ToDictionary(p => p.Id, p => p.Name);
         var rolls = form.Rolls
             .Select(r =>
             {
-                var label = r.PartnerPersonId is { } id && partnerNames.TryGetValue(id, out var name)
+                Guid? partnerId = Guid.TryParse(r.PartnerPersonId, out var pid) ? pid : null;
+                var label = partnerId is { } id && partnerNames.TryGetValue(id, out var name)
                     ? name
                     : r.PartnerText ?? "";
-                return ((Guid?)r.PartnerPersonId, label, r.Summary);
+                return (partnerId, label, r.Summary);
             })
             .Where(r => !string.IsNullOrWhiteSpace(r.label))
             .ToList();
@@ -183,7 +323,7 @@
         try
         {
             await DiaryService.AddAsync(_userId, form.Kind, form.EntryDate, form.SessionId, form.Notes, form.SelfReportedMinutes, rolls);
-            Nav.NavigateTo("/diary");
+            Nav.NavigateTo($"/diary?month={form.EntryDate:yyyy-MM}");
         }
         catch (InvalidOperationException ex)
         {

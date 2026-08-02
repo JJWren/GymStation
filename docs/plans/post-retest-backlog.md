@@ -22,7 +22,7 @@ gets meaningful drops instead of eighteen tiny ones.
 ## Loop status
 
 - [x] #32 — Role-aware sign-in routing + guardian gym membership (PR #44)
-- [ ] #38 — Rank ordering: composite sort, red-belt degrees, NO BELT filter (PR #47 in gate)
+- [x] #38 — Rank ordering: composite sort, red-belt degrees, NO BELT filter (PR #47 merged)
 - [x] #35 — Member schedule: full-day visibility (verify) + guardian states (verified, no code)
 - [x] #33 — Real bell icon
 - [x] #36 — Gym name → public page; public page knows you (PR #49)
@@ -34,12 +34,12 @@ gets meaningful drops instead of eighteen tiny ones.
 - [x] #24 — Ledger management
 - [x] #25 — Events v2 (detail+attendees+past; images follow #28)
 - [x] #28 — Shared media upload (preview/crop)
-- [ ] #26 — Diary v2
+- [x] #26 — Diary v2 (partner rows, entry edit/delete, month calendar)
 - [x] #27 — Member check-in history (range chips + custom + paging)
-- [ ] #29 — Drop-ins / visitors
-- [ ] #43 — Admin: member portraits from the person page (plain upload; crop joins #28)
+- [x] #29 — Drop-ins / visitors (live-roll quick-add, VISITORS chip, convert)
+- [x] #43 — Admin: member portraits from the person page (click-to-upload + crop, staff-only serving)
 - [ ] #23 — Interactive schedule editor
-- [ ] #22 — Responsive type-scale pass
+- [x] #22 — Responsive type-scale pass (fluid rem scale, tablet member column, breakpoint screenshots)
 
 ---
 

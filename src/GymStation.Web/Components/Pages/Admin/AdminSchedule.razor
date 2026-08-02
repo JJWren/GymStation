@@ -65,7 +65,7 @@
     }
 </div>
 
-<div class="detail-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;margin-top:20px">
+<div class="detail-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:1.125rem;align-items:start;margin-top:1.25rem">
     <section>
         <h2 class="section-h">Substitutions</h2>
         @if (_requests.Count == 0)
@@ -74,9 +74,9 @@
         }
         @foreach (var request in _requests)
         {
-            <div class="form-card" style="margin-bottom:10px">
+            <div class="form-card" style="margin-bottom:0.625rem">
                 <b>@request.Session.Name · @request.Session.Date.ToString("ddd dd MMM").ToUpperInvariant() @request.Session.StartTime.ToString("HH\\:mm")</b>
-                <p class="cap" style="margin:4px 0 8px">
+                <p class="cap" style="margin:0.25rem 0 0.5rem">
                     @_personNames.GetValueOrDefault(request.RequestedByPersonId, "?").ToUpperInvariant() OUT ·
                     @(request.ProposedSubPersonId is { } p ? "PROPOSED: " + _personNames.GetValueOrDefault(p, "?").ToUpperInvariant() : "OPEN REQUEST")
                     @(request.EscalatedUtc is not null ? " · ESCALATED" : null)
@@ -100,7 +100,7 @@
 
         <h2 class="section-h">Gym setting — swap workflow</h2>
         <div class="form-card">
-            <p class="cap" style="margin:0 0 8px">
+            <p class="cap" style="margin:0 0 0.5rem">
                 ADMIN-GATE: AN ACCEPTED OR CLAIMED COVER WAITS FOR YOUR APPROVAL BEFORE IT TAKES EFFECT.
                 AUTO-APPLY: IT TAKES EFFECT THE MOMENT A COACH ACCEPTS.<br />
                 OPEN CLAIMS: COACHES MAY POST A REQUEST WITHOUT NAMING A SUB, SO ANY COACH CAN CLAIM IT.
@@ -165,7 +165,7 @@
             {
                 <p class="validation-message">@_templateError</p>
             }
-            <p style="margin-top:14px"><button class="btn" type="submit">+ CLASS TEMPLATE</button></p>
+            <p style="margin-top:0.875rem"><button class="btn" type="submit">+ CLASS TEMPLATE</button></p>
         </EditForm>
 
         <h2 class="section-h">Class tags</h2>
@@ -180,7 +180,7 @@
                     <InputText id="ctcolor" @bind-Value="TypeForm!.ColorHex" />
                 </div>
             </div>
-            <p style="margin-top:14px"><button class="btn btn--ghost" type="submit">+ TAG</button></p>
+            <p style="margin-top:0.875rem"><button class="btn btn--ghost" type="submit">+ TAG</button></p>
         </EditForm>
     </section>
 </div>

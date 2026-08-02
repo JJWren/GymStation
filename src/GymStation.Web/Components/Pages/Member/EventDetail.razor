@@ -7,18 +7,18 @@
 
 <PageTitle>@(_gymEvent?.Title ?? "Event") · GymStation</PageTitle>
 
-<main class="member-shell" style="padding-top:6px">
+<main class="member-shell" style="padding-top:0.375rem">
     @if (_gymEvent is null)
     {
-        <h1 class="page-title" style="font-size:20px">EVENT</h1>
-        <p class="cap" style="margin-top:10px">EVENT NOT FOUND. <a href="/events">BACK TO EVENTS</a></p>
+        <h1 class="page-title" style="font-size:1.25rem">EVENT</h1>
+        <p class="cap" style="margin-top:0.625rem">EVENT NOT FOUND. <a href="/events">BACK TO EVENTS</a></p>
     }
     else
     {
-        <p class="cap" style="margin:0 0 4px"><a href="/events">EVENTS</a> → @_gymEvent.Title.ToUpperInvariant()</p>
+        <p class="cap" style="margin:0 0 0.25rem"><a href="/events">EVENTS</a> → @_gymEvent.Title.ToUpperInvariant()</p>
         <span class="chip @(_gymEvent.Kind == GymEventKind.Tournament ? "chip--on" : null)">@_gymEvent.Kind.ToString().ToUpperInvariant()</span>
-        <h1 class="page-title" style="font-size:20px;margin-top:8px">@_gymEvent.Title</h1>
-        <p class="cap" style="margin-top:4px">
+        <h1 class="page-title" style="font-size:1.25rem;margin-top:0.5rem">@_gymEvent.Title</h1>
+        <p class="cap" style="margin-top:0.25rem">
             @_gymEvent.StartsOn.ToString("dddd dd MMMM yyyy").ToUpperInvariant()
             @(_gymEvent.TimeInfo is null ? null : $" · {_gymEvent.TimeInfo.ToUpperInvariant()}")
             @(_gymEvent.Location is null ? null : $" · {_gymEvent.Location.ToUpperInvariant()}")
@@ -26,12 +26,12 @@
 
         @if (!string.IsNullOrWhiteSpace(_gymEvent.Details))
         {
-            <div class="form-card" style="margin-top:12px">
+            <div class="form-card" style="margin-top:0.75rem">
                 <p style="color:var(--ink-dim)">@_gymEvent.Details</p>
             </div>
         }
 
-        <div class="row-form" style="margin-top:12px">
+        <div class="row-form" style="margin-top:0.75rem">
             <form method="post" action="/member/actions/rsvp">
                 <AntiforgeryToken />
                 <input type="hidden" name="back" value="detail" />
@@ -56,7 +56,7 @@
             }
             @foreach (var name in _going)
             {
-                <span class="chip" style="margin:0 4px 4px 0">@name</span>
+                <span class="chip" style="margin:0 0.25rem 0.25rem 0">@name</span>
             }
         </div>
 
@@ -68,11 +68,11 @@
             }
             @foreach (var name in _interested)
             {
-                <span class="chip" style="margin:0 4px 4px 0">@name</span>
+                <span class="chip" style="margin:0 0.25rem 0.25rem 0">@name</span>
             }
         </div>
 
-        <p class="cap" style="margin-top:12px">RSVPS ARE VISIBLE INSIDE YOUR GYM ONLY.</p>
+        <p class="cap" style="margin-top:0.75rem">RSVPS ARE VISIBLE INSIDE YOUR GYM ONLY.</p>
     }
 </main>
 
