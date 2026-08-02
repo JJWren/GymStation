@@ -46,8 +46,13 @@ a { color: var(--ink); }
 .gym-choice button { background: var(--surface); color: var(--ink); font: 700 0.875rem/1.2 var(--font-display); letter-spacing: .02em; text-align: left; padding: 1rem; }
 
 /* ---- admin shell ---- */
-.app-frame { display: flex; min-height: 100vh; max-width: 73.75rem; margin: 0 auto; }
-.rail { width: 11.625rem; background: var(--panel); padding: 1rem 0 1rem 0.75rem; display: flex; flex-direction: column; gap: 0.125rem; flex: none; }
+/* Full-width at every size (the old centered max-width made the rail float
+   away from the screen edge); the rail pins to the viewport and the content
+   scrolls past it. */
+.app-frame { display: flex; min-height: 100vh; }
+.rail { width: 11.625rem; background: var(--panel); padding: 1rem 0 1rem 0.75rem; display: flex; flex-direction: column; gap: 0.125rem; flex: none; position: sticky; top: 0; height: 100vh; overflow-y: auto; align-self: flex-start; }
+.rail-tabs { display: flex; flex-direction: column; gap: 0.125rem; flex: 1; min-height: 0; }
+.rail-menu { display: none; }
 .rail .brand { display: flex; align-items: center; padding: 0 0.625rem 1.125rem; }
 .brand-link { color: inherit; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; }
 .rail .crest { width: 1.625rem; height: 1.625rem; border-radius: 0.375rem; background: var(--tenant); flex: none; }
@@ -60,6 +65,22 @@ a { color: var(--ink); }
 .rail .foot { margin-top: auto; padding: 0.625rem 0.75rem; font: 0.5625rem/1.6 var(--font-mono); color: var(--ink-faint); letter-spacing: .08em; }
 .rail .foot button { background: none; border: 1px solid var(--edge); border-radius: 0.375rem; color: var(--ink-dim); font: 700 0.5625rem/1 var(--font-mono); letter-spacing: .1em; padding: 0.4375rem 0.625rem; margin-top: 0.5rem; cursor: pointer; }
 .main { flex: 1; padding: 1.5rem 1.625rem; min-width: 0; }
+
+/* Narrow admin: the rail becomes a sticky top bar — crest, gym name, and a
+   hamburger whose pull-down carries the tabs and the foot. */
+@media (max-width: 900px) {
+    .app-frame { display: block; }
+    .rail { position: sticky; top: 0; z-index: 40; width: 100%; height: auto; overflow: visible; flex-direction: row; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem; }
+    .rail .brand { padding: 0; }
+    .rail-menu { display: block; }
+    .rail-menu summary { list-style: none; cursor: pointer; font: 700 1.125rem/1 var(--font-mono); color: var(--ink-dim); border: 1px solid var(--edge); border-radius: 0.5rem; padding: 0.375rem 0.625rem; user-select: none; }
+    .rail-menu summary::-webkit-details-marker { display: none; }
+    .rail-menu[open] summary { color: var(--tenant); border-color: var(--tenant); }
+    .rail-tabs { display: none; }
+    .rail:has(.rail-menu[open]) .rail-tabs { display: flex; position: absolute; top: 100%; left: 0; right: 0; background: var(--panel); border-bottom: 1px solid var(--edge); padding: 0.5rem 0.75rem 0.875rem; box-shadow: 0 0.875rem 2rem rgba(0, 0, 0, .4); }
+    .rail .tab { border-radius: 0.5rem; }
+    .rail .foot { margin-top: 0.5rem; }
+}
 
 .page-title { font: 1.5rem/1 var(--font-display); }
 .page-sub { font: 0.625rem/1 var(--font-mono); letter-spacing: .16em; color: var(--ink-faint); margin: 0.375rem 0 1.125rem; }
@@ -111,7 +132,9 @@ a { color: var(--ink); }
 .btn--ghost { background: transparent; border: 1.5px solid var(--tenant); color: var(--tenant); }
 .form-card { background: var(--surface); border-radius: 0.75rem; padding: 1rem; }
 .form-card label { display: block; font: 600 0.5625rem/1 var(--font-mono); letter-spacing: .14em; color: var(--ink-dim); margin: 0.75rem 0 0.3125rem; text-transform: uppercase; }
-.form-card input[type=text], .form-card input[type=email], .form-card input[type=date], .form-card input[type=number], .form-card select, .form-card textarea {
+/* :not() form so the typeless <input> Blazor's InputText renders is covered too
+   (it emits no type attribute, which used to fall through to browser defaults). */
+.form-card input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]), .form-card select, .form-card textarea {
     width: 100%; background: var(--panel); border: 1px solid var(--edge); border-radius: 0.5rem; padding: 0.625rem 0.6875rem; font: 600 0.75rem/1.3 var(--font-mono); color: var(--ink);
 }
 .form-card .check-row { display: flex; gap: 1rem; flex-wrap: wrap; padding-top: 0.25rem; }
@@ -120,7 +143,8 @@ a { color: var(--ink); }
 @media (max-width: 720px) { .form-grid { grid-template-columns: 1fr; } }
 
 .filters { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.875rem; align-items: center; }
-.filters input[type=search] { flex: 1; min-width: 10rem; background: var(--panel); border: 1px solid var(--edge); border-radius: 0.5rem; padding: 0.625rem 0.75rem; font: 600 0.6875rem/1 var(--font-mono); color: var(--ink); letter-spacing: .06em; }
+.filters input[type=search] { flex: 1; min-width: 10rem; }
+.filters input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]), .filters select { background: var(--panel); border: 1px solid var(--edge); border-radius: 0.5rem; padding: 0.625rem 0.75rem; font: 600 0.6875rem/1 var(--font-mono); color: var(--ink); letter-spacing: .06em; }
 
 .cap { font: 0.625rem/1.6 var(--font-mono); color: var(--ink-faint); letter-spacing: .05em; margin-top: 0.625rem; }
 .head-row { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; flex-wrap: wrap; }
@@ -152,7 +176,15 @@ a { color: var(--ink); }
 .ses--cancelled .n { text-decoration: line-through; }
 .tag { display: inline-block; font: 600 0.5625rem/1 var(--font-mono); letter-spacing: .06em; border: 1px solid var(--edge); color: var(--ink-dim); border-radius: 6.1875rem; padding: 0.1875rem 0.375rem; margin: 0.25rem 0.25rem 0 0; }
 .row-form { display: flex; gap: 0.375rem; align-items: center; margin-top: 0.5rem; flex-wrap: wrap; }
-.row-form input[type=text], .row-form input[type=date], .row-form select { background: var(--panel); border: 1px solid var(--edge); border-radius: 0.375rem; padding: 0.4375rem 0.5625rem; font: 600 0.625rem/1.2 var(--font-mono); color: var(--ink); min-width: 0; }
+.row-form input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]), .row-form select { background: var(--panel); border: 1px solid var(--edge); border-radius: 0.375rem; padding: 0.4375rem 0.5625rem; font: 600 0.625rem/1.2 var(--font-mono); color: var(--ink); min-width: 0; }
+
+/* Inline rows nested inside cards keep their intrinsic widths — the card-level
+   width:100% is for stacked label+field forms, not row layouts. */
+.form-card .row-form input:not([type=checkbox]):not([type=radio]):not([type=hidden]), .form-card .row-form select { width: auto; }
+
+/* File pickers and the crop-zoom range get the same materials. */
+input[type=file]::file-selector-button { font: 700 0.5625rem/1 var(--font-mono); letter-spacing: .1em; background: transparent; border: 1.5px solid var(--tenant); color: var(--tenant); border-radius: 0.5rem; padding: 0.5rem 0.625rem; margin-right: 0.5rem; cursor: pointer; text-transform: uppercase; }
+input[type=range] { accent-color: var(--tenant); }
 .btn--xs { padding: 0.5rem 0.625rem; font-size: 0.5625rem; }
 .member-shell { max-width: 26.25rem; margin: 0 auto; padding: 1.125rem; }
 .member-frame { max-width: 28.75rem; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
