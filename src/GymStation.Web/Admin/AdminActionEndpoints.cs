@@ -44,10 +44,23 @@ public static class AdminActionEndpoints
 
         group.MapPost("/swap-mode", async ([FromForm] string mode, GymStationDbContext db) =>
         {
+            // Only the two known values may flip the setting — a tampered or stale
+            // form must not silently land the gym on AutoApply.
+            SubstitutionMode? target = mode switch
+            {
+                "admin-gate" => SubstitutionMode.AdminGate,
+                "auto-apply" => SubstitutionMode.AutoApply,
+                _ => null,
+            };
+            if (target is null)
+            {
+                return Results.Redirect("/admin/settings?failed=1");
+            }
+
             var settings = await db.GymSettings.SingleAsync();
-            settings.SubstitutionMode = mode == "admin-gate" ? SubstitutionMode.AdminGate : SubstitutionMode.AutoApply;
+            settings.SubstitutionMode = target.Value;
             await db.SaveChangesAsync();
-            return Results.Redirect("/admin/schedule");
+            return Results.Redirect("/admin/settings");
         });
 
         group.MapPost("/open-claims", async ([FromForm] bool enabled, GymStationDbContext db) =>
@@ -55,7 +68,7 @@ public static class AdminActionEndpoints
             var settings = await db.GymSettings.SingleAsync();
             settings.OpenClaimsEnabled = enabled;
             await db.SaveChangesAsync();
-            return Results.Redirect("/admin/schedule");
+            return Results.Redirect("/admin/settings");
         });
 
         group.MapPost("/record-payment", async (

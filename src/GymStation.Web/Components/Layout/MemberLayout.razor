@@ -33,7 +33,14 @@
             </div>
             @if (_email is not null)
             {
-                <span class="signed-in-as">SIGNED IN AS @_email</span>
+                <span class="signed-in-as">
+                    SIGNED IN AS @_email
+                    · <a href="@(_gymSlug is null ? "/" : $"/{_gymSlug}")" title="Your gym's public landing page">LANDING</a>
+                    @if (_isStaff)
+                    {
+                        <text> · </text><a href="/" title="Back to the admin portal">ADMIN</a>
+                    }
+                </span>
             }
         </div>
     </header>
@@ -66,6 +73,7 @@
     private string _accent = "#C9503B";
     private bool _dark = true;
     private bool _isInstructor;
+    private bool _isStaff;
     private bool? _userThemePreference;
     private string? _email;
 
@@ -86,8 +94,12 @@
             var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (Guid.TryParse(raw, out var userId))
             {
-                _isInstructor = await db.Persons.AnyAsync(p =>
-                    p.UserId == userId && !p.Archived && p.Roles.HasFlag(GymStation.Domain.People.PersonRoles.Instructor));
+                var roles = await db.Persons.Where(p => p.UserId == userId && !p.Archived)
+                    .Select(p => p.Roles)
+                    .SingleOrDefaultAsync();
+                _isInstructor = roles.HasFlag(GymStation.Domain.People.PersonRoles.Instructor);
+                _isStaff = roles.HasFlag(GymStation.Domain.People.PersonRoles.Admin)
+                    || roles.HasFlag(GymStation.Domain.People.PersonRoles.Owner);
 
                 _userThemePreference = await db.Users.Where(u => u.Id == userId)
                     .Select(u => u.PreferredThemeDark)

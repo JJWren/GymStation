@@ -210,24 +210,7 @@
             </div>
         }
 
-        <h2 class="section-h">Gym setting — swap workflow</h2>
-        <div class="form-card">
-            <p class="cap" style="margin:0 0 0.5rem">
-                ADMIN-GATE: AN ACCEPTED OR CLAIMED COVER WAITS FOR YOUR APPROVAL BEFORE IT TAKES EFFECT.
-                AUTO-APPLY: IT TAKES EFFECT THE MOMENT A COACH ACCEPTS.<br />
-                OPEN CLAIMS: COACHES MAY POST A REQUEST WITHOUT NAMING A SUB, SO ANY COACH CAN CLAIM IT.
-            </p>
-            <form method="post" action="/admin/actions/swap-mode" class="row-form">
-                <AntiforgeryToken />
-                <input type="hidden" name="mode" value="@(_settings?.SubstitutionMode == SubstitutionMode.AdminGate ? "auto-apply" : "admin-gate")" />
-                <button type="submit" class="btn btn--ghost btn--xs">SWITCH TO @(_settings?.SubstitutionMode == SubstitutionMode.AdminGate ? "AUTO-APPLY" : "ADMIN-GATE")</button>
-            </form>
-            <form method="post" action="/admin/actions/open-claims" class="row-form">
-                <AntiforgeryToken />
-                <input type="hidden" name="enabled" value="@(_settings?.OpenClaimsEnabled == true ? "false" : "true")" />
-                <button type="submit" class="btn btn--ghost btn--xs">TURN OPEN CLAIMS @(_settings?.OpenClaimsEnabled == true ? "OFF" : "ON")</button>
-            </form>
-        </div>
+        <p class="cap">SWAP MODE AND OPEN CLAIMS ARE GYM SETTINGS — CHANGE THEM IN <a href="/admin/settings">SETTINGS</a>.</p>
     </section>
 
     <section>
