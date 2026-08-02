@@ -8,15 +8,17 @@
 <div class="app-frame @(_dark ? null : "theme-light")" style="--tenant:@_accent">
     <nav class="rail" aria-label="Admin sections">
         <div class="brand">
-            @if (_logoPath is { } logo)
-            {
-                <img class="crest" src="/media/@logo" alt="" style="object-fit:cover" />
-            }
-            else
-            {
-                <div class="crest"></div>
-            }
-            <div><b>@(_gymName ?? "GYMSTATION")</b><i>GYMSTATION</i></div>
+            <a class="brand-link" href="@(_gymSlug is null ? "/" : $"/{_gymSlug}")" title="Open your public gym page">
+                @if (_logoPath is { } logo)
+                {
+                    <img class="crest" src="/media/@logo" alt="" style="object-fit:cover" />
+                }
+                else
+                {
+                    <div class="crest"></div>
+                }
+                <div><b>@(_gymName ?? "GYMSTATION")</b><i>GYMSTATION</i></div>
+            </a>
         </div>
         <NavLink class="tab" href="/" Match="NavLinkMatch.All">TODAY</NavLink>
         <NavLink class="tab" href="/admin/roster">ROSTER</NavLink>
@@ -49,6 +51,7 @@
 
 @code {
     private string? _gymName;
+    private string? _gymSlug;
     private string _accent = "#C9503B";
     private bool _dark = true;
     private string? _logoPath;
@@ -58,7 +61,9 @@
         if (Tenant.CurrentGymId is { } gymId)
         {
             await using var db = await DbFactory.CreateDbContextAsync();
-            _gymName = (await db.Gyms.SingleOrDefaultAsync(g => g.Id == gymId))?.Name.ToUpperInvariant();
+            var gym = await db.Gyms.SingleOrDefaultAsync(g => g.Id == gymId);
+            _gymName = gym?.Name.ToUpperInvariant();
+            _gymSlug = gym?.Slug;
 
             var settings = await db.GymSettings.SingleOrDefaultAsync();
             if (settings is not null)
