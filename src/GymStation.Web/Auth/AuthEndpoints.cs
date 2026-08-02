@@ -107,8 +107,14 @@ public static class AuthEndpoints
                 await users.UpdateAsync(user);
             }
 
-            // Local paths only — never an attacker-suppliable absolute URL.
-            var destination = !string.IsNullOrEmpty(back) && back.StartsWith('/') && !back.StartsWith("//")
+            // Local paths only — never an attacker-suppliable absolute URL. Backslashes
+            // and whitespace are rejected too: browsers normalize \ to /, which would
+            // turn /\evil.com into a protocol-relative redirect.
+            var destination = !string.IsNullOrEmpty(back)
+                && back.StartsWith('/')
+                && !back.StartsWith("//")
+                && !back.Contains('\\')
+                && !back.Any(char.IsWhiteSpace)
                 ? back
                 : "/";
             return Results.Redirect(destination);
