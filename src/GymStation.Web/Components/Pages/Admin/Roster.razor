@@ -22,6 +22,7 @@
     </form>
     <a class="chip @(Role is null ? "active" : null)" href="/admin/roster">ALL</a>
     <a class="chip @(Role == "member" ? "active" : null)" href="/admin/roster?role=member">MEMBERS</a>
+    <a class="chip @(Role == "visitors" ? "active" : null)" href="/admin/roster?role=visitors">VISITORS</a>
     <a class="chip @(Role == "instructor" ? "active" : null)" href="/admin/roster?role=instructor">INSTRUCTORS</a>
     <a class="chip @(Role == "kids" ? "active" : null)" href="/admin/roster?role=kids">KIDS</a>
     <a class="chip @(Role == "adult" ? "active" : null)" href="/admin/roster?role=adult">ADULTS</a>
@@ -174,7 +175,10 @@
 
         query = Role switch
         {
-            "member" => query.Where(p => p.Roles.HasFlag(PersonRoles.Member)),
+            // Visitors carry the Member role for portal purposes but are not members
+            // of record — MEMBERS excludes them so the chip means something (#29).
+            "member" => query.Where(p => p.Roles.HasFlag(PersonRoles.Member) && !p.Visitor),
+            "visitors" => query.Where(p => p.Visitor),
             "instructor" => query.Where(p => p.Roles.HasFlag(PersonRoles.Instructor)),
             "kids" => query.Where(p => p.DateOfBirth != null && p.DateOfBirth > Today.AddYears(-16)),
             "adult" => query.Where(p => p.DateOfBirth == null || p.DateOfBirth <= Today.AddYears(-16)),
@@ -246,9 +250,10 @@
     private static string RoleLine(Person p)
     {
         var joined = $"JOINED {p.JoinedOn.Year}";
-        return p.DateOfBirth is { } dob
+        var line = p.DateOfBirth is { } dob
             ? $"{IbjjfAgeGroup.FromBirthDate(dob, Today)?.ToUpperInvariant() ?? "—"} · {joined}"
             : joined;
+        return p.Visitor ? $"VISITOR · {line}" : line;
     }
 
     private async Task AddPersonAsync()

@@ -8,7 +8,7 @@ public class PersonService(GymStationDbContext db)
 {
     public async Task UpdateAsync(
         Guid personId, string firstName, string lastName, DateOnly? dateOfBirth, PersonRoles roles,
-        CancellationToken ct = default)
+        bool visitor, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName))
         {
@@ -32,7 +32,30 @@ public class PersonService(GymStationDbContext db)
         person.LastName = lastName.Trim();
         person.DateOfBirth = dateOfBirth;
         person.Roles = roles;
+        person.Visitor = visitor;
         await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>Quick-add from the live roll: a walk-in with a name and nothing else.</summary>
+    public async Task<Person> AddVisitorAsync(string firstName, string lastName, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName))
+        {
+            throw new InvalidOperationException("First and last name are required.");
+        }
+
+        var person = new Person
+        {
+            Id = Guid.NewGuid(),
+            FirstName = firstName.Trim(),
+            LastName = lastName.Trim(),
+            Roles = PersonRoles.Member,
+            Visitor = true,
+            JoinedOn = DateOnly.FromDateTime(DateTime.UtcNow),
+        };
+        db.Persons.Add(person);
+        await db.SaveChangesAsync(ct);
+        return person;
     }
 
     public async Task SetArchivedAsync(Guid personId, bool archived, CancellationToken ct = default)
