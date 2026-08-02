@@ -38,6 +38,8 @@
             <NavLink class="tab" href="/admin/events">EVENTS</NavLink>
             <NavLink class="tab" href="/admin/reports">REPORTS</NavLink>
             <NavLink class="tab" href="/admin/settings">SETTINGS</NavLink>
+            <a class="tab tab--cross" href="/schedule" title="Your own member portal">MEMBER VIEW ▸</a>
+            <a class="tab tab--cross" href="@(_gymSlug is null ? "/" : $"/{_gymSlug}")" title="Your public landing page">LANDING ▸</a>
             <div class="foot">
                 GYMSTATION · V1
                 <form method="post" action="/auth/theme">

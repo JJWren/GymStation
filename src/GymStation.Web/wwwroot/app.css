@@ -62,6 +62,8 @@ a { color: var(--ink); }
 .rail .tab.active { background: var(--bg); color: var(--ink); }
 .rail .tab.active::before { content: ""; position: absolute; left: 0; top: 0.5625rem; bottom: 0.5625rem; width: 0.1875rem; border-radius: 2px; background: var(--tenant); }
 .rail .tab--soon { opacity: .38; cursor: default; }
+.rail .tab--cross { color: var(--ink-faint); font-size: 0.625rem; }
+.signed-in-as a { color: var(--ink-dim); }
 .rail .foot { margin-top: auto; padding: 0.625rem 0.75rem; font: 0.5625rem/1.6 var(--font-mono); color: var(--ink-faint); letter-spacing: .08em; }
 .rail .foot button { background: none; border: 1px solid var(--edge); border-radius: 0.375rem; color: var(--ink-dim); font: 700 0.5625rem/1 var(--font-mono); letter-spacing: .1em; padding: 0.4375rem 0.625rem; margin-top: 0.5rem; cursor: pointer; }
 .main { flex: 1; padding: 1.5rem 1.625rem; min-width: 0; }
