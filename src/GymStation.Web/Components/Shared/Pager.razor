@@ -1,0 +1,86 @@
+@* SSR pager: « first · ‹ previous · [editable page field] OF N · size select ·
+   › next · » last. Pure links plus one GET form — the OWNING PAGE clamps an
+   out-of-range page to the last page (spec: too-high input lands on the end). *@
+<div class="pager">
+    @if (Page > 1)
+    {
+        <a class="btn btn--ghost btn--xs" href="@UrlFor(1)" aria-label="First page" title="First page">«</a>
+        <a class="btn btn--ghost btn--xs" href="@UrlFor(Page - 1)" aria-label="Previous page" title="Previous page">‹</a>
+    }
+    else
+    {
+        <span class="btn btn--ghost btn--xs pager-inert" role="link" aria-disabled="true" aria-label="First page (already on it)">«</span>
+        <span class="btn btn--ghost btn--xs pager-inert" role="link" aria-disabled="true" aria-label="Previous page (none)">‹</span>
+    }
+    <form method="get" action="@Path" class="pager-form">
+        @foreach (var (key, value) in SafePreserve)
+        {
+            <input type="hidden" name="@key" value="@value" />
+        }
+        <input class="pager-page" type="number" name="page" value="@Page" min="1" aria-label="Page number" />
+        <span class="cap" style="margin:0">OF @PageCount</span>
+        <select name="size" aria-label="Rows per page">
+            @foreach (var option in Sizes)
+            {
+                <option value="@option" selected="@(option == Size)">@option</option>
+            }
+        </select>
+        <button class="btn btn--ghost btn--xs" type="submit">GO</button>
+    </form>
+    @if (Page < PageCount)
+    {
+        <a class="btn btn--ghost btn--xs" href="@UrlFor(Page + 1)" aria-label="Next page" title="Next page">›</a>
+        <a class="btn btn--ghost btn--xs" href="@UrlFor(PageCount)" aria-label="Last page" title="Last page">»</a>
+    }
+    else
+    {
+        <span class="btn btn--ghost btn--xs pager-inert" role="link" aria-disabled="true" aria-label="Next page (none)">›</span>
+        <span class="btn btn--ghost btn--xs pager-inert" role="link" aria-disabled="true" aria-label="Last page (already on it)">»</span>
+    }
+</div>
+
+@code {
+    /// <summary>Path the links and the GET form target, e.g. "/admin/roster".</summary>
+    [Parameter, EditorRequired] public string Path { get; set; } = "";
+
+    /// <summary>Current page, already clamped by the owning page.</summary>
+    [Parameter] public int Page { get; set; } = 1;
+
+    [Parameter] public int PageCount { get; set; } = 1;
+
+    /// <summary>Active page size; must be one of <see cref="Sizes"/>.</summary>
+    [Parameter] public int Size { get; set; } = DefaultSize;
+
+    /// <summary>Other query params (search, filters, sort) carried through links and the form.
+    /// Null-safe; the reserved "page"/"size" keys are filtered so a careless caller can't
+    /// post duplicates that shadow the user's edits.</summary>
+    [Parameter] public Dictionary<string, string?>? Preserve { get; set; }
+
+    private static readonly string[] ReservedKeys = ["page", "size"];
+
+    private IEnumerable<KeyValuePair<string, string?>> SafePreserve =>
+        (Preserve ?? []).Where(pair =>
+            !string.IsNullOrEmpty(pair.Value)
+            && !ReservedKeys.Contains(pair.Key, StringComparer.OrdinalIgnoreCase));
+
+    public static readonly int[] Sizes = [10, 25, 50];
+    public const int DefaultSize = 25;
+
+    /// <summary>Snap a requested size onto the offered options.</summary>
+    public static int ResolveSize(int? requested) => requested is 10 or 25 or 50 ? requested.Value : DefaultSize;
+
+    /// <summary>Pages needed for a total (never 0); too-high requests clamp to the last page.</summary>
+    public static (int Page, int PageCount) Resolve(int? requestedPage, int total, int size)
+    {
+        var pageCount = Math.Max(1, (total + size - 1) / size);
+        return (Math.Clamp(requestedPage ?? 1, 1, pageCount), pageCount);
+    }
+
+    private string UrlFor(int page)
+    {
+        var parts = new List<string> { $"page={page}", $"size={Size}" };
+        parts.AddRange(SafePreserve
+            .Select(pair => $"{Uri.EscapeDataString(pair.Key)}={Uri.EscapeDataString(pair.Value!)}"));
+        return $"{Path}?{string.Join("&", parts)}";
+    }
+}

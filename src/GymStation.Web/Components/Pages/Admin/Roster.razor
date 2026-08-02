@@ -13,19 +13,19 @@
 <div class="head-row">
     <h1 class="page-title">ROSTER</h1>
 </div>
-<p class="page-sub">@_people.Count SHOWN · SORTED BY NAME</p>
+<p class="page-sub">@(_people.Count == 0 ? "0" : $"{_pageFrom}–{_pageTo}") OF @_people.Count SHOWN</p>
 
 <div class="filters">
     <form method="get" style="display:contents">
         <input type="search" name="q" value="@Q" placeholder="SEARCH NAME…" aria-label="Search name" />
         <button class="btn btn--ghost" type="submit">SEARCH</button>
     </form>
-    <a class="chip @(Role is null ? "active" : null)" href="/admin/roster">ALL</a>
-    <a class="chip @(Role == "member" ? "active" : null)" href="/admin/roster?role=member">MEMBERS</a>
-    <a class="chip @(Role == "visitors" ? "active" : null)" href="/admin/roster?role=visitors">VISITORS</a>
-    <a class="chip @(Role == "instructor" ? "active" : null)" href="/admin/roster?role=instructor">INSTRUCTORS</a>
-    <a class="chip @(Role == "kids" ? "active" : null)" href="/admin/roster?role=kids">KIDS</a>
-    <a class="chip @(Role == "adult" ? "active" : null)" href="/admin/roster?role=adult">ADULTS</a>
+    <a class="chip @(Role is null ? "active" : null)" href="/admin/roster?size=@_size">ALL</a>
+    <a class="chip @(Role == "member" ? "active" : null)" href="/admin/roster?role=member&size=@_size">MEMBERS</a>
+    <a class="chip @(Role == "visitors" ? "active" : null)" href="/admin/roster?role=visitors&size=@_size">VISITORS</a>
+    <a class="chip @(Role == "instructor" ? "active" : null)" href="/admin/roster?role=instructor&size=@_size">INSTRUCTORS</a>
+    <a class="chip @(Role == "kids" ? "active" : null)" href="/admin/roster?role=kids&size=@_size">KIDS</a>
+    <a class="chip @(Role == "adult" ? "active" : null)" href="/admin/roster?role=adult&size=@_size">ADULTS</a>
     <form method="get" style="display:contents">
         @if (!string.IsNullOrEmpty(Q))
         {
@@ -35,6 +35,7 @@
         {
             <input type="hidden" name="role" value="@Role" />
         }
+        <input type="hidden" name="size" value="@_size" />
         <select name="rank" aria-label="Filter by rank">
             <option value="">ANY RANK</option>
             <option value="none" selected="@(RankRaw == "none")">NO BELT</option>
@@ -62,7 +63,7 @@
         </tr>
     </thead>
     <tbody>
-    @foreach (var person in _people)
+    @foreach (var person in _view)
     {
         var rank = _ranks.GetValueOrDefault(person.Id);
         <tr>
@@ -93,6 +94,8 @@
     }
     </tbody>
 </table>
+
+<Pager Path="/admin/roster" Page="@_page" PageCount="@_pageCount" Size="@_size" Preserve="@PreservedQuery" />
 
 <h2 class="section-h">Add person</h2>
 <EditForm class="form-card" FormName="add-person" Model="Form" OnValidSubmit="AddPersonAsync">
@@ -132,6 +135,24 @@
     [SupplyParameterFromQuery(Name = "rank")] public string? RankRaw { get; set; }
     [SupplyParameterFromQuery(Name = "sort")] public string? Sort { get; set; }
     [SupplyParameterFromQuery(Name = "dir")] public string? Dir { get; set; }
+    [SupplyParameterFromQuery(Name = "page")] public int? PageRaw { get; set; }
+    [SupplyParameterFromQuery(Name = "size")] public int? SizeRaw { get; set; }
+
+    private int _page = 1;
+    private int _pageCount = 1;
+    private int _size = Pager.DefaultSize;
+    private int _pageFrom;
+    private int _pageTo;
+    private List<Person> _view = [];
+
+    private Dictionary<string, string?> PreservedQuery => new()
+    {
+        ["q"] = Q,
+        ["role"] = Role,
+        ["rank"] = RankRaw,
+        ["sort"] = Sort,
+        ["dir"] = Dir,
+    };
 
     private Guid? RankFilter => Guid.TryParse(RankRaw, out var id) ? id : null;
     private bool NoBeltFilter => RankRaw == "none";
@@ -199,6 +220,13 @@
         }
 
         ApplySort();
+
+        // Page AFTER filter + sort; a too-high page request clamps to the last page.
+        _size = Pager.ResolveSize(SizeRaw);
+        (_page, _pageCount) = Pager.Resolve(PageRaw, _people.Count, _size);
+        _view = _people.Skip((_page - 1) * _size).Take(_size).ToList();
+        _pageFrom = _people.Count == 0 ? 0 : (_page - 1) * _size + 1;
+        _pageTo = _pageFrom + _view.Count - 1;
     }
 
     private void ApplySort()
@@ -241,6 +269,9 @@
         {
             parts.Add($"rank={Uri.EscapeDataString(RankRaw)}");
         }
+
+        // Re-sorting resets to page 1 on purpose but keeps the chosen page size.
+        parts.Add($"size={_size}");
 
         return "/admin/roster?" + string.Join("&", parts);
     }

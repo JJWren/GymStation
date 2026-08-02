@@ -49,13 +49,14 @@
         <h2 class="section-h">Behind on dues — oldest first</h2>
         <form method="get" class="row-form" style="margin:0 0 0.625rem">
             <input type="search" name="q" value="@Q" placeholder="SEARCH NAME…" aria-label="Search members behind on dues" />
+            <input type="hidden" name="size" value="@_size" />
             <button class="btn btn--ghost btn--xs" type="submit">SEARCH</button>
         </form>
         @if (_dues.Count == 0)
         {
             <p class="cap">@(string.IsNullOrWhiteSpace(Q) ? "EVERYONE IS CURRENT. STAMP IT [PAID]." : "NO ONE BEHIND MATCHES THAT SEARCH.")</p>
         }
-        @foreach (var row in _dues)
+        @foreach (var row in _duesView)
         {
             <div class="form-card" style="margin-bottom:0.5rem">
                 <div class="head-row">
@@ -70,6 +71,11 @@
                     <button class="btn btn--xs" type="submit">RECORD PAYMENT</button>
                 </form>
             </div>
+        }
+        @if (_dues.Count > 0)
+        {
+            <Pager Path="/admin/dues" Page="@_page" PageCount="@_pageCount" Size="@_size"
+                   Preserve="@(new Dictionary<string, string?> { ["q"] = Q })" />
         }
     </section>
 
@@ -233,6 +239,13 @@
     [SupplyParameterFromQuery(Name = "failed")] public int? FailedFlag { get; set; }
     [SupplyParameterFromQuery(Name = "raised")] public int? Raised { get; set; }
     [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+    [SupplyParameterFromQuery(Name = "page")] public int? PageRaw { get; set; }
+    [SupplyParameterFromQuery(Name = "size")] public int? SizeRaw { get; set; }
+
+    private int _page = 1;
+    private int _pageCount = 1;
+    private int _size = Pager.DefaultSize;
+    private List<DuesRow> _duesView = [];
     private bool Failed => FailedFlag == 1;
 
     // Parameter names must match the identifiers bound in markup — SSR input names come
@@ -284,6 +297,11 @@
         {
             _dues = _dues.Where(d => d.Name.Contains(Q.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
         }
+
+        // Page AFTER the search filter; a too-high page request clamps to the last page.
+        _size = Pager.ResolveSize(SizeRaw);
+        (_page, _pageCount) = Pager.Resolve(PageRaw, _dues.Count, _size);
+        _duesView = _dues.Skip((_page - 1) * _size).Take(_size).ToList();
         _plans = await db.MembershipPlans.OrderBy(p => p.Archived).ThenBy(p => p.Price).ToListAsync();
 
         var counts = await db.Persons.Where(p => !p.Archived && p.MembershipPlanId != null)
