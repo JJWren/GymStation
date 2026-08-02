@@ -142,7 +142,8 @@ public static class InstructorActionEndpoints
         // A walk-in visitor: ad-hoc roster record + straight onto this roll.
         group.MapPost("/add-visitor", async (
             [FromForm] Guid sessionId, [FromForm] string firstName, [FromForm] string lastName,
-            ClaimsPrincipal user, GymStation.Infrastructure.People.PersonService people, AttendanceService attendance) =>
+            ClaimsPrincipal user, GymStation.Infrastructure.GymStationDbContext db,
+            GymStation.Infrastructure.People.PersonService people, AttendanceService attendance) =>
         {
             var raw = user.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!Guid.TryParse(raw, out var userId))
@@ -150,10 +151,14 @@ public static class InstructorActionEndpoints
                 return Results.Redirect($"/instructor/roll/{sessionId}?failed=1");
             }
 
+            // One transaction for create + check-in (the scoped context is shared),
+            // so a rejected session can't leave an orphaned visitor behind.
+            await using var transaction = await db.Database.BeginTransactionAsync();
             try
             {
                 var visitor = await people.AddVisitorAsync(firstName, lastName);
                 await attendance.CheckInAsync(sessionId, visitor.Id, CheckInSource.Instructor, userId);
+                await transaction.CommitAsync();
             }
             catch (InvalidOperationException)
             {
