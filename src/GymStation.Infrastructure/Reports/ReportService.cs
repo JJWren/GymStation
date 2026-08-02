@@ -30,23 +30,18 @@ public class ReportService(GymStationDbContext db)
         return series;
     }
 
-    /// <summary>Gym-wide confirmed check-ins per week for the trend bars, oldest first.</summary>
-    public async Task<List<int>> WeeklyCheckinsAsync(DateOnly today, int weeks = 12, CancellationToken ct = default)
+    /// <summary>Gym-wide confirmed check-ins per Sunday-start calendar week, oldest first.</summary>
+    public async Task<List<WeekCount>> WeeklyCheckinsAsync(DateOnly today, int weeks = 12, CancellationToken ct = default)
     {
-        var from = today.AddDays(-7 * weeks);
-        var confirmed = await db.AttendanceRecords.AsNoTracking()
-            .Where(a => a.Status == AttendanceStatus.Confirmed && a.Session.Date >= from)
+        var starts = StatWeeks.Starts(today, weeks);
+        var from = starts[0];
+        var dates = await db.AttendanceRecords.AsNoTracking()
+            .Where(a => a.Status == AttendanceStatus.Confirmed && a.Session.Date >= from && a.Session.Date <= today)
             .Select(a => a.Session.Date)
             .ToListAsync(ct);
 
-        var weekly = new int[weeks];
-        foreach (var date in confirmed)
-        {
-            var age = today.DayNumber - date.DayNumber;
-            weekly[weeks - 1 - Math.Min(age / 7, weeks - 1)]++;
-        }
-
-        return [.. weekly];
+        var byWeek = dates.GroupBy(StatWeeks.SundayOf).ToDictionary(g => g.Key, g => g.Count());
+        return [.. starts.Select(s => new WeekCount(s, byWeek.GetValueOrDefault(s)))];
     }
 
     /// <summary>

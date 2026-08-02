@@ -167,25 +167,24 @@ public class AttendanceService(GymStationDbContext db)
     }
 
     /// <summary>Gym-verified stats from Confirmed records only (the owner-stats tier).</summary>
-    public async Task<(double PerWeekAverage, int VerifiedHours, List<int> WeeklyCounts)> StatsAsync(
+    public async Task<(double PerWeekAverage, int VerifiedHours, List<WeekCount> WeeklyCounts)> StatsAsync(
         Guid personId, DateOnly today, int weeks = 12, CancellationToken ct = default)
     {
-        var from = today.AddDays(-7 * weeks);
+        // Sunday-start calendar weeks, so the chart labels are true week dates.
+        var starts = StatWeeks.Starts(today, weeks);
+        var from = starts[0];
         var confirmed = await db.AttendanceRecords
             .Include(a => a.Session)
-            .Where(a => a.PersonId == personId && a.Status == AttendanceStatus.Confirmed && a.Session.Date >= from)
+            .Where(a => a.PersonId == personId && a.Status == AttendanceStatus.Confirmed
+                && a.Session.Date >= from && a.Session.Date <= today)
             .ToListAsync(ct);
 
-        var weekly = new int[weeks];
-        var minutes = 0;
-        foreach (var record in confirmed)
-        {
-            var age = today.DayNumber - record.Session.Date.DayNumber;
-            var bucket = weeks - 1 - Math.Min(age / 7, weeks - 1);
-            weekly[bucket]++;
-            minutes += record.Session.DurationMinutes;
-        }
+        var byWeek = confirmed
+            .GroupBy(r => StatWeeks.SundayOf(r.Session.Date))
+            .ToDictionary(g => g.Key, g => g.Count());
+        var weekly = starts.Select(s => new WeekCount(s, byWeek.GetValueOrDefault(s))).ToList();
+        var minutes = confirmed.Sum(r => r.Session.DurationMinutes);
 
-        return (Math.Round(confirmed.Count / (double)weeks, 1), minutes / 60, [.. weekly]);
+        return (Math.Round(confirmed.Count / (double)weeks, 1), minutes / 60, weekly);
     }
 }

@@ -148,7 +148,7 @@ public class AttendanceTests(PostgresFixture fixture)
 
         var after = await attendance.StatsAsync(member.Id, DateOnly.FromDateTime(DateTime.UtcNow));
         Assert.Equal(1, after.VerifiedHours);
-        Assert.Equal(1, after.WeeklyCounts.Sum());
+        Assert.Equal(1, after.WeeklyCounts.Sum(w => w.Count));
     }
 
     [Fact]

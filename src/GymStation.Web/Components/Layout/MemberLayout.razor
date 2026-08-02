@@ -7,7 +7,9 @@
 
 <div class="member-frame @(_dark ? null : "theme-light")" style="--tenant:@_accent">
     <header class="member-top">
-        <div><b>@(_gymName ?? "GYMSTATION")</b><i>MEMBER</i></div>
+        <a class="brand-link" href="@(_gymSlug is null ? "/" : $"/{_gymSlug}")" title="Open your gym's public page">
+            <div><b>@(_gymName ?? "GYMSTATION")</b><i>MEMBER</i></div>
+        </a>
         <div class="member-top-actions">
             <a class="bell" href="/notifications" aria-label="Notifications">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -40,6 +42,7 @@
 
 @code {
     private string? _gymName;
+    private string? _gymSlug;
     private string _accent = "#C9503B";
     private bool _dark = true;
 
@@ -48,7 +51,9 @@
         if (Tenant.CurrentGymId is { } gymId)
         {
             await using var db = await DbFactory.CreateDbContextAsync();
-            _gymName = (await db.Gyms.SingleOrDefaultAsync(g => g.Id == gymId))?.Name.ToUpperInvariant();
+            var gym = await db.Gyms.SingleOrDefaultAsync(g => g.Id == gymId);
+            _gymName = gym?.Name.ToUpperInvariant();
+            _gymSlug = gym?.Slug;
 
             var settings = await db.GymSettings.SingleOrDefaultAsync();
             if (settings is not null)
