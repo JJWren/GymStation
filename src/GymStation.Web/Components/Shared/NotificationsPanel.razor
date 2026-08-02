@@ -70,10 +70,17 @@
         await using var db = await DbFactory.CreateDbContextAsync();
         var scope = db.Notifications.Where(n => n.RecipientUserId == userId);
         _total = await scope.CountAsync();
-        // Unread can live on any page — the mark-all button keys off the whole set.
-        _hasUnread = await scope.AnyAsync(n => n.ReadUtc == null);
         _size = Pager.ResolveSize(SizeRaw);
         (_page, _pageCount) = Pager.Resolve(PageRaw, _total, _size);
+
+        // Empty inbox: nothing to page, nothing unread — skip the extra queries.
+        if (_total == 0)
+        {
+            return;
+        }
+
+        // Unread can live on any page — the mark-all button keys off the whole set.
+        _hasUnread = await scope.AnyAsync(n => n.ReadUtc == null);
         _items = await scope
             .OrderByDescending(n => n.CreatedUtc)
             .Skip((_page - 1) * _size)
