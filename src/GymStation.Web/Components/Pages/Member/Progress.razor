@@ -230,14 +230,22 @@
         var scope = db.AttendanceRecords.Where(a =>
             a.PersonId == me.Id && a.Status != AttendanceStatus.Removed
             && a.Session.Date >= _from && a.Session.Date <= _to);
-        _ciTotal = await scope.CountAsync();
-        _ciConfirmed = await scope.CountAsync(a => a.Status == AttendanceStatus.Confirmed);
-        _ciPending = _ciTotal - _ciConfirmed;
+
+        // One grouped scan covers all three totals (Removed is already excluded).
+        var statusCounts = await scope
+            .GroupBy(a => a.Status)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToListAsync();
+        _ciConfirmed = statusCounts.Where(x => x.Key == AttendanceStatus.Confirmed).Sum(x => x.Count);
+        _ciPending = statusCounts.Where(x => x.Key == AttendanceStatus.Pending).Sum(x => x.Count);
+        _ciTotal = _ciConfirmed + _ciPending;
+
         _checkIns = await scope
             .Include(a => a.Session)
             .OrderByDescending(a => a.Session.Date).ThenByDescending(a => a.Session.StartTime)
             .Skip((_ciPage - 1) * CheckInPageSize)
             .Take(CheckInPageSize)
+            .AsNoTracking()
             .ToListAsync();
     }
 
