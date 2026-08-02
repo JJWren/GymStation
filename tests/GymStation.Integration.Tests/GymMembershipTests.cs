@@ -83,7 +83,7 @@ public class GymMembershipTests(PostgresFixture fixture)
         Assert.Equal("/", await memberships.LandingPathAsync(ownerUserId, gym.Id));
         Assert.Equal("/schedule", await memberships.LandingPathAsync(memberUserId, gym.Id));
 
-        // Instructors live in the member shell until #39's /teach landing exists.
-        Assert.Equal("/schedule", await memberships.LandingPathAsync(instructorUserId, gym.Id));
+        // Instructors land on their teaching view (#39).
+        Assert.Equal("/teach", await memberships.LandingPathAsync(instructorUserId, gym.Id));
     }
 }

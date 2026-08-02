@@ -51,6 +51,10 @@
             </div>
             <div class="n" style="font-size:16px">@session.Name</div>
             <div class="c">@(_names.GetValueOrDefault(session.InstructorPersonId ?? Guid.Empty, "UNASSIGNED").ToUpperInvariant()) · @session.DurationMinutes MIN</div>
+            @if (session.InstructorPersonId is { } instructorId && _minePersonIds.Contains(instructorId))
+            {
+                <p style="margin:6px 0 0"><span class="stamp stamp--ok">YOU TEACH</span> <a class="chip" href="/instructor/roll/@session.Id">LIVE ROLL →</a></p>
+            }
             @if (session.Status == SessionStatus.Cancelled)
             {
                 <span class="stamp stamp--bad">CANCELLED</span>
@@ -107,6 +111,7 @@
     private List<ClassType> _types = [];
     private Dictionary<Guid, string> _names = [];
     private List<Person> _checkable = [];
+    private HashSet<Guid> _minePersonIds = [];
     private Dictionary<(Guid SessionId, Guid PersonId), AttendanceRecord> _records = [];
     private int _windowMinutes = 60;
     private DateTime _gymNow;
@@ -148,6 +153,7 @@
             var childIds = await db.GuardianLinks.Where(l => l.GuardianUserId == userId).Select(l => l.ChildPersonId).ToListAsync();
             var children = await db.Persons.Where(p => childIds.Contains(p.Id) && !p.Archived).ToListAsync();
             _checkable = [.. mine, .. children];
+            _minePersonIds = mine.Select(p => p.Id).ToHashSet();
 
             var checkableIds = _checkable.Select(p => p.Id).ToList();
             var sessionIds = _sessions.Select(s => s.Id).ToList();
