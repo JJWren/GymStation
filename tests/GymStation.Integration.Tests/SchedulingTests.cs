@@ -78,6 +78,93 @@ public class SchedulingTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task EditingOneOccurrence_ChangesOnlyThatSession_AndNotifiesOnTimeChange()
+    {
+        var (_, tenant, coach, sub, admin) = await SeedGymAsync();
+        var session = await SeedWeekWithTemplateAsync(tenant, coach.Id);
+
+        await using var context = fixture.CreateContext(tenant);
+        var schedule = new ScheduleService(context, new NotificationService(context));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => schedule.UpdateSessionAsync(session.Id, " ", new TimeOnly(19, 0), 60, null));
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => schedule.UpdateSessionAsync(session.Id, "No-Gi", new TimeOnly(19, 0), 5, null));
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => schedule.UpdateSessionAsync(session.Id, "No-Gi", new TimeOnly(19, 0), 60, Guid.NewGuid()));
+        await Assert.ThrowsAsync<InvalidOperationException>( // real person, but not an Instructor
+            () => schedule.UpdateSessionAsync(session.Id, "No-Gi", new TimeOnly(19, 0), 60, admin.Id));
+
+        // Instructor-only swap: no time change, no notification noise.
+        await schedule.UpdateSessionAsync(session.Id, "No-Gi", new TimeOnly(18, 0), 90, sub.Id);
+        Assert.Empty(await context.Notifications.ToListAsync());
+
+        await schedule.UpdateSessionAsync(session.Id, "No-Gi Late", new TimeOnly(19, 30), 60, sub.Id);
+
+        var updated = await context.ClassSessions.SingleAsync(s => s.Id == session.Id);
+        Assert.Equal("No-Gi Late", updated.Name);
+        Assert.Equal(new TimeOnly(19, 30), updated.StartTime);
+        Assert.Equal(60, updated.DurationMinutes);
+        Assert.Equal(sub.Id, updated.InstructorPersonId);
+
+        // The template behind it is untouched.
+        var template = await context.ClassTemplates.SingleAsync();
+        Assert.Equal(new TimeOnly(18, 0), template.StartTime);
+
+        Assert.Contains(await context.Notifications.ToListAsync(),
+            n => n.Category == NotificationCategory.SessionChanged && n.RecipientUserId == admin.UserId);
+    }
+
+    [Fact]
+    public async Task EditingTheTemplate_AppliesToUnmaterializedWeeks_Only()
+    {
+        var (_, tenant, coach, sub, _) = await SeedGymAsync();
+        var session = await SeedWeekWithTemplateAsync(tenant, coach.Id);
+
+        await using var context = fixture.CreateContext(tenant);
+        var schedule = new ScheduleService(context, new NotificationService(context));
+        var template = await context.ClassTemplates.SingleAsync();
+
+        var type = new ClassType { Id = Guid.NewGuid(), Name = "no-gi", ColorHex = "#3A6EA5" };
+        context.ClassTypes.Add(type);
+        await context.SaveChangesAsync();
+
+        await schedule.UpdateTemplateAsync(
+            template.Id, "No-Gi Advanced", DayOfWeek.Wednesday, new TimeOnly(19, 0), 60, sub.Id, [type.Id]);
+
+        // This week's occurrence was already on the calendar — untouched.
+        var existing = await context.ClassSessions.SingleAsync(s => s.Id == session.Id);
+        Assert.Equal("No-Gi", existing.Name);
+        Assert.Equal(DayOfWeek.Tuesday, existing.Date.DayOfWeek);
+
+        // The next week materializes from the edited template.
+        var nextWeek = await schedule.GetWeekAsync(Monday.AddDays(7));
+        var future = nextWeek.Single(s => s.TemplateId == template.Id);
+        Assert.Equal("No-Gi Advanced", future.Name);
+        Assert.Equal(DayOfWeek.Wednesday, future.Date.DayOfWeek);
+        Assert.Equal(new TimeOnly(19, 0), future.StartTime);
+        Assert.Equal(sub.Id, future.InstructorPersonId);
+        Assert.Single(future.ClassTypes, t => t.Id == type.Id);
+    }
+
+    [Fact]
+    public async Task PausedTemplates_StopMaterializing_UntilRestored()
+    {
+        var (_, tenant, coach, _, _) = await SeedGymAsync();
+        await SeedWeekWithTemplateAsync(tenant, coach.Id);
+
+        await using var context = fixture.CreateContext(tenant);
+        var schedule = new ScheduleService(context, new NotificationService(context));
+        var template = await context.ClassTemplates.SingleAsync();
+
+        await schedule.SetTemplateActiveAsync(template.Id, false);
+        Assert.DoesNotContain(await schedule.GetWeekAsync(Monday.AddDays(7)), s => s.TemplateId == template.Id);
+
+        await schedule.SetTemplateActiveAsync(template.Id, true);
+        Assert.Contains(await schedule.GetWeekAsync(Monday.AddDays(14)), s => s.TemplateId == template.Id);
+    }
+
+    [Fact]
     public async Task Materialization_IsLazy_AndIdempotent()
     {
         var (_, tenant, coach, _, _) = await SeedGymAsync();

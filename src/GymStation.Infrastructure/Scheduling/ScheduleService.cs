@@ -73,6 +73,123 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
             .ToListAsync(ct);
     }
 
+    private static void ValidateShape(string name, int durationMinutes)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > 80)
+        {
+            throw new InvalidOperationException("A class name is required (80 characters max).");
+        }
+
+        if (durationMinutes is < 15 or > 480)
+        {
+            throw new InvalidOperationException("Duration must be between 15 and 480 minutes.");
+        }
+    }
+
+    private async Task ValidateInstructorAsync(Guid? instructorPersonId, CancellationToken ct)
+    {
+        if (instructorPersonId is { } id && !await db.Persons.AnyAsync(
+                p => p.Id == id && !p.Archived && p.Roles.HasFlag(Domain.People.PersonRoles.Instructor), ct))
+        {
+            throw new InvalidOperationException("Pick an active person with the Instructor role.");
+        }
+    }
+
+    /// <summary>Edits ONE occurrence in place. Time changes notify the same audience a
+    /// cancellation would — staff, the instructor, and everyone already checked in.</summary>
+    public async Task UpdateSessionAsync(
+        Guid sessionId, string name, TimeOnly start, int durationMinutes, Guid? instructorPersonId,
+        CancellationToken ct = default)
+    {
+        ValidateShape(name, durationMinutes);
+
+        var session = await db.ClassSessions.SingleOrDefaultAsync(s => s.Id == sessionId, ct)
+            ?? throw new InvalidOperationException("Session not found in the active gym.");
+
+        await ValidateInstructorAsync(instructorPersonId, ct);
+
+        var timeChanged = session.StartTime != start || session.DurationMinutes != durationMinutes;
+
+        session.Name = name.Trim();
+        session.StartTime = start;
+        session.DurationMinutes = durationMinutes;
+        session.InstructorPersonId = instructorPersonId;
+
+        if (timeChanged)
+        {
+            var recipients = await notifications.StaffUserIdsAsync(ct);
+            if (instructorPersonId is { } instructor)
+            {
+                recipients.AddRange(await notifications.UserIdsForPersonsAsync([instructor], ct));
+            }
+
+            var checkedInPersonIds = await db.AttendanceRecords
+                .Where(a => a.SessionId == session.Id && a.Status != Domain.Attendance.AttendanceStatus.Removed)
+                .Select(a => a.PersonId)
+                .ToListAsync(ct);
+            recipients.AddRange(await notifications.UserIdsForPersonsAsync(checkedInPersonIds, ct));
+            recipients.AddRange(await db.GuardianLinks
+                .Where(l => checkedInPersonIds.Contains(l.ChildPersonId))
+                .Select(l => l.GuardianUserId)
+                .ToListAsync(ct));
+
+            notifications.Notify(
+                recipients,
+                NotificationCategory.SessionChanged,
+                $"Changed: {session.Name} · {session.Date:ddd dd MMM} now {start:HH\\:mm}",
+                $"{session.Name} on {session.Date:dddd dd MMMM} now runs {start:HH\\:mm} for {durationMinutes} minutes.",
+                "/schedule");
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>Edits the weekly template. Applies to weeks not yet materialized;
+    /// occurrences already on the calendar keep their own values.</summary>
+    public async Task UpdateTemplateAsync(
+        Guid templateId, string name, DayOfWeek day, TimeOnly start, int durationMinutes,
+        Guid? instructorPersonId, IReadOnlyList<Guid> typeIds, CancellationToken ct = default)
+    {
+        ValidateShape(name, durationMinutes);
+
+        var template = await db.ClassTemplates
+            .Include(t => t.ClassTypes)
+            .SingleOrDefaultAsync(t => t.Id == templateId, ct)
+            ?? throw new InvalidOperationException("Template not found in the active gym.");
+
+        await ValidateInstructorAsync(instructorPersonId, ct);
+
+        // Every posted type id must resolve — a stale/tampered id must not silently
+        // erase tags that were meant to be kept.
+        var distinctTypeIds = typeIds.Distinct().ToList();
+        var types = await db.ClassTypes.Where(t => distinctTypeIds.Contains(t.Id)).ToListAsync(ct);
+        if (types.Count != distinctTypeIds.Count)
+        {
+            throw new InvalidOperationException("One of the class types no longer exists — reload and try again.");
+        }
+
+        template.Name = name.Trim();
+        template.Day = day;
+        template.StartTime = start;
+        template.DurationMinutes = durationMinutes;
+        template.DefaultInstructorPersonId = instructorPersonId;
+
+        template.ClassTypes.Clear();
+        template.ClassTypes.AddRange(types);
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>Pause (or restore) a weekly template; paused templates stop materializing.</summary>
+    public async Task SetTemplateActiveAsync(Guid templateId, bool active, CancellationToken ct = default)
+    {
+        var template = await db.ClassTemplates.SingleOrDefaultAsync(t => t.Id == templateId, ct)
+            ?? throw new InvalidOperationException("Template not found in the active gym.");
+
+        template.Active = active;
+        await db.SaveChangesAsync(ct);
+    }
+
     public async Task CancelSessionAsync(Guid sessionId, string reason, CancellationToken ct = default)
     {
         var session = await db.ClassSessions.SingleOrDefaultAsync(s => s.Id == sessionId, ct)

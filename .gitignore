@@ -480,3 +480,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Local file-store media written by dev/rig runs
+src/GymStation.Web/data/

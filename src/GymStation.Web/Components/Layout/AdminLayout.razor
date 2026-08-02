@@ -44,6 +44,10 @@
                 <AntiforgeryToken />
                 <button type="submit">SIGN OUT</button>
             </form>
+            @if (_email is not null)
+            {
+                <span class="signed-in-as">SIGNED IN AS @_email</span>
+            }
         </div>
     </nav>
     <main class="main">
@@ -65,9 +69,15 @@
     private string _accent = "#C9503B";
     private bool _dark = true;
     private string? _logoPath;
+    private string? _email;
 
     protected override async Task OnInitializedAsync()
     {
+        // UserName is the email throughout this app; the claim wins when present.
+        // Whitespace normalizes to null so no blank "SIGNED IN AS" line renders.
+        var accountName = HttpContext?.User.FindFirstValue(ClaimTypes.Email) ?? HttpContext?.User.Identity?.Name;
+        _email = string.IsNullOrWhiteSpace(accountName) ? null : accountName;
+
         if (Tenant.CurrentGymId is { } gymId)
         {
             await using var db = await DbFactory.CreateDbContextAsync();
