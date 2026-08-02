@@ -14,7 +14,7 @@ Loop process per issue: branch off pulled master → implement → rig-verify �
 ## Loop status
 
 - [x] #76 — Active-gym claim lost on security-stamp refresh (fixed: persisted ActiveGymId + claims factory)
-- [ ] #77 — Un-themed input fields sweep
+- [x] #77 — Un-themed input fields sweep (:not()-based selectors)
 - [ ] #78 — Admin shell: full-width, sticky rail, hamburger top bar
 - [ ] #79 — Type scale up, belts 2×, reports density pass
 - [ ] #80 — Notifications pagination; pager default 10
