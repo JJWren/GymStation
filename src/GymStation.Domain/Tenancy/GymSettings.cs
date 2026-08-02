@@ -23,6 +23,12 @@ public class GymSettings : ITenantOwned
     /// <summary>Self check-in opens this many minutes before session start (closes at session end).</summary>
     public int CheckInWindowMinutes { get; set; } = 60;
 
+    /// <summary>Mat hours: the schedule's time rail spans exactly this window.</summary>
+    public TimeOnly OpenTime { get; set; } = new(6, 0);
+
+    /// <summary>Mat hours end; must sit after OpenTime.</summary>
+    public TimeOnly CloseTime { get; set; } = new(22, 0);
+
     /// <summary>Tenant accent color; shades derived and WCAG-validated on save (both modes).</summary>
     public string AccentColorHex { get; set; } = "#C9503B";
 
