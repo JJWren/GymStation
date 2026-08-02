@@ -8,8 +8,9 @@
       data-aspect="@Aspect.ToString(CultureInfo.InvariantCulture)" data-out-width="@OutWidth">
     <AntiforgeryToken />
     <input type="hidden" name="kind" value="@Kind" />
+    @ChildContent
     <div class="row-form" style="margin:0">
-        <input type="file" name="file" accept=".png,.jpg,.jpeg,.webp" aria-label="@Label file" />
+        <input type="file" id="@InputId" name="file" accept=".png,.jpg,.jpeg,.webp" aria-label="@Label file" />
         <button class="btn btn--ghost btn--xs plain-submit" type="submit">UPLOAD @Label.ToUpperInvariant()</button>
     </div>
     <div class="crop-ui" hidden>
@@ -41,4 +42,11 @@
 
     /// <summary>Dimension guidance shown under the crop UI.</summary>
     [Parameter] public string Hint { get; set; } = "";
+
+    /// <summary>Optional id for the file input so external labels can open the picker.</summary>
+    [Parameter] public string? InputId { get; set; }
+
+    /// <summary>Extra hidden fields posted with the file (e.g. personId). The crop JS
+    /// builds FormData from the whole form, so these ride along on both paths.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
 }

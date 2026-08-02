@@ -20,11 +20,19 @@ else
 
     @if (Failed)
     {
-        <p class="auth-error" role="alert">That action was rejected — check the amount or plan and try again.</p>
+        <p class="auth-error" role="alert">That action was rejected — it didn't pass validation. Check the values and try again.</p>
     }
 
     <header class="patch" style="display:flex;gap:1.125rem;align-items:center">
-        <div class="avatar avatar--l" role="img" aria-label="Portrait placeholder"></div>
+        <label for="portrait-file" style="cursor:pointer;position:relative;z-index:1" title="Click to upload a new portrait">
+            <span class="avatar avatar--l" style="display:block" role="img"
+                  aria-label="@(_person.PortraitPath is null ? "Portrait placeholder — click to upload" : $"Portrait of {_person.DisplayName} — click to replace")">
+                @if (_person.PortraitPath is not null)
+                {
+                    <img src="/admin/media/portrait/@_person.Id" alt="" />
+                }
+            </span>
+        </label>
         <div style="flex:1;position:relative;z-index:1">
             <h1 class="page-title">@_person.DisplayName.ToUpperInvariant()</h1>
             <p class="cap" style="margin:0.25rem 0 0.625rem">
@@ -55,6 +63,14 @@ else
             }
         </div>
     </header>
+
+    <div style="margin:0.625rem 0 0.25rem">
+        <MediaCropUpload Kind="portrait" Label="portrait" Aspect="1" OutWidth="512"
+                         Action="/admin/actions/upload-portrait" InputId="portrait-file"
+                         Hint="SQUARE · 512×512 OR LARGER · STAFF-ONLY, NEVER PUBLIC">
+            <input type="hidden" name="personId" value="@_person.Id" />
+        </MediaCropUpload>
+    </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.125rem;align-items:start" class="detail-cols">
         <section>
