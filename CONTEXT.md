@@ -22,7 +22,34 @@ A Gym's roster record for a human. May exist without a User (children, members w
 _Avoid_: profile, contact
 
 **Role**:
-A per-Person set, never exclusive: Owner, Admin, Instructor, Member. A coach who trains holds {Instructor, Member} on one Person.
+A per-Person set, never exclusive: Owner, Admin, Instructor, Member, Staff. A coach who trains holds {Instructor, Member} on one Person.
+
+**Staff**:
+A Person working for the Gym without portal privileges — front desk, cleaning. Owners, Admins, and Instructors are staff-ish by nature; the Staff role marks everyone else. Staff-ish Persons may carry a StaffProfile.
+_Avoid_: employee, worker
+
+**StaffProfile**:
+Pay rate/unit plus bio and experience for any staff-ish Person. Pay is stored and displayed only — payroll computation stays deferred. Supersedes InstructorProfile.
+_Avoid_: instructor profile (historical name)
+
+**Family**:
+A Gym's billing-and-guardianship group: member Persons plus guardian Users. The home of family plans, the primary payer, and acting-for-wards.
+_Avoid_: household, group
+
+**FamilyMember**:
+A Person's membership in a Family. Wards (IsWard) are acted for by guardians; adult members are not.
+
+**Ward**:
+A FamilyMember flagged IsWard — guardians act on their behalf across the member portal, including their diary.
+_Avoid_: child, minor (age is a fact; wardship is the modeled state)
+
+**FamilyGuardian**:
+A User's guardianship over a Family, carrying permission flags: act for wards (default on), manage guardians, manage members, view billing. Exactly one guardian is PRIMARY — all flags locked on, payments raised against their Person, transferable by themselves or a Gym admin.
+_Avoid_: parent (guardians need not be parents)
+
+**Graduation**:
+The manual hand-off of a Ward to their own account: a login is invited, IsWard clears, and the entire diary — history included — becomes private to the new adult. Never automatic; the platform nudges the primary and admins when a Ward turns 18.
+_Avoid_: emancipation, aging out
 
 **Member**:
 A Person with the Member role — someone who trains at the Gym.
@@ -77,7 +104,7 @@ _Avoid_: promotion record (a stripe is not a promotion)
 ### Money
 
 **MembershipPlan**:
-A Gym's price + billing cadence a Member is on.
+A Gym's price + billing cadence, scoped per-person or per-family. A family-scoped plan is assigned to a Family and charged to its primary guardian's Person; covered members are skipped by the individual cycle.
 _Avoid_: subscription, tier
 
 **Charge**:
@@ -93,13 +120,17 @@ _Avoid_: transaction
 _Avoid_: amount owed (field), credit
 
 **Expense**:
-An owner-entered Gym outgoing (rent, insurance, equipment), categorized by per-Gym ExpenseCategories.
+An owner-entered Gym outgoing (rent, insurance, equipment), categorized by per-Gym ExpenseCategories. Fully editable and deletable — bookkeeping, not an audit ledger.
 _Avoid_: cost, bill
+
+**OtherIncome**:
+Owner-entered Gym revenue that isn't dues — seminars, merch, drop-in fees. Mirrors Expense (label/category, amount, received-on, note) and is equally editable and deletable. Net = dues collected + OtherIncome − Expenses.
+_Avoid_: revenue (the derived total), earnings
 
 ### Member portal
 
 **TrainingEntry**:
-A Member's private diary record — lesson notes, roll log (optionally tagging roster Persons; visible only to the author), or self-reported training. Never visible to Instructors, Admins, or Owners.
+A Member's diary record — lesson notes, roll log (optionally tagging roster Persons), or self-reported training. Private to the member's account authority: the member themselves, or — for Wards — their acting guardians. Never visible to Instructors, Admins, or Owners. Graduation transfers the whole diary to the new adult alone.
 _Avoid_: journal, log entry
 
 **Mat Hours**:
