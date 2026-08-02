@@ -377,10 +377,14 @@ else
         }
 
         // Prefill unless THIS form was the one posted (another form's POST must not
-        // blank the edit fields).
-        if (string.IsNullOrEmpty(PersonForm!.FirstName) && string.IsNullOrEmpty(PersonForm.LastName))
+        // blank the edit fields — and a posted-blank name must reach validation,
+        // so the check is the posted form's identity, not the field values).
+        var postedHandler = HttpContext?.Request.Method == "POST"
+            ? HttpContext.Request.Form["_handler"].ToString()
+            : null;
+        if (postedHandler != "edit-person")
         {
-            PersonForm.FirstName = _person.FirstName;
+            PersonForm!.FirstName = _person.FirstName;
             PersonForm.LastName = _person.LastName;
             PersonForm.DateOfBirth = _person.DateOfBirth;
             PersonForm.IsMember = _person.Roles.HasFlag(PersonRoles.Member);

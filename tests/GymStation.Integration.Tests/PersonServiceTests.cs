@@ -35,11 +35,12 @@ public class PersonServiceTests(PostgresFixture fixture)
 
         await using var context = fixture.CreateContext(tenant);
         var service = new PersonService(context);
-        await service.UpdateAsync(member.Id, "Dara", "Nair-Smith", new DateOnly(2015, 3, 9), PersonRoles.Member);
+        await service.UpdateAsync(member.Id, "Dara", "Nair-Smith", new DateOnly(2015, 3, 9), PersonRoles.Member | PersonRoles.Instructor);
 
         var reloaded = await context.Persons.SingleAsync(p => p.Id == member.Id);
         Assert.Equal("Nair-Smith", reloaded.LastName);
         Assert.Equal(new DateOnly(2015, 3, 9), reloaded.DateOfBirth);
+        Assert.Equal(PersonRoles.Member | PersonRoles.Instructor, reloaded.Roles);
     }
 
     [Fact]
@@ -50,10 +51,13 @@ public class PersonServiceTests(PostgresFixture fixture)
         await using var context = fixture.CreateContext(tenant);
         var service = new PersonService(context);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        var demote = await Assert.ThrowsAsync<InvalidOperationException>(
             () => service.UpdateAsync(owner.Id, "Jordan", "Torres", null, PersonRoles.Admin | PersonRoles.Member));
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        Assert.Contains("only active Owner", demote.Message);
+
+        var archive = await Assert.ThrowsAsync<InvalidOperationException>(
             () => service.SetArchivedAsync(owner.Id, true));
+        Assert.Contains("only active Owner", archive.Message);
 
         // With a second Owner in place, both operations go through.
         await service.UpdateAsync(member.Id, "Dara", "Nair", null, PersonRoles.Member | PersonRoles.Owner);
