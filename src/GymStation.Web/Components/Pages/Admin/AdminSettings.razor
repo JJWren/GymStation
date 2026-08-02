@@ -2,6 +2,7 @@
 @attribute [Authorize(Policy = "GymStaff")]
 @layout AdminLayout
 @using GymStation.Domain.Tenancy
+@using System.Security.Claims
 @inject IDbContextFactory<GymStationDbContext> DbFactory
 @inject NavigationManager Nav
 
@@ -75,6 +76,26 @@
                 <button type="submit" class="btn btn--ghost btn--xs">TURN OPEN CLAIMS @(_settings?.OpenClaimsEnabled == true ? "OFF" : "ON")</button>
             </form>
         </div>
+
+        <h2 class="section-h">Your session</h2>
+        <div class="form-card">
+            <p class="cap" style="margin:0 0 0.5rem">
+                IDLE SIGN-OUT: @(_idleMinutes is { } idle ? $"AFTER {idle} MINUTES" : "OFF") ·
+                WITH NO ACTIVITY FOR THAT LONG, THE BROWSER SIGNS YOU OUT FULLY (BACK TO THE LOGIN PAGE).
+                OFF BY DEFAULT — MEANT FOR SHARED FRONT-DESK MACHINES. THIS FOLLOWS YOUR LOGIN, NOT THE GYM.
+            </p>
+            <form method="post" action="/auth/idle-signout" class="row-form">
+                <AntiforgeryToken />
+                <select name="minutes" aria-label="Idle sign-out">
+                    <option value="0" selected="@(_idleMinutes is null)">OFF</option>
+                    @foreach (var option in new[] { 15, 30, 60, 120 })
+                    {
+                        <option value="@option" selected="@(_idleMinutes == option)">AFTER @option MIN</option>
+                    }
+                </select>
+                <button type="submit" class="btn btn--ghost btn--xs">SAVE</button>
+            </form>
+        </div>
     </section>
 
     <section>
@@ -125,6 +146,7 @@
     private GymSettings? _settings;
     private string? _gymSlug;
     private string? _error;
+    private int? _idleMinutes;
     private List<(string Id, string Label)> _timeZones = [];
 
     private static readonly string[] CommonZoneIds =
@@ -151,6 +173,14 @@
         _settings = await db.GymSettings.SingleOrDefaultAsync();
         var gym = await db.Gyms.SingleOrDefaultAsync(g => g.Id == db.CurrentGymId);
         _gymSlug = gym?.Slug;
+
+        var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (Guid.TryParse(raw, out var userId))
+        {
+            _idleMinutes = await db.Users.Where(u => u.Id == userId)
+                .Select(u => u.IdleSignOutMinutes)
+                .FirstOrDefaultAsync();
+        }
 
         if (_settings is not null && HttpContext?.Request.Method != "POST")
         {

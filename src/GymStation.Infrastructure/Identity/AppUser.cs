@@ -13,4 +13,8 @@ public class AppUser : IdentityUser<Guid>
     /// validator's silent cookie refresh, which used to drop the login-time claim and
     /// strand signed-in users on "no active gym" (issue #76).</summary>
     public Guid? ActiveGymId { get; set; }
+
+    /// <summary>Minutes of inactivity before the browser signs this login out fully.
+    /// Null = off (the default) — it's an opt-in for people on shared machines (#86).</summary>
+    public int? IdleSignOutMinutes { get; set; }
 }

@@ -7,7 +7,7 @@
 @inject ITenantContext Tenant
 @inject NavigationManager Nav
 
-<div class="app-frame @(_dark ? null : "theme-light")" style="--tenant:@_accent">
+<div class="app-frame @(_dark ? null : "theme-light")" style="--tenant:@_accent" data-idle-minutes="@(_idleMinutes?.ToString(System.Globalization.CultureInfo.InvariantCulture))">
     <nav class="rail" aria-label="Admin sections">
         <div class="brand">
             <a class="brand-link" href="@(_gymSlug is null ? "/" : $"/{_gymSlug}")" title="Open your public gym page">
@@ -80,6 +80,7 @@
     private bool _dark = true;
     private string? _logoPath;
     private string? _email;
+    private int? _idleMinutes;
 
     protected override async Task OnInitializedAsync()
     {
@@ -111,13 +112,15 @@
             var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (Guid.TryParse(raw, out var userId))
             {
-                var preference = await db.Users.Where(u => u.Id == userId)
-                    .Select(u => u.PreferredThemeDark)
+                var account = await db.Users.Where(u => u.Id == userId)
+                    .Select(u => new { u.PreferredThemeDark, u.IdleSignOutMinutes })
                     .FirstOrDefaultAsync();
-                if (preference is { } dark)
+                if (account?.PreferredThemeDark is { } dark)
                 {
                     _dark = dark;
                 }
+
+                _idleMinutes = account?.IdleSignOutMinutes;
             }
         }
     }
