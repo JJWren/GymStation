@@ -7,7 +7,7 @@
 @inject ITenantContext Tenant
 @inject NavigationManager Nav
 
-<div class="app-frame @(_dark ? null : "theme-light")" style="--tenant:@_accent" data-idle-minutes="@(_idleMinutes?.ToString())">
+<div class="app-frame @(_dark ? null : "theme-light")" style="--tenant:@_accent" data-idle-minutes="@(_idleMinutes?.ToString(System.Globalization.CultureInfo.InvariantCulture))">
     <nav class="rail" aria-label="Admin sections">
         <div class="brand">
             <a class="brand-link" href="@(_gymSlug is null ? "/" : $"/{_gymSlug}")" title="Open your public gym page">

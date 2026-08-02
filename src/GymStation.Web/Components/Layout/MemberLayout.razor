@@ -7,7 +7,7 @@
 @inject ITenantContext Tenant
 @inject NavigationManager Nav
 
-<div class="member-frame @(_dark ? null : "theme-light")" style="--tenant:@_accent" data-idle-minutes="@(_idleMinutes?.ToString())">
+<div class="member-frame @(_dark ? null : "theme-light")" style="--tenant:@_accent" data-idle-minutes="@(_idleMinutes?.ToString(System.Globalization.CultureInfo.InvariantCulture))">
     <header class="member-top">
         <a class="brand-link" href="@(_gymSlug is null ? "/" : $"/{_gymSlug}")" title="Open your gym's public page">
             <div><b>@(_gymName ?? "GYMSTATION")</b><i>MEMBER</i></div>

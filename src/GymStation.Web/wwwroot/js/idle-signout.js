@@ -15,8 +15,10 @@
         addEventListener(ev, bump, { passive: true, capture: true });
     }
 
-    setInterval(() => {
+    const timer = setInterval(() => {
         if (Date.now() - last >= limit) {
+            // One shot: a slow network must not stack repeat submits every tick.
+            clearInterval(timer);
             const form = document.querySelector('form[action="/auth/logout"]');
             if (form) form.submit();
         }
