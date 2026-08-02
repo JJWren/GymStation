@@ -18,11 +18,14 @@ public class GymMembershipService(GymStationDbContext db)
             .Select(p => p.GymId);
 
         // Guardians belong wherever their linked children train — even with no
-        // roster record of their own (the Sarah-and-Tom case).
+        // roster record of their own (the Sarah-and-Tom case). The link's own GymId
+        // must agree with the child's: a malformed cross-tenant link grants nothing.
         var viaChildren = db.GuardianLinks.IgnoreQueryFilters()
             .Where(l => l.GuardianUserId == userId)
             .Join(db.Persons.IgnoreQueryFilters().Where(p => !p.Archived),
-                l => l.ChildPersonId, p => p.Id, (_, p) => p.GymId);
+                l => l.ChildPersonId, p => p.Id, (l, p) => new { l.GymId, ChildGymId = p.GymId })
+            .Where(x => x.GymId == x.ChildGymId)
+            .Select(x => x.ChildGymId);
 
         return await direct.Concat(viaChildren)
             .Distinct()
@@ -35,7 +38,7 @@ public class GymMembershipService(GymStationDbContext db)
         return await db.Persons.IgnoreQueryFilters()
                 .AnyAsync(p => p.UserId == userId && p.GymId == gymId && !p.Archived, ct)
             || await db.GuardianLinks.IgnoreQueryFilters()
-                .Where(l => l.GuardianUserId == userId)
+                .Where(l => l.GuardianUserId == userId && l.GymId == gymId)
                 .Join(db.Persons.IgnoreQueryFilters(), l => l.ChildPersonId, p => p.Id, (_, p) => p)
                 .AnyAsync(p => p.GymId == gymId && !p.Archived, ct);
     }
