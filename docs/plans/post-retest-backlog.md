@@ -33,7 +33,7 @@ gets meaningful drops instead of eighteen tiny ones.
 - [x] #41 — Guardian portal
 - [x] #24 — Ledger management
 - [ ] #25 — Events v2
-- [ ] #28 — Shared media upload (preview/crop)
+- [x] #28 — Shared media upload (preview/crop)
 - [ ] #26 — Diary v2
 - [ ] #27 — Member check-in history
 - [ ] #29 — Drop-ins / visitors
