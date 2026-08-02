@@ -36,7 +36,7 @@ gets meaningful drops instead of eighteen tiny ones.
 - [x] #28 — Shared media upload (preview/crop)
 - [ ] #26 — Diary v2
 - [ ] #27 — Member check-in history
-- [ ] #29 — Drop-ins / visitors
+- [x] #29 — Drop-ins / visitors (live-roll quick-add, VISITORS chip, convert)
 - [ ] #43 — Admin: member portraits from the person page (plain upload; crop joins #28)
 - [ ] #23 — Interactive schedule editor
 - [ ] #22 — Responsive type-scale pass

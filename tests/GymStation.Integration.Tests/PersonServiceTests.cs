@@ -35,7 +35,7 @@ public class PersonServiceTests(PostgresFixture fixture)
 
         await using var context = fixture.CreateContext(tenant);
         var service = new PersonService(context);
-        await service.UpdateAsync(member.Id, "Dara", "Nair-Smith", new DateOnly(2015, 3, 9), PersonRoles.Member | PersonRoles.Instructor);
+        await service.UpdateAsync(member.Id, "Dara", "Nair-Smith", new DateOnly(2015, 3, 9), PersonRoles.Member | PersonRoles.Instructor, visitor: false);
 
         var reloaded = await context.Persons.SingleAsync(p => p.Id == member.Id);
         Assert.Equal("Nair-Smith", reloaded.LastName);
@@ -52,7 +52,7 @@ public class PersonServiceTests(PostgresFixture fixture)
         var service = new PersonService(context);
 
         var demote = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => service.UpdateAsync(owner.Id, "Jordan", "Torres", null, PersonRoles.Admin | PersonRoles.Member));
+            () => service.UpdateAsync(owner.Id, "Jordan", "Torres", null, PersonRoles.Admin | PersonRoles.Member, visitor: false));
         Assert.Contains("only active Owner", demote.Message);
 
         var archive = await Assert.ThrowsAsync<InvalidOperationException>(
@@ -60,9 +60,31 @@ public class PersonServiceTests(PostgresFixture fixture)
         Assert.Contains("only active Owner", archive.Message);
 
         // With a second Owner in place, both operations go through.
-        await service.UpdateAsync(member.Id, "Dara", "Nair", null, PersonRoles.Member | PersonRoles.Owner);
-        await service.UpdateAsync(owner.Id, "Jordan", "Torres", null, PersonRoles.Admin | PersonRoles.Member);
+        await service.UpdateAsync(member.Id, "Dara", "Nair", null, PersonRoles.Member | PersonRoles.Owner, visitor: false);
+        await service.UpdateAsync(owner.Id, "Jordan", "Torres", null, PersonRoles.Admin | PersonRoles.Member, visitor: false);
         Assert.False((await context.Persons.SingleAsync(p => p.Id == owner.Id)).Roles.HasFlag(PersonRoles.Owner));
+    }
+
+    [Fact]
+    public async Task Visitors_AreQuickAdded_AndConvertByClearingTheFlag()
+    {
+        var (tenant, _, _) = await SeedAsync();
+
+        await using var context = fixture.CreateContext(tenant);
+        var service = new PersonService(context);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.AddVisitorAsync(" ", "Passerby"));
+
+        var visitor = await service.AddVisitorAsync("  Sam ", "Passerby");
+        var stored = await context.Persons.SingleAsync(p => p.Id == visitor.Id);
+        Assert.True(stored.Visitor);
+        Assert.Equal("Sam", stored.FirstName);
+        Assert.Equal(PersonRoles.Member, stored.Roles);
+        Assert.Null(stored.MembershipPlanId); // no plan — the monthly cycle never charges them
+
+        // Conversion: clear the flag through the normal edit path.
+        await service.UpdateAsync(visitor.Id, "Sam", "Passerby", null, PersonRoles.Member, visitor: false);
+        Assert.False((await context.Persons.SingleAsync(p => p.Id == visitor.Id)).Visitor);
     }
 
     [Fact]
