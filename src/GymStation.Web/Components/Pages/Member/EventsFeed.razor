@@ -92,9 +92,13 @@
             .ToListAsync();
 
         // Past window: 12 months at a time, older pages via ?before=cursor.
-        var windowEnd = DateOnly.TryParse(BeforeRaw, out var before) ? before : today;
+        // Strict format + clamps: a future cursor would leak upcoming events into
+        // Past, and a near-MinValue cursor would underflow the window math.
+        var floor = new DateOnly(1900, 1, 1);
+        var hasCursor = DateOnly.TryParseExact(BeforeRaw, "yyyy-MM-dd", out var before);
+        var windowEnd = !hasCursor ? today : before > today ? today : before < floor ? floor : before;
         _windowStart = windowEnd.AddMonths(-12);
-        var cutoff = BeforeRaw is null ? windowEnd.AddDays(-1) : windowEnd;
+        var cutoff = hasCursor ? windowEnd : windowEnd.AddDays(-1);
         _past = await db.GymEvents
             .Where(e => e.StartsOn < cutoff && e.StartsOn >= _windowStart)
             .OrderByDescending(e => e.StartsOn)
