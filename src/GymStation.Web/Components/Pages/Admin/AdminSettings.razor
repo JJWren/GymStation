@@ -60,12 +60,8 @@
                 {
                     <span class="crest" style="width:44px;height:44px;border-radius:8px;background:var(--tenant);display:inline-block"></span>
                 }
-                <form method="post" action="/admin/actions/upload-media" enctype="multipart/form-data" class="row-form" style="margin:0">
-                    <AntiforgeryToken />
-                    <input type="hidden" name="kind" value="logo" />
-                    <input type="file" name="file" accept=".png,.jpg,.jpeg,.webp" aria-label="Logo file" />
-                    <button class="btn btn--ghost btn--xs" type="submit">UPLOAD LOGO</button>
-                </form>
+                <MediaCropUpload Kind="logo" Label="logo" Aspect="1" OutWidth="512"
+                                 Hint="SQUARE — RENDERS AT ~44PX ON THE RAIL AND TOP BAR" />
             </div>
             <div class="row-form" style="align-items:center;margin-top:14px">
                 @if (_settings?.HeroPath is { } hero)
@@ -76,15 +72,11 @@
                 {
                     <span class="cap" style="margin:0">HERO: MAT-TEXTURE GRADIENT (NO IMAGE YET)</span>
                 }
-                <form method="post" action="/admin/actions/upload-media" enctype="multipart/form-data" class="row-form" style="margin:0">
-                    <AntiforgeryToken />
-                    <input type="hidden" name="kind" value="hero" />
-                    <input type="file" name="file" accept=".png,.jpg,.jpeg,.webp" aria-label="Hero file" />
-                    <button class="btn btn--ghost btn--xs" type="submit">UPLOAD HERO</button>
-                </form>
+                <MediaCropUpload Kind="hero" Label="hero" Aspect="@(8 / 3.0)" OutWidth="1600"
+                                 Hint="WIDE STRIP — DARKENED BEHIND THE PUBLIC-PAGE TEXT" />
             </div>
             <p class="cap">
-                PNG/JPG/WEBP · MAX 2 MB · LOGO: SQUARE, 256×256 OR LARGER (RENDERS AT ~44PX) ·
+                PNG/JPG/WEBP · MAX 2 MB · LOGO: SQUARE, 512×512 OR LARGER (EXPORTED AT 512PX) ·
                 HERO: WIDE, 1600×600 OR LARGER (DARKENED BEHIND THE PUBLIC-PAGE TEXT) ·
                 SHOWN ON THE RAIL, MEMBER TOP BAR, AND /@_gymSlug
             </p>
