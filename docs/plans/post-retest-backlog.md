@@ -5,8 +5,8 @@ Source: Joshua's full v1.0.1/v1.0.2 retests (2026-08-01), triaged into issues #2
 the order listed, one gated PR per issue (branch → implement → verify on the seeded
 rig → Copilot review until a clean round → squash merge). Checkboxes track the loop.
 
-**Open decisions** are marked `⚖ DECISION` and collected at the bottom — they gate the
-issue they sit in, not the whole loop.
+All four product decisions were put to Joshua and are **resolved** — see the bottom
+section; the affected plans below already reflect the outcomes.
 
 ## Execution order
 
@@ -19,11 +19,32 @@ issue they sit in, not the whole loop.
 Releases: one release-please cut per wave (or sooner if a wave runs long) so the lab
 gets meaningful drops instead of eighteen tiny ones.
 
+## Loop status
+
+- [ ] #32 — Role-aware sign-in routing + guardian gym membership
+- [ ] #38 — Rank ordering: composite sort, red-belt degrees, NO BELT filter
+- [ ] #34 — Member schedule: full-day visibility (verify) + guardian states
+- [ ] #33 — Real bell icon
+- [ ] #36 — Gym name → public page; public page knows you
+- [ ] #37 — Sunday-start calendar stat weeks with dates
+- [ ] #40 — Admin: edit person details (incl. DOB → IBJJF/Masters category)
+- [ ] #39 — Instructor experience
+- [ ] #35 — Theme toggle
+- [ ] #41 — Guardian portal
+- [ ] #24 — Ledger management
+- [ ] #25 — Events v2
+- [ ] #28 — Shared media upload (preview/crop)
+- [ ] #26 — Diary v2
+- [ ] #27 — Member check-in history
+- [ ] #29 — Drop-ins / visitors
+- [ ] #23 — Interactive schedule editor
+- [ ] #22 — Responsive type-scale pass
+
 ---
 
 ## Wave 1
 
-### [ ] #32 — Role-aware sign-in routing + guardian gym membership
+### #32 — Role-aware sign-in routing + guardian gym membership
 
 **Bug.** Guardians get zero gyms (`GetGymsForUserAsync` joins Persons only) → no
 active-gym claim → Sarah landed on the admin shell's "no active gym" branch.
@@ -40,7 +61,7 @@ active-gym claim → Sarah landed on the admin shell's "no active gym" branch.
   (owner / member / instructor / guardian-only).
 - Verify on rig: sarah.hale login lands on `/schedule` and sees Tom's check-in row.
 
-### [ ] #38 — Rank ordering: composite sort, red-belt degrees, NO BELT filter
+### #38 — Rank ordering: composite sort, red-belt degrees, NO BELT filter
 
 **Bug.** Sort uses `Rank.Order` alone; Joshua specified the true total order.
 
@@ -54,7 +75,7 @@ active-gym claim → Sarah landed on the admin shell's "no active gym" branch.
   `NO BELT` option (`rank=none` → people with no primary rank).
 - Verify: roster `sort=rank` matches the spec order on the seeded cast.
 
-### [ ] #34 — Member schedule: full-day visibility (verify-first) + guardian states
+### #34 — Member schedule: full-day visibility (verify-first) + guardian states
 
 - On the 1.0.2 rig, walk yesterday/today/tomorrow and a past week as ana.reyes:
   confirm past sessions and past days render (investigation says they should —
@@ -63,19 +84,19 @@ active-gym claim → Sarah landed on the admin shell's "no active gym" branch.
 - After #32: sarah sees Tom's rows on past/future days; empty states read correctly.
 - Likely outcome: a verification note + small polish, not a rebuild.
 
-### [ ] #33 — Real bell icon
+### #33 — Real bell icon
 
 - Inline SVG bell (stroke weight matching the ledger line work) replaces `▲` in
   `MemberLayout`; sweep for other placeholder glyphs used as icons.
 
-### [ ] #36 — Gym name links to public page; public page knows you
+### #36 — Gym name links to public page; public page knows you
 
 - Gym name in both shells wraps in `<a href="/{slug}">` (slug already loaded).
 - `PublicGym`: read `HttpContext.User` — signed-in visitors see their email, a
   SIGN OUT form, and BACK TO YOUR PORTAL (staff → `/`, else `/schedule`) instead of
   MEMBER SIGN-IN. Anonymous stays exactly as-is (it's the brand face).
 
-### [ ] #37 — Sunday-start calendar stat weeks with dates
+### #37 — Sunday-start calendar stat weeks with dates
 
 - `ReportService.WeeklyCheckinsAsync` + `AttendanceService.StatsAsync`: bucket by
   Sunday-start calendar weeks (per Joshua's explicit 8/2, 7/26 spec) instead of
@@ -84,7 +105,7 @@ active-gym claim → Sarah landed on the admin shell's "no active gym" branch.
 - Schedule grids stay Monday-first (D3) — different surface, different job.
 - Unit-test the bucketing (edge: today mid-week, exactly-12-weeks-ago).
 
-### [ ] #40 — Admin: edit person details
+### #40 — Admin: edit person details
 
 - PersonDetail gains an "Edit person" form (First/Last, DOB, roles checkboxes,
   archive/unarchive toggle) via the (now-correct) SSR form pattern.
@@ -97,21 +118,24 @@ active-gym claim → Sarah landed on the admin shell's "no active gym" branch.
 
 ## Wave 2
 
-### [ ] #39 — Instructor experience (design discussion → implementation)
+### #39 — Instructor experience (decision 2: instructor landing in member shell)
 
-`⚖ DECISION 2` (below). After the direction call:
+- New `/teach` landing inside the member shell for Instructor-role sign-ins:
+  today's + upcoming sessions they teach (live-roll shortcuts), open cover
+  requests actionable inline; member tabs gain TEACH for instructors only.
 - Schedule cards distinguish "YOU TEACH" (→ live roll) from attendable (→ check-in).
-- Swaps entry point per decision; dual Admin+Instructor keeps the admin shell with
-  instructor surfaces reachable (already true) unless decided otherwise.
+- Sign-in destination (from #32's helper): Admin/Owner → `/`, Instructor → `/teach`,
+  else `/schedule`. Dual Admin+Instructor keeps the admin shell (reaches /teach
+  from the rail).
 
-### [ ] #35 — Theme toggle
+### #35 — Theme toggle (decision 3: per-user DB setting)
 
-`⚖ DECISION 3` (persistence). Regardless of choice:
+- `AppUser.PreferredThemeDark` (nullable bool; null = follow gym default) +
+  migration; toggle posts to a small endpoint and re-renders.
 - Toggle in admin rail foot + member top bar; applies `.theme-light` at the wrapper
-  (mechanism already exists); gym default remains the fallback; public page always
-  uses the gym default.
+  (mechanism already exists); public page always uses the gym default.
 
-### [ ] #41 — Guardian portal (depends #32)
+### #41 — Guardian portal (depends #32)
 
 - Guardian sees each linked child: attendance history + rank/progress (read-only
   surfaces mirroring Progress, minus diary).
@@ -125,7 +149,7 @@ active-gym claim → Sarah landed on the admin shell's "no active gym" branch.
 
 ## Wave 3
 
-### [ ] #24 — Ledger management
+### #24 — Ledger management
 
 - Void payments: `VoidedUtc/VoidedByPersonId/VoidReason` columns; voided rows stay
   visible (struck through) and drop out of balance math; ledger math tests updated.
@@ -137,7 +161,7 @@ active-gym claim → Sarah landed on the admin shell's "no active gym" branch.
   `ChargeCycleWorker` (or a sibling worker) materializes them monthly, idempotent
   per (recurring, month) like charges.
 
-### [ ] #25 — Events v2
+### #25 — Events v2
 
 - Event detail page (admin + member): full details, GOING/INTERESTED rosters
   (visible in-gym per the RSVP decision).
@@ -145,7 +169,7 @@ active-gym claim → Sarah landed on the admin shell's "no active gym" branch.
 - Event image (optional) — after #28 lands, reuse the crop component; storage under
   the existing `IFileStore` with a `gyms/{id}/events/{eventId}.{ext}` allowlist route.
 
-### [ ] #28 — Shared media upload with preview/crop
+### #28 — Shared media upload with preview/crop
 
 - One Blazor component (interactive island — cropping is inherently client-side):
   file pick → canvas preview → drag/zoom crop to the target aspect → posts the
@@ -154,7 +178,7 @@ active-gym claim → Sarah landed on the admin shell's "no active gym" branch.
 - Dimension guidance text comes from the component's target profile.
 - Fallback: plain upload keeps working (progressive enhancement).
 
-### [ ] #26 — Diary v2
+### #26 — Diary v2
 
 - Partner rows: SSR postback pattern — "+ PARTNER" adds a row server-side
   (re-render with n+1), each row has REMOVE; default zero rows. No JS needed.
@@ -163,28 +187,28 @@ active-gym claim → Sarah landed on the admin shell's "no active gym" branch.
 - Finding entries: month calendar strip with entry markers + month pager
   (SSR links, no client state).
 
-### [ ] #27 — Member check-in history
+### #27 — Member check-in history
 
 - Progress gains a CHECK-INS section: list of confirmed/pending records, default
   last 7 days, range chips (7D / 2W / 30D / month picker / YTD / 12MO / custom
   from-to form). Server-side paging past 100 rows.
 
-### [ ] #29 — Drop-ins / visitors
+### #29 — Drop-ins / visitors
 
 - "DROP-IN" quick-add on the live roll (creates an ad-hoc Person flagged
   `Visitor`, no plan, optional contact) + roster VISITORS chip; converts to
   member later by assigning a plan/roles (then the MEMBERS chip means something).
 
-### [ ] #23 — Interactive schedule editor
+### #23 — Interactive schedule editor (decision 4: modal first)
 
-`⚖ DECISION 4` (scope). Foundation regardless:
+Foundation:
 - `GymSettings.OpenTime/CloseTime` (gym hours) + settings UI.
 - Week grid gets a time rail spanning gym hours; session cards position/size by
   time (CSS grid rows per 30min).
 - Then per decision: click-to-edit modal first (template + one-off session edits),
   drag-move/resize as the interactive layer (InteractiveServer island for the grid).
 
-### [ ] #22 — Responsive type-scale pass (last)
+### #22 — Responsive type-scale pass (last)
 
 - Replace the `zoom` stopgap with a clamp()-based type scale and spacing audit at
   1920/1440/1366/1024/768/375; fix the iPad-mini awkwardness; screenshot evidence
@@ -192,18 +216,13 @@ active-gym claim → Sarah landed on the admin shell's "no active gym" branch.
 
 ---
 
-## ⚖ Decisions for Joshua
+## ⚖ Decisions — resolved (Joshua, 2026-08-01)
 
-1. **Loop order** — approve the wave order above, or reorder.
-2. **Instructor experience (#39)** — (a) member shell + teaching badges and an
-   instructor tab (today's shape, refined); (b) instructor-specific landing
-   ("Today: your sessions" + live-roll shortcuts) inside the member shell;
-   (c) a third full shell. Recommendation: **(b)** — dual-role reality with one
-   mental model, no third shell to maintain.
-3. **Theme persistence (#35)** — (a) cookie per device (no schema change, instant);
-   (b) per-user setting in DB (follows across devices). Recommendation: **(a)**
-   for v1, upgrade path to (b) trivial.
-4. **Schedule editor scope (#23)** — (a) time rail + click-to-edit modal first,
-   drag/resize in a follow-up; (b) full drag/move/resize + modal in one go.
-   Recommendation: **(a)** — the modal covers the workflow need; drag is polish
-   with real interop risk, better landed separately.
+1. **Loop order** — approved as proposed.
+2. **Instructor experience (#39)** — instructor-specific landing ("Today: your
+   sessions" + live-roll shortcuts) inside the member shell; schedule cards
+   distinguish YOU TEACH from attendable. No third shell.
+3. **Theme persistence (#35)** — **per-user setting in the DB** (follows the user
+   across devices); gym default remains the fallback for users with no preference.
+4. **Schedule editor scope (#23)** — time rail + click-to-edit modal first;
+   drag-move/resize lands as its own follow-up PR.
