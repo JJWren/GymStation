@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.4.0](https://github.com/JJWren/GymStation/compare/v1.3.0...v1.4.0) (2026-08-02)
+
+
+### Features
+
+* admin shell — full-width frame, sticky rail, hamburger top bar ([#100](https://github.com/JJWren/GymStation/issues/100)) ([7057d30](https://github.com/JJWren/GymStation/commit/7057d30d046e5694e4ff461db96606c373440864))
+* cross-shell navigation — member view, admin, and landing links ([#105](https://github.com/JJWren/GymStation/issues/105)) ([7152eaf](https://github.com/JJWren/GymStation/commit/7152eafc9a7b8ae05740173c0339070ac22b40b3))
+* notifications pagination; pager default drops to 10 ([#103](https://github.com/JJWren/GymStation/issues/103)) ([0be9e86](https://github.com/JJWren/GymStation/commit/0be9e868fadd8957aa572e5ae0abfc1e52410a16))
+* opt-in idle sign-out per login ([#111](https://github.com/JJWren/GymStation/issues/111)) ([4087ae6](https://github.com/JJWren/GymStation/commit/4087ae697ee52b0953a4b72fdd4f80af31279344))
+* person contact number with SMS consent ([#109](https://github.com/JJWren/GymStation/issues/109)) ([dd13320](https://github.com/JJWren/GymStation/commit/dd133209b4a8605f946c921364d1032ee0620216))
+* platform footer and legal pages ([#110](https://github.com/JJWren/GymStation/issues/110)) ([de5dace](https://github.com/JJWren/GymStation/commit/de5daceae40aa6ac4f8f4f2f3b066c95227f3b2a))
+* type scale up, belts doubled, reports density pass ([#101](https://github.com/JJWren/GymStation/issues/101)) ([bbee766](https://github.com/JJWren/GymStation/commit/bbee7660a7409c4bfed5f7a9c5c0f74b4e7fafae))
+
+
+### Bug Fixes
+
+* active gym survives security-stamp cookie refresh ([#98](https://github.com/JJWren/GymStation/issues/98)) ([80565a0](https://github.com/JJWren/GymStation/commit/80565a052c4f00918d2e6c1379f4192a4e3c1069))
+* adding a person requires an explicit role or visitor choice ([#104](https://github.com/JJWren/GymStation/issues/104)) ([f7a20d3](https://github.com/JJWren/GymStation/commit/f7a20d379784701d46cc149d103b86d1c2778882))
+* check-in window survives sessions that cross midnight ([#108](https://github.com/JJWren/GymStation/issues/108)) ([cc0c934](https://github.com/JJWren/GymStation/commit/cc0c934e0ad3d917530354be5b7d186dcfd9973b))
+* every input field carries the ledger theme ([#99](https://github.com/JJWren/GymStation/issues/99)) ([26c9169](https://github.com/JJWren/GymStation/commit/26c9169926ca036ef0f9dd0812b0d6a1654228dc))
+
 ## [1.3.0](https://github.com/JJWren/GymStation/compare/v1.2.0...v1.3.0) (2026-08-02)
 
 
