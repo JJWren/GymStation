@@ -74,7 +74,9 @@
     protected override async Task OnInitializedAsync()
     {
         // UserName is the email throughout this app; the claim wins when present.
-        _email = HttpContext?.User.FindFirstValue(ClaimTypes.Email) ?? HttpContext?.User.Identity?.Name;
+        // Whitespace normalizes to null so no blank "SIGNED IN AS" line renders.
+        var accountName = HttpContext?.User.FindFirstValue(ClaimTypes.Email) ?? HttpContext?.User.Identity?.Name;
+        _email = string.IsNullOrWhiteSpace(accountName) ? null : accountName;
 
         if (Tenant.CurrentGymId is { } gymId)
         {
