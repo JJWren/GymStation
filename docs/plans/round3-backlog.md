@@ -16,9 +16,9 @@ Loop process per issue: branch off pulled master → implement → rig-verify �
 - [x] #76 — Active-gym claim lost on security-stamp refresh (fixed: persisted ActiveGymId + claims factory)
 - [x] #77 — Un-themed input fields sweep (:not()-based selectors)
 - [x] #78 — Admin shell: full-width, sticky rail, hamburger top bar
-- [ ] #79 — Type scale up, belts 2×, reports density pass
+- [x] #79 — Type scale up, belts 2×, reports density pass
 - [x] #80 — Notifications pagination; pager default 10
-- [ ] #81 — Add person: explicit role/visitor choice required
+- [x] #81 — Add person: explicit role/visitor choice required
 - [ ] #82 — Person contact number + SMS consent
 - [ ] #83 — Admin↔member switching + explicit landing links
 - [ ] #84 — Swap-mode/open-claims move to Settings

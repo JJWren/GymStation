@@ -75,9 +75,10 @@ a { color: var(--ink); }
     .rail-menu { display: block; }
     .rail-menu summary { list-style: none; cursor: pointer; font: 700 1.125rem/1 var(--font-mono); color: var(--ink-dim); border: 1px solid var(--edge); border-radius: 0.5rem; padding: 0.375rem 0.625rem; user-select: none; }
     .rail-menu summary::-webkit-details-marker { display: none; }
+    .rail-menu summary::marker { content: none; }
     .rail-menu[open] summary { color: var(--tenant); border-color: var(--tenant); }
     .rail-tabs { display: none; }
-    .rail:has(.rail-menu[open]) .rail-tabs { display: flex; position: absolute; top: 100%; left: 0; right: 0; background: var(--panel); border-bottom: 1px solid var(--edge); padding: 0.5rem 0.75rem 0.875rem; box-shadow: 0 0.875rem 2rem rgba(0, 0, 0, .4); }
+    .rail:has(.rail-menu[open]) .rail-tabs { display: flex; position: absolute; top: 100%; left: 0; right: 0; background: var(--panel); border-bottom: 1px solid var(--edge); padding: 0.5rem 0.75rem 0.875rem; box-shadow: 0 0.875rem 2rem rgba(0, 0, 0, .4); max-height: calc(100vh - 3.5rem); overflow-y: auto; }
     .rail .tab { border-radius: 0.5rem; }
     .rail .foot { margin-top: 0.5rem; }
 }
@@ -87,15 +88,15 @@ a { color: var(--ink); }
 .section-h { font: 600 0.625rem/1 var(--font-mono); letter-spacing: .18em; color: var(--ink-dim); margin: 1.25rem 0 0.625rem; text-transform: uppercase; }
 
 /* ---- components ---- */
-.belt { display: flex; height: 0.5rem; border-radius: 2px; overflow: hidden; box-shadow: 0 1px 0 rgba(0,0,0,.4); }
+.belt { display: flex; height: 1rem; border-radius: 2px; overflow: hidden; box-shadow: 0 1px 0 rgba(0,0,0,.4); }
 .belt .band { flex: 1; }
 .belt .bar { width: 28%; min-width: 2.5rem; display: flex; gap: 0.1875rem; justify-content: center; padding: 0 0.25rem; }
 .belt .bar i { width: 0.25rem; background: #F2EEE3; }
-.belt--s { height: 0.375rem; width: 6rem; }
-.belt--s .bar i { width: 0.1875rem; }
-.belt--l { height: 1rem; max-width: 22.5rem; }
+.belt--s { height: 0.75rem; width: 6rem; }
+.belt--s .bar i { width: 0.25rem; }
+.belt--l { height: 2rem; max-width: 22.5rem; }
 .belt--l .bar { gap: 0.25rem; padding: 0 0.3125rem; }
-.belt--l .bar i { width: 0.3125rem; }
+.belt--l .bar i { width: 0.375rem; }
 .belt--outline { outline: 1px solid #4a5260; }
 
 .patch { background: var(--surface); border-radius: 0.75rem; padding: 1rem; position: relative; }
@@ -310,13 +311,13 @@ input[type=range] { accent-color: var(--tenant); }
 
 /* ---- fluid type scale (issue #22, replaces the zoom stopgap) ----
    Every size in this sheet is rem, so the whole ledger scales off the root font
-   size: 1rem up to 1280w, then linearly to 1.2812rem at 1760w+ (~1.28×, matching
+   size: ~17px (106.25%) up to 1280w, then linearly to ~22.4px (140%) at 1760w+ (matching
    the old zoom ceiling). Viewport-height frames need no compensation — rem
    scaling never multiplies 100vh, which is exactly why zoom got replaced.
    Hairline borders (≤2px) and the mat texture stay px on purpose. */
 /* Percent-of-default terms keep user/browser font-size preferences in force:
-   100% = the reader's chosen base, scaling to ~128% at 1760w+. */
-html { font-size: clamp(100%, 25% + 0.9375vw, 128.125%); }
+   106.25% of the reader's chosen base through 1280w, scaling to 140% at 1760w+. */
+html { font-size: clamp(106.25%, 16.25% + 1.125vw, 140%); }
 
 /* Tablet widths: the phone-shaped member column reads awkward floating in a
    744–820px viewport (iPad mini portrait) — let it breathe instead. */
