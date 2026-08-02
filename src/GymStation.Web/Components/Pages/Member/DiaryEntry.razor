@@ -206,7 +206,10 @@
                 .Select(r => new RollRow
                 {
                     PartnerPersonId = r.PartnerPersonId?.ToString(),
-                    PartnerText = r.PartnerPersonId is null ? r.PartnerLabel : null,
+                    // Always carry the stored label: if the tagged partner has since
+                    // left the roster list, the save path falls back to this text
+                    // instead of silently dropping the roll.
+                    PartnerText = r.PartnerLabel,
                     Summary = r.Summary,
                 })
                 .ToList(),

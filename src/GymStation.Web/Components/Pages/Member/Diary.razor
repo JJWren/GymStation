@@ -105,7 +105,8 @@
                 }
                 else
                 {
-                    <span class="cal-cell @(day == _today ? "cal-cell--today" : null)">@day.Day</span>
+                    <span class="cal-cell @(day == _today ? "cal-cell--today" : null)"
+                          aria-label="@day.ToString("dd MMMM yyyy") — no entries">@day.Day</span>
                 }
             }
         </div>
