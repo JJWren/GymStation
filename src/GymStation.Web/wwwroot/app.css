@@ -152,7 +152,7 @@ a { color: var(--ink); }
 .ses--cancelled .n { text-decoration: line-through; }
 .tag { display: inline-block; font: 600 0.5625rem/1 var(--font-mono); letter-spacing: .06em; border: 1px solid var(--edge); color: var(--ink-dim); border-radius: 6.1875rem; padding: 0.1875rem 0.375rem; margin: 0.25rem 0.25rem 0 0; }
 .row-form { display: flex; gap: 0.375rem; align-items: center; margin-top: 0.5rem; flex-wrap: wrap; }
-.row-form input[type=text], .row-form select { background: var(--panel); border: 1px solid var(--edge); border-radius: 0.375rem; padding: 0.4375rem 0.5625rem; font: 600 0.625rem/1.2 var(--font-mono); color: var(--ink); min-width: 0; }
+.row-form input[type=text], .row-form input[type=date], .row-form select { background: var(--panel); border: 1px solid var(--edge); border-radius: 0.375rem; padding: 0.4375rem 0.5625rem; font: 600 0.625rem/1.2 var(--font-mono); color: var(--ink); min-width: 0; }
 .btn--xs { padding: 0.5rem 0.625rem; font-size: 0.5625rem; }
 .member-shell { max-width: 26.25rem; margin: 0 auto; padding: 1.125rem; }
 .member-frame { max-width: 28.75rem; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
