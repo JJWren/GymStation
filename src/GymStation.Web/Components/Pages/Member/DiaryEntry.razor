@@ -10,24 +10,24 @@
 
 <PageTitle>Diary entry · GymStation</PageTitle>
 
-<main class="member-shell" style="padding-top:6px">
+<main class="member-shell" style="padding-top:0.375rem">
     @if (_entry is null)
     {
-        <h1 class="page-title" style="font-size:20px">ENTRY NOT FOUND</h1>
+        <h1 class="page-title" style="font-size:1.25rem">ENTRY NOT FOUND</h1>
         <p class="cap">THIS ENTRY DOESN'T EXIST — OR ISN'T YOURS. DIARIES ARE PRIVATE TO THEIR AUTHOR.</p>
         <p><a class="btn btn--ghost btn--xs" href="/diary">← BACK TO DIARY</a></p>
     }
     else
     {
         <div class="head-row">
-            <h1 class="page-title" style="font-size:20px">EDIT ENTRY</h1>
+            <h1 class="page-title" style="font-size:1.25rem">EDIT ENTRY</h1>
             <span class="chip" style="border-color:var(--ok);color:var(--ok)">🔒 ONLY YOU CAN SEE THIS</span>
         </div>
-        <p style="margin:0 0 10px">
+        <p style="margin:0 0 0.625rem">
             <a class="btn btn--ghost btn--xs" href="/diary?month=@_entry.EntryDate.ToString("yyyy-MM")">← BACK TO DIARY</a>
             @if (Saved)
             {
-                <span class="chip chip--on" style="margin-left:8px">SAVED</span>
+                <span class="chip chip--on" style="margin-left:0.5rem">SAVED</span>
             }
         </p>
 
@@ -64,7 +64,7 @@
             @for (var i = 0; i < Form!.Rolls.Count; i++)
             {
                 var index = i;
-                <div class="row-form" style="margin-bottom:6px">
+                <div class="row-form" style="margin-bottom:0.375rem">
                     <InputSelect @bind-Value="Form!.Rolls[index].PartnerPersonId" aria-label="Partner from roster">
                         <option value="">— partner —</option>
                         @foreach (var (id, name) in _partners)
@@ -78,7 +78,7 @@
                             aria-label="Remove roll @(index + 1)" style="color:var(--bad)">×</button>
                 </div>
             }
-            <p style="margin:6px 0 0">
+            <p style="margin:0.375rem 0 0">
                 <button class="btn btn--ghost btn--xs" type="submit" name="Form.AddPartner" value="true">+ PARTNER</button>
             </p>
 
@@ -86,10 +86,10 @@
             {
                 <p class="validation-message">@_error</p>
             }
-            <p style="margin-top:12px"><button class="btn" type="submit">SAVE CHANGES</button></p>
+            <p style="margin-top:0.75rem"><button class="btn" type="submit">SAVE CHANGES</button></p>
         </EditForm>
 
-        <EditForm FormName="delete-entry" Model="Delete" OnValidSubmit="DeleteAsync" style="margin-top:14px">
+        <EditForm FormName="delete-entry" Model="Delete" OnValidSubmit="DeleteAsync" style="margin-top:0.875rem">
             <button class="btn btn--ghost btn--xs" type="submit" style="color:var(--bad)"
                     onclick="return confirm('Delete this entry? This cannot be undone.')">DELETE ENTRY</button>
         </EditForm>

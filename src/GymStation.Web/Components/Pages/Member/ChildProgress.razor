@@ -10,27 +10,27 @@
 
 <PageTitle>@(_child?.DisplayName ?? "Progress") · GymStation</PageTitle>
 
-<main class="member-shell" style="padding-top:6px">
+<main class="member-shell" style="padding-top:0.375rem">
     @if (!_authorized || _child is null)
     {
-        <h1 class="page-title" style="font-size:20px">PROGRESS</h1>
-        <p class="cap" style="margin-top:10px">THIS ISN'T ONE OF YOUR PEOPLE. <a href="/progress">BACK TO YOUR PROGRESS</a></p>
+        <h1 class="page-title" style="font-size:1.25rem">PROGRESS</h1>
+        <p class="cap" style="margin-top:0.625rem">THIS ISN'T ONE OF YOUR PEOPLE. <a href="/progress">BACK TO YOUR PROGRESS</a></p>
     }
     else
     {
-        <p class="cap" style="margin:0 0 4px"><a href="/progress">YOUR PROGRESS</a> → @_child.DisplayName.ToUpperInvariant()</p>
-        <h1 class="page-title" style="font-size:20px">@_child.DisplayName.ToUpperInvariant()</h1>
+        <p class="cap" style="margin:0 0 0.25rem"><a href="/progress">YOUR PROGRESS</a> → @_child.DisplayName.ToUpperInvariant()</p>
+        <h1 class="page-title" style="font-size:1.25rem">@_child.DisplayName.ToUpperInvariant()</h1>
         @if (_ageGroup is not null)
         {
-            <p class="cap" style="margin-top:4px">IBJJF: @_ageGroup.ToUpperInvariant() (DERIVED)</p>
+            <p class="cap" style="margin-top:0.25rem">IBJJF: @_ageGroup.ToUpperInvariant() (DERIVED)</p>
         }
 
         @if (_current is not null)
         {
-            <div class="form-card" style="margin-top:12px">
+            <div class="form-card" style="margin-top:0.75rem">
                 <BeltBar Size="l" BandColorHex="@_current.Rank.BandColorHex" BarColorHex="@_current.Rank.BarColorHex"
                          Stripes="@_current.Stripes" Label="@($"{_current.Rank.Name}, {_current.Stripes} stripes")" />
-                <p class="cap" style="margin-top:8px">
+                <p class="cap" style="margin-top:0.5rem">
                     @_current.Rank.Name.ToUpperInvariant() · @_current.Stripes STRIPES ·
                     @RankProgress.FormatDuration(Today.ToDateTime(TimeOnly.MinValue) - _current.AtRankSince.ToDateTime(TimeOnly.MinValue)) AT BELT
                 </p>
@@ -45,17 +45,17 @@
 
         <h2 class="section-h">Sessions / week — last 12</h2>
         <div class="form-card">
-            <div style="display:flex;gap:3px;height:72px" aria-label="Confirmed sessions per Sunday-start calendar week, last 12 weeks, oldest to newest">
+            <div style="display:flex;gap:0.1875rem;height:4.5rem" aria-label="Confirmed sessions per Sunday-start calendar week, last 12 weeks, oldest to newest">
                 @foreach (var week in _weekly)
                 {
                     <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:1px;height:100%">
-                        <span style="font:600 7.5px/1 var(--font-mono);color:var(--ink-faint);text-align:center">@week.Count</span>
+                        <span style="font:600 0.4688rem/1 var(--font-mono);color:var(--ink-faint);text-align:center">@week.Count</span>
                         <i style="display:block;background:var(--tenant);opacity:.75;border-radius:2px 2px 0 0;height:@(_weeklyPeak == 0 ? 0 : Math.Max(week.Count > 0 ? 3 : 0, week.Count * 72 / _weeklyPeak))%"></i>
-                        <b style="font:600 7px/1.5 var(--font-mono);color:var(--ink-faint);text-align:center">@week.WeekStart.ToString("M/d")</b>
+                        <b style="font:600 0.4375rem/1.5 var(--font-mono);color:var(--ink-faint);text-align:center">@week.WeekStart.ToString("M/d")</b>
                     </div>
                 }
             </div>
-            <p class="cap" style="margin-top:6px">CONFIRMED CHECK-INS PER SUNDAY-START WEEK · OLDEST LEFT → THIS WEEK RIGHT</p>
+            <p class="cap" style="margin-top:0.375rem">CONFIRMED CHECK-INS PER SUNDAY-START WEEK · OLDEST LEFT → THIS WEEK RIGHT</p>
         </div>
 
         <h2 class="section-h">Promotion history</h2>
@@ -78,7 +78,7 @@
             }
         </div>
 
-        <p class="cap" style="margin-top:14px">DIARIES ARE PRIVATE TO THEIR OWNER — GUARDIANS SEE ATTENDANCE AND RANK, NEVER NOTES.</p>
+        <p class="cap" style="margin-top:0.875rem">DIARIES ARE PRIVATE TO THEIR OWNER — GUARDIANS SEE ATTENDANCE AND RANK, NEVER NOTES.</p>
     }
 </main>
 

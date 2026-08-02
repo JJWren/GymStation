@@ -39,7 +39,7 @@
     }
     @foreach (var session in _sessions)
     {
-        <div class="ses @(session.Status == SessionStatus.Cancelled ? "ses--cancelled" : null)" style="margin-bottom:10px">
+        <div class="ses @(session.Status == SessionStatus.Cancelled ? "ses--cancelled" : null)" style="margin-bottom:0.625rem">
             <div class="head-row">
                 <span class="t">@session.StartTime.ToString("HH\\:mm")</span>
                 <span>
@@ -49,11 +49,11 @@
                     }
                 </span>
             </div>
-            <div class="n" style="font-size:16px">@session.Name</div>
+            <div class="n" style="font-size:1rem">@session.Name</div>
             <div class="c">@(_names.GetValueOrDefault(session.InstructorPersonId ?? Guid.Empty, "UNASSIGNED").ToUpperInvariant()) · @session.DurationMinutes MIN</div>
             @if (session.InstructorPersonId is { } instructorId && _minePersonIds.Contains(instructorId))
             {
-                <p style="margin:6px 0 0"><span class="stamp stamp--ok">YOU TEACH</span> <a class="chip" href="/instructor/roll/@session.Id">LIVE ROLL →</a></p>
+                <p style="margin:0.375rem 0 0"><span class="stamp stamp--ok">YOU TEACH</span> <a class="chip" href="/instructor/roll/@session.Id">LIVE ROLL →</a></p>
             }
             @if (session.Status == SessionStatus.Cancelled)
             {
