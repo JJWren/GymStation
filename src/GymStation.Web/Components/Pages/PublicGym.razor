@@ -124,7 +124,12 @@ else
             return;
         }
 
-        // Anonymous request: no claim hydrated the tenant — the slug is the tenant here.
+        // The visitor's own active gym (claim-hydrated by the middleware) — captured
+        // BEFORE the slug overrides the tenant, so "back to your portal" routes by
+        // where they belong, not by whichever gym's page they're looking at.
+        var activeGymId = Tenant.CurrentGymId;
+
+        // The slug is the tenant for everything this page renders.
         Tenant.SetGym(_gym.Id);
 
         // A signed-in visitor gets their identity and a way back to their portal
@@ -135,7 +140,7 @@ else
             var raw = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (Guid.TryParse(raw, out var userId))
             {
-                _portalPath = await Memberships.LandingPathAsync(userId, _gym.Id);
+                _portalPath = await Memberships.LandingPathAsync(userId, activeGymId ?? _gym.Id);
             }
         }
 
