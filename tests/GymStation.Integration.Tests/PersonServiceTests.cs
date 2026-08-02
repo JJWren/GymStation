@@ -88,6 +88,29 @@ public class PersonServiceTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task Contact_SetsTrimsAndClears_WithConsentTiedToTheNumber()
+    {
+        var (tenant, _, member) = await SeedAsync();
+
+        await using var context = fixture.CreateContext(tenant);
+        var service = new PersonService(context);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.SetContactAsync(member.Id, new string('9', 31), true));
+
+        await service.SetContactAsync(member.Id, "  +1 555 010 0100 ", true);
+        var stored = await context.Persons.SingleAsync(p => p.Id == member.Id);
+        Assert.Equal("+1 555 010 0100", stored.PhoneNumber);
+        Assert.True(stored.SmsAllowed);
+
+        // Clearing the number always clears consent with it.
+        await service.SetContactAsync(member.Id, "  ", true);
+        stored = await context.Persons.SingleAsync(p => p.Id == member.Id);
+        Assert.Null(stored.PhoneNumber);
+        Assert.False(stored.SmsAllowed);
+    }
+
+    [Fact]
     public async Task Archive_RoundTrips()
     {
         var (tenant, _, member) = await SeedAsync();

@@ -82,6 +82,7 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
         {
             e.Property(p => p.FirstName).HasMaxLength(80);
             e.Property(p => p.LastName).HasMaxLength(80);
+            e.Property(p => p.PhoneNumber).HasMaxLength(30);
             // One roster record per User per gym; unlimited login-less Persons.
             e.HasIndex(p => new { p.GymId, p.UserId }).IsUnique().HasFilter("\"UserId\" IS NOT NULL");
             e.HasQueryFilter(p => CurrentGymId != null && p.GymId == CurrentGymId);

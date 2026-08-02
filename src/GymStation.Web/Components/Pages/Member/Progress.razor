@@ -11,6 +11,8 @@
 @inject RankService Ranks
 @inject AttendanceService Attendance
 @inject TrainingDiaryService Diary
+@inject GymStation.Infrastructure.People.PersonService People
+@inject NavigationManager Nav
 
 <PageTitle>Progress · GymStation</PageTitle>
 
@@ -115,6 +117,23 @@
         }
     </div>
 
+    @if (_mePersonId is not null)
+    {
+        <h2 class="section-h">My contact</h2>
+        <EditForm class="form-card" FormName="my-contact" Model="ContactForm" OnValidSubmit="SaveContactAsync">
+            <label for="cphone">Phone number (leave empty to remove)</label>
+            <InputText id="cphone" @bind-Value="ContactForm!.PhoneNumber" maxlength="30" />
+            <div class="check-row" style="margin-top:0.625rem">
+                <label><InputCheckbox @bind-Value="ContactForm!.SmsAllowed" /> TEXTING THIS NUMBER IS OK</label>
+            </div>
+            @if (_contactError is not null)
+            {
+                <p class="validation-message">@_contactError</p>
+            }
+            <p style="margin-top:0.75rem"><button class="btn btn--ghost btn--xs" type="submit">SAVE CONTACT</button></p>
+        </EditForm>
+    }
+
     <h2 class="section-h">Promotion history</h2>
     <div class="form-card tl">
         @foreach (var award in _awards)
@@ -159,6 +178,18 @@
 @code {
     [CascadingParameter] public HttpContext? HttpContext { get; set; }
 
+    [SupplyParameterFromForm(FormName = "my-contact")]
+    public ContactFormModel? ContactForm { get; set; }
+
+    public class ContactFormModel
+    {
+        public string? PhoneNumber { get; set; }
+        public bool SmsAllowed { get; set; }
+    }
+
+    private Guid? _mePersonId;
+    private string? _contactError;
+
     [SupplyParameterFromQuery(Name = "range")] public string? RangeRaw { get; set; }
     [SupplyParameterFromQuery(Name = "from")] public string? FromRaw { get; set; }
     [SupplyParameterFromQuery(Name = "to")] public string? ToRaw { get; set; }
@@ -190,6 +221,8 @@
     private Dictionary<Guid, CurrentRank> _childRanks = [];
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
 
+    protected override void OnInitialized() => ContactForm ??= new();
+
     protected override async Task OnInitializedAsync()
     {
         var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -215,6 +248,18 @@
         if (me is null)
         {
             return;
+        }
+
+        _mePersonId = me.Id;
+
+        // Prefill unless THIS form posted (a failed submit keeps the binder's values).
+        var postedHandler = HttpContext?.Request.Method == "POST"
+            ? HttpContext.Request.Form["_handler"].ToString()
+            : null;
+        if (postedHandler != "my-contact")
+        {
+            ContactForm!.PhoneNumber = me.PhoneNumber;
+            ContactForm.SmsAllowed = me.SmsAllowed;
         }
 
         _ageGroup = GymStation.Domain.People.IbjjfAgeGroup.FromBirthDate(me.DateOfBirth, Today);
@@ -289,5 +334,23 @@
         return _range == "custom"
             ? $"/progress?from={_from:yyyy-MM-dd}&to={_to:yyyy-MM-dd}&cpage={page}"
             : $"/progress?range={_range}&cpage={page}";
+    }
+
+    private async Task SaveContactAsync()
+    {
+        if (_mePersonId is not { } personId)
+        {
+            return;
+        }
+
+        try
+        {
+            await People.SetContactAsync(personId, ContactForm!.PhoneNumber, ContactForm.SmsAllowed);
+            Nav.NavigateTo("/progress");
+        }
+        catch (InvalidOperationException ex)
+        {
+            _contactError = ex.Message;
+        }
     }
 }
