@@ -70,6 +70,26 @@
             <p class="cap">NO RANK HISTORY YET.</p>
         }
     </div>
+
+    @if (_children.Count > 0)
+    {
+        <h2 class="section-h">My people</h2>
+        @foreach (var child in _children)
+        {
+            var rank = _childRanks.GetValueOrDefault(child.Id);
+            <a class="form-card" href="/progress/child/@child.Id" style="display:block;margin-bottom:8px;text-decoration:none">
+                <div class="head-row">
+                    <b>@child.DisplayName</b>
+                    @if (rank is not null)
+                    {
+                        <BeltBar Size="s" BandColorHex="@rank.Rank.BandColorHex" BarColorHex="@rank.Rank.BarColorHex"
+                                 Stripes="@rank.Stripes" Label="@($"{rank.Rank.Name}, {rank.Stripes} stripes")" />
+                    }
+                </div>
+                <p class="cap" style="margin:4px 0 0">ATTENDANCE · RANK · PROMOTIONS →</p>
+            </a>
+        }
+    }
 </main>
 
 @code {
@@ -82,6 +102,8 @@
     private List<GymStation.Domain.Attendance.WeekCount> _weekly = [];
     private int _weeklyPeak;
     private string? _ageGroup;
+    private List<Person> _children = [];
+    private Dictionary<Guid, CurrentRank> _childRanks = [];
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
 
     protected override async Task OnInitializedAsync()
@@ -93,6 +115,18 @@
         }
 
         await using var db = await DbFactory.CreateDbContextAsync();
+
+        // Linked children render for guardians even when the guardian has no
+        // roster record of their own (Sarah's account is exactly this shape).
+        var childIds = await db.GuardianLinks.Where(l => l.GuardianUserId == userId)
+            .Select(l => l.ChildPersonId).ToListAsync();
+        _children = await db.Persons.Where(p => childIds.Contains(p.Id) && !p.Archived)
+            .OrderBy(p => p.FirstName).ToListAsync();
+        if (_children.Count > 0)
+        {
+            _childRanks = await Ranks.GetPrimaryRanksAsync(_children.Select(c => c.Id).ToList());
+        }
+
         var me = await db.Persons.SingleOrDefaultAsync(p => p.UserId == userId && !p.Archived);
         if (me is null)
         {

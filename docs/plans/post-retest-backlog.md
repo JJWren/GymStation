@@ -30,7 +30,7 @@ gets meaningful drops instead of eighteen tiny ones.
 - [x] #40 — Admin: edit person details (incl. DOB → IBJJF/Masters category)
 - [ ] #39 — Instructor experience
 - [ ] #34 — Theme toggle
-- [ ] #41 — Guardian portal
+- [x] #41 — Guardian portal
 - [ ] #24 — Ledger management
 - [ ] #25 — Events v2
 - [ ] #28 — Shared media upload (preview/crop)
