@@ -75,3 +75,79 @@ Transcribed 2026-07-31T16:25:00-05:00 from the inception grilling/domain-modelin
 **Context**: Inception → Construction transition
 
 ---
+## Round-3 Retest Grilling (grill-with-docs)
+**Timestamp**: 2026-08-02 (post-v1.3.0 lab deploy)
+**User Input**: "I still think fonts and everything in general can be a bit larger, especially on larger screens. Some text and areas feel too small such as the reporting section. at around 1180 for the width, the side navbar for admin meets the edge. I think we should do that for all screen sizes. If for some reason, the admin panel is being viewed via a phone (or any screen that is generally considered narrow), the side nav should go to the top and only show the icon, gym name / gymstation and a hamburger icon that I can pull the navigation from.
+
+I think the belts should be \"thicker\" for the ranks (top to bottom) -- probably twice as wide. This goes for all screens they appear on.
+
+From the admin screen I should be able to navigate to my member screen and back (additional navigation option for admins in the member view).
+
+I am not sure I have seen or checked this edge case (so if it exists already, then no issue).
+
+For guardians that have multiple children or train themselves (could even be multiple guardians over one or more children), they should have the ability to switch between the members they are guardian over (including themselves). For example there could be a family of 5 (mother (trains), father (trains), 2 children members, grandparent (guardian only not a member)). The father is the primary account as that is who payments are tied to (maybe there is a family membership plan?). The father should be able to see his own member view and the children, but also be able to add, edit, or remove guardians. The mother should be able to see her own member view and the children and be allowed add or edit or remove guardians (except the primary) if the primary account allows it for this guardian. The guardian grandparent should be able to view the children member views. When I say \"view\" for these guardians, I really mean \"act on their behalf\". The grandparent is disallowed by the primary account from adding/removing/editing guardians (hypothetical situation showcasing the RBAC at work here). We should discuss how that works for admins of the gym portal. Should they have access to do this also? Should it be by request only and how is that enforced? etc.
+
+How do control plans that apply to groups of people such as a family?
+
+Member should be able to add/edit/remove their contact number and indicate if text is allowed. Admin should also be able to add contact numbers to an account (default no text allowed, but is changeable).
+
+Classes/events on Schedule do not appear to be draggable, nor stretchable (to expand or shrink class start and end/overall time).
+
+Notfications should have pagination just like roster/dues people. Consider pagination for other areas where there could be many or an overwhelming amount. Also, all pagination should default to 10, not 25.
+
+The side nav should not stretch to the height of the total page (such as the roster which may dip below the bottom of the screen). It should remain the height of the view and as I scroll the view down, it should bascially appear to stay in place (meaning I see the navbar exactly as it is all the time).
+
+There are several fields that do not look the same as the other input fields (Plan Name in Dues, ...Or a New Category Name in Dues, etc.). They should look the same as the other themed fields.
+
+I can see expenses populated, but I cannot seem to remove them or edit them from the Dues view.
+
+There seems to be some sort of timeout functionality that doesn't sign the user out. That should not be on by default and should be controlled from the admin settings and only for the current admin user. It should also completely sign the user out and bring them to the login screen.
+
+I should be able to navigate to the gym landing page (ironworks-bjj as the demo example) from the admin view or the member view (and back again respectively if I am logged in -- this exists already for going back, just not to the gym landing itself).
+
+As an admin, I should be able to edit the stuff under the gym name in the landing (currently says Schedule - Instructors - Visit). This begs the question if there should be a \"Landing\" navigation in the admin panel for all landing related settings/adjustments.
+
+Auto-apply and open claims (currently in schedule) should be moved to the settings area for consolidation of settings.
+
+Events should show up on the schedule.
+
+Just like there are expenses, there should be income/revenue/earnings/assets. This probably means there should be a finance view to handle income and expenses (which is maybe where plans should also be since it is a managed revenue source?).
+
+Raise this month's charges doesn't make sense IMO and should just be removed. Like, I don't know what it's function is meant to be exactly. Do I need to be hitting this monthly?
+
+It was stated before, but the search field here is another one where the field does not match the theme. Events is another page where fields are not thematically right across the board (Title, Time Info, Location). Rank dropdown is another on in the roster as is first name and last name in the add person section. /admin/people/somePerson is another screen where this is an issue (choose file, first name, last name).
+
+When I add a person and having nothing check (roster page), it adds them as a member. If nothing is checked, I would expect that visitor would be the default, not member. We should have a checkbox for visitor and make it mandatory for at least one of those checkboxes to be marked.
+
+Also, just like instructors, an admin should also be allowed to be assigned a pay rate (could have a non-practicing, non-instructing employee working as an admin). This probably means there should be a staff association that can be turned on or off. All instructors and admin and owners are staff by default, but there could be general staff that is not an admin in this portal, but manages something like the front desk, or cleaning, etc.
+
+We should probably add a subtle privacy link, terms, cookies, and maybe a help link for all views. We should talk about these in more detail.
+
+As an instructor, when I click all substitutions, it shouldn't take me to the admin portal. I should be able to see a instructor custom view of the schedule (schedule nav is already here). Let me see the open classes here and elect to cover it on this page instead."
+**AI Response**: Explored the codebase (3 fact sheets: shells/theming, domain/money/auth, schedule/instructor/events), then grilled 12 decisions one at a time.
+**Context**: Round-3 backlog inception; plan file rewritten to "Round-3 Backlog"
+
+---
+
+## Round-3 Grilling Decisions
+**Timestamp**: 2026-08-02
+**Q1 Family aggregate** → "Family entity (Recommended)" — Family + FamilyMember + FamilyGuardian, absorbs GuardianLink.
+**Q2 Family billing** → "One charge on primary (Recommended)" — MembershipPlan.Scope; family plan bills the primary's Person; covered members skipped.
+**Q3 Guardian RBAC granularity** → **"Full permission matrix"** (overrode the primary+one-flag recommendation).
+**Q4 Matrix flags** → all four selected: Act for wards (default ON), Manage guardians, Manage members, View billing (default OFF).
+**Q5 Diary scope** → custom answer (verbatim): "diaries are fully within the responsibility of a guardian (much like phones and emails are within their right to read, at least within the US). I would let guardians to have the ability to manage diaries for their wards. however, there probably should be functionality for a guardian to split a ward off into their own private account once the ward is at least 18 (not sure how this should be handled as it's different in various states for contracts...). maybe more discussion on this?"
+**Q6 Ward split-off** → "As proposed (Recommended)" — manual graduation by primary/admin, DOB-18 nudge, own login invited, full diary history goes private to the adult, family-plan coverage can continue.
+**Q7 Admin powers** → "Structure only (Recommended)" — admins build/repair families and run graduations; never act-as, never diaries; consent flow → future board.
+**Q8 Staff model** → "Staff flag + StaffProfile (Recommended)".
+**Q9 Finance view** → custom answer (verbatim): "As proposed, but to be clear, incomes should also be fully editable/deletable."
+**Q10 Timeout symptom** → custom answer (verbatim): "The screen looked as though nothing changed until I tried to interact (such as navigating to Today, I then am presented with a blank (not gym affiliated) gymstation admin view that states no active gym. pick a gym to continue... but I am still technically signed in as I have the option to sign out and it shows me signed in below that." — Diagnosed as security-stamp cookie refresh dropping the login-time active-gym claim.
+**Q11 Landing editor** → "Full LANDING section (Recommended)".
+**Q12 Drag semantics** → "Occurrence only (Recommended)".
+**Q13 Events on rail** → "Optional structured time (Recommended)".
+**Q14 Cover on /schedule** → "Claim on /schedule (Recommended)".
+**Q15 Footer links** → "Platform pages (Recommended)".
+**Q16 Type scale** → "Floor + ceiling up (Recommended)".
+**AI Response**: Wrote the Round-3 Backlog plan (waves A/B/C); Joshua approved via plan-mode approval.
+**Context**: Inception complete → Construction loop begins
+
+---
