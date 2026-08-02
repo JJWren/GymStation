@@ -17,7 +17,7 @@ Loop process per issue: branch off pulled master → implement → rig-verify �
 - [x] #77 — Un-themed input fields sweep (:not()-based selectors)
 - [x] #78 — Admin shell: full-width, sticky rail, hamburger top bar
 - [ ] #79 — Type scale up, belts 2×, reports density pass
-- [ ] #80 — Notifications pagination; pager default 10
+- [x] #80 — Notifications pagination; pager default 10
 - [ ] #81 — Add person: explicit role/visitor choice required
 - [ ] #82 — Person contact number + SMS consent
 - [ ] #83 — Admin↔member switching + explicit landing links

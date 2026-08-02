@@ -5,7 +5,7 @@
 
 <div class="head-row">
     <h1 class="page-title" style="font-size:1.25rem">NOTIFICATIONS</h1>
-    @if (_items.Any(n => n.ReadUtc == null))
+    @if (_hasUnread)
     {
         <EditForm FormName="mark-read" Model="Marker" OnValidSubmit="MarkAllReadAsync">
             <button class="btn btn--ghost btn--xs" type="submit">MARK ALL READ</button>
@@ -31,6 +31,10 @@
         </p>
     </div>
 }
+@if (_total > 0)
+{
+    <Pager Path="@ReturnPath" Page="@_page" PageCount="@_pageCount" Size="@_size" />
+}
 
 @code {
     [CascadingParameter] public HttpContext? HttpContext { get; set; }
@@ -41,11 +45,19 @@
     [SupplyParameterFromForm(FormName = "mark-read")]
     public MarkerModel? Marker { get; set; }
 
+    [SupplyParameterFromQuery(Name = "page")] public int? PageRaw { get; set; }
+    [SupplyParameterFromQuery(Name = "size")] public int? SizeRaw { get; set; }
+
     protected override void OnInitialized() => Marker ??= new();
 
     public class MarkerModel;
 
     private List<Notification> _items = [];
+    private int _page = 1;
+    private int _pageCount = 1;
+    private int _size = Pager.DefaultSize;
+    private int _total;
+    private bool _hasUnread;
 
     protected override async Task OnInitializedAsync()
     {
@@ -56,10 +68,17 @@
         }
 
         await using var db = await DbFactory.CreateDbContextAsync();
-        _items = await db.Notifications
-            .Where(n => n.RecipientUserId == userId)
+        var scope = db.Notifications.Where(n => n.RecipientUserId == userId);
+        _total = await scope.CountAsync();
+        // Unread can live on any page — the mark-all button keys off the whole set.
+        _hasUnread = await scope.AnyAsync(n => n.ReadUtc == null);
+        _size = Pager.ResolveSize(SizeRaw);
+        (_page, _pageCount) = Pager.Resolve(PageRaw, _total, _size);
+        _items = await scope
             .OrderByDescending(n => n.CreatedUtc)
-            .Take(50)
+            .Skip((_page - 1) * _size)
+            .Take(_size)
+            .AsNoTracking()
             .ToListAsync();
     }
 
