@@ -54,10 +54,18 @@ public static class AuthEndpoints
             // Single-gym users skip the picker (Q6 caveat: picker only for multi-gym users).
             if (gyms.Count == 1)
             {
-                await SignInWithActiveGymAsync(signIn, user, gyms[0].GymId);
+                await SignInWithActiveGymAsync(users, signIn, user, gyms[0].GymId);
 
                 // Route by role at sign-in: non-staff never see the admin shell.
                 return Results.Redirect(await memberships.LandingPathAsync(user.Id, gyms[0].GymId));
+            }
+
+            // Multi-gym: clear the remembered gym so the picker stays mandatory —
+            // otherwise the claims factory would resume last session's gym.
+            if (user.ActiveGymId is not null)
+            {
+                user.ActiveGymId = null;
+                await users.UpdateAsync(user);
             }
 
             await signIn.SignInAsync(user, isPersistent: true);
@@ -82,7 +90,7 @@ public static class AuthEndpoints
                 return Results.Redirect("/pick-gym?failed=1");
             }
 
-            await SignInWithActiveGymAsync(signIn, user, gymId);
+            await SignInWithActiveGymAsync(users, signIn, user, gymId);
             return Results.Redirect(await memberships.LandingPathAsync(user.Id, gymId));
         }).RequireAuthorization();
 
@@ -123,12 +131,14 @@ public static class AuthEndpoints
         return app;
     }
 
-    private static Task SignInWithActiveGymAsync(SignInManager<AppUser> signIn, AppUser user, Guid gymId)
+    private static async Task SignInWithActiveGymAsync(
+        UserManager<AppUser> users, SignInManager<AppUser> signIn, AppUser user, Guid gymId)
     {
-        // Re-issues the auth cookie with the active gym baked in; ActiveGymMiddleware reads it per request.
-        return signIn.SignInWithClaimsAsync(
-            user,
-            isPersistent: true,
-            [new Claim(ActiveGymMiddleware.ActiveGymClaim, gymId.ToString())]);
+        // Persist the choice, then sign in normally: the claims principal factory bakes
+        // the active-gym claim into THIS cookie and every later regeneration alike
+        // (security-stamp refreshes used to drop a sign-in-only claim — issue #76).
+        user.ActiveGymId = gymId;
+        await users.UpdateAsync(user);
+        await signIn.SignInAsync(user, isPersistent: true);
     }
 }
