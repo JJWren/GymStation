@@ -64,7 +64,7 @@
             && !ReservedKeys.Contains(pair.Key, StringComparer.OrdinalIgnoreCase));
 
     public static readonly int[] Sizes = [10, 25, 50];
-    public const int DefaultSize = 25;
+    public const int DefaultSize = 10;
 
     /// <summary>Snap a requested size onto the offered options.</summary>
     public static int ResolveSize(int? requested) => requested is 10 or 25 or 50 ? requested.Value : DefaultSize;
