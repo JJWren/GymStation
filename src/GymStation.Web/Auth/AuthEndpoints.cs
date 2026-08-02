@@ -61,11 +61,16 @@ public static class AuthEndpoints
             }
 
             // Multi-gym: clear the remembered gym so the picker stays mandatory —
-            // otherwise the claims factory would resume last session's gym.
+            // otherwise the claims factory would resume last session's gym. A failed
+            // clear must abort: signing in anyway would silently resume that gym.
             if (user.ActiveGymId is not null)
             {
                 user.ActiveGymId = null;
-                await users.UpdateAsync(user);
+                var cleared = await users.UpdateAsync(user);
+                if (!cleared.Succeeded)
+                {
+                    return Results.Problem("Could not update the account. Try again.", statusCode: 500);
+                }
             }
 
             await signIn.SignInAsync(user, isPersistent: true);
@@ -138,7 +143,15 @@ public static class AuthEndpoints
         // the active-gym claim into THIS cookie and every later regeneration alike
         // (security-stamp refreshes used to drop a sign-in-only claim — issue #76).
         user.ActiveGymId = gymId;
-        await users.UpdateAsync(user);
+        var updated = await users.UpdateAsync(user);
+        if (!updated.Succeeded)
+        {
+            // Signing in without the persisted gym would recreate the exact bug this
+            // fixes on the next cookie regeneration — fail loudly instead.
+            throw new InvalidOperationException(
+                $"Failed to persist the active gym: {string.Join("; ", updated.Errors.Select(e => e.Description))}");
+        }
+
         await signIn.SignInAsync(user, isPersistent: true);
     }
 }

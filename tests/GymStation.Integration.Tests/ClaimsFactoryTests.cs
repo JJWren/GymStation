@@ -68,13 +68,16 @@ public class ClaimsFactoryTests(PostgresFixture fixture)
         }
 
         user.ActiveGymId = gym.Id;
-        await users.UpdateAsync(user);
+        Assert.True((await users.UpdateAsync(user)).Succeeded);
 
         // First build (login) and a second build (what the stamp validator does later)
-        // must BOTH carry the tenant claim.
+        // must BOTH carry the tenant claim. The stamp validator RELOADS the user from
+        // the store, so each round does too — this fails if ActiveGymId didn't persist.
         for (var round = 0; round < 2; round++)
         {
-            var principal = await factory.CreateAsync(user);
+            var reloaded = await users.FindByIdAsync(user.Id.ToString());
+            Assert.NotNull(reloaded);
+            var principal = await factory.CreateAsync(reloaded!);
             Assert.Equal(gym.Id.ToString(), principal.FindFirstValue(ActiveGymMiddleware.ActiveGymClaim));
         }
     }
