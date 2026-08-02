@@ -22,7 +22,7 @@ Loop process per issue: branch off pulled master → implement → rig-verify �
 - [ ] #82 — Person contact number + SMS consent
 - [x] #83 — Admin↔member switching + explicit landing links
 - [ ] #84 — Swap-mode/open-claims move to Settings
-- [ ] #85 — Footer: privacy · terms · cookies · help
+- [x] #85 — Footer: privacy · terms · cookies · help
 - [ ] #86 — Per-user idle auto-sign-out (off by default)
 - [ ] #87 — Staff role + StaffProfile
 - [ ] #88 — Finance view (OtherIncome, editable money records, RAISE retired)
