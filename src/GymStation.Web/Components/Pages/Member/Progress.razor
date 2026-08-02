@@ -225,7 +225,6 @@
         _weeklyPeak = _weekly.Count == 0 ? 0 : _weekly.Max(w => w.Count);
 
         ResolveCheckInRange();
-        _ciPage = Math.Max(1, CheckInPageRaw ?? 1);
 
         var scope = db.AttendanceRecords.Where(a =>
             a.PersonId == me.Id && a.Status != AttendanceStatus.Removed
@@ -239,6 +238,11 @@
         _ciConfirmed = statusCounts.Where(x => x.Key == AttendanceStatus.Confirmed).Sum(x => x.Count);
         _ciPending = statusCounts.Where(x => x.Key == AttendanceStatus.Pending).Sum(x => x.Count);
         _ciTotal = _ciConfirmed + _ciPending;
+
+        // A too-high page clamps to the LAST page (matches the roster pager spec),
+        // so the label can never claim an impossible "PAGE 2 OF 1".
+        var lastPage = Math.Max(1, (_ciTotal + CheckInPageSize - 1) / CheckInPageSize);
+        _ciPage = Math.Clamp(CheckInPageRaw ?? 1, 1, lastPage);
 
         _checkIns = await scope
             .Include(a => a.Session)
