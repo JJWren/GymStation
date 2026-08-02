@@ -121,6 +121,7 @@
         <label><InputCheckbox @bind-Value="Form!.IsMember" /> MEMBER</label>
         <label><InputCheckbox @bind-Value="Form!.IsInstructor" /> INSTRUCTOR</label>
         <label><InputCheckbox @bind-Value="Form!.IsAdmin" /> ADMIN</label>
+        <label><InputCheckbox @bind-Value="Form!.IsVisitor" /> VISITOR (DROP-IN, NO PLAN)</label>
     </div>
     @if (_formError is not null)
     {
@@ -174,9 +175,11 @@
         public string LastName { get; set; } = "";
         public DateOnly? DateOfBirth { get; set; }
         public string? LinkEmail { get; set; }
-        public bool IsMember { get; set; } = true;
+        // No silent default: adding someone requires an explicit choice (#81).
+        public bool IsMember { get; set; }
         public bool IsInstructor { get; set; }
         public bool IsAdmin { get; set; }
+        public bool IsVisitor { get; set; }
     }
 
     protected override async Task OnInitializedAsync()
@@ -300,7 +303,20 @@
         if (form.IsMember) roles |= PersonRoles.Member;
         if (form.IsInstructor) roles |= PersonRoles.Instructor;
         if (form.IsAdmin) roles |= PersonRoles.Admin;
-        if (roles == PersonRoles.None) roles = PersonRoles.Member;
+
+        // Nothing checked used to silently create a Member — now the choice is
+        // mandatory. A visitor-only tick gets the standard visitor shape (#29):
+        // Member role for portal purposes plus the Visitor flag.
+        if (roles == PersonRoles.None && !form.IsVisitor)
+        {
+            _formError = "Pick at least one: member, instructor, admin, or visitor.";
+            return;
+        }
+
+        if (roles == PersonRoles.None)
+        {
+            roles = PersonRoles.Member;
+        }
 
         Guid? userId = null;
         if (!string.IsNullOrWhiteSpace(form.LinkEmail))
@@ -323,6 +339,7 @@
             DateOfBirth = form.DateOfBirth,
             UserId = userId,
             Roles = roles,
+            Visitor = form.IsVisitor,
             JoinedOn = Today,
         });
         await db.SaveChangesAsync();
