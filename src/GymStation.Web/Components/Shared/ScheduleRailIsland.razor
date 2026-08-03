@@ -288,7 +288,7 @@
             maxStart)));
     }
 
-    private void StartMove(RailCard card, PointerEventArgs e)
+    private async Task StartMove(RailCard card, PointerEventArgs e)
     {
         if (card.Session.Status == SessionStatus.Cancelled)
         {
@@ -297,9 +297,10 @@
 
         _drag = new DragState { SessionId = card.Session.Id, StartY = e.ClientY, StartX = e.ClientX, PreviewRow = card.Row, PreviewSpan = card.Span, PreviewColumn = card.Column };
         _islandError = null;
+        await CapturePointerAsync(e);
     }
 
-    private void StartResize(RailCard card, PointerEventArgs e)
+    private async Task StartResize(RailCard card, PointerEventArgs e)
     {
         if (card.Session.Status == SessionStatus.Cancelled)
         {
@@ -310,6 +311,17 @@
         // must never read as a click into the modal.
         _drag = new DragState { SessionId = card.Session.Id, Resizing = true, StartY = e.ClientY, StartX = e.ClientX, Moved = true, PreviewRow = card.Row, PreviewSpan = card.Span, PreviewColumn = card.Column };
         _islandError = null;
+        await CapturePointerAsync(e);
+    }
+
+    // The grid holds the pointer for the whole gesture — releasing outside the
+    // grid still fires OnPointerUp here, so _drag can never strand.
+    private async Task CapturePointerAsync(PointerEventArgs e)
+    {
+        if (_module is not null)
+        {
+            await _module.InvokeVoidAsync("capture", _gridRef, e.PointerId);
+        }
     }
 
     private void OnPointerMove(PointerEventArgs e)
