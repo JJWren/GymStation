@@ -27,6 +27,8 @@
             <rect x="2" y="3.5" width="12" height="9" rx="1" />
             <path d="M2.75 4.75L8 9l5.25-4.25" />
             break;
+        default:
+            throw new ArgumentException($"Unknown glyph '{Name}'.", nameof(Name));
     }
 </svg>
 

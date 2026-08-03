@@ -133,9 +133,10 @@ a { color: var(--ink); }
 /* ---- forms & buttons ---- */
 .btn { font: 700 0.6875rem/1 var(--font-mono); letter-spacing: .1em; background: var(--tenant); color: var(--tenant-ink); border: none; border-radius: 0.5rem; padding: 0.6875rem 1rem; cursor: pointer; --glow: var(--tenant); }
 .btn--ghost { background: transparent; border: 1.5px solid var(--tenant); color: var(--tenant); }
-/* Hover affordance for every button (#123); glow color follows the variant. */
-.btn:hover, input[type=file]::file-selector-button:hover { box-shadow: 0 0 0.55rem var(--glow, var(--tenant)); }
-.btn:focus-visible { outline: 2px solid var(--glow, var(--tenant)); outline-offset: 2px; }
+/* Hover affordance for every button (#123) — element-wide so chrome buttons
+   (theme toggle, sign-out, gym picker) glow too; variants recolor via --glow. */
+button:not(:disabled):hover, input[type=file]::file-selector-button:hover { box-shadow: 0 0 0.55rem var(--glow, var(--tenant)); }
+button:focus-visible { outline: 2px solid var(--glow, var(--tenant)); outline-offset: 2px; }
 /* Icon-only actions (#123): save = persist-a-record, del = hard delete.
    Icon buttons MUST carry aria-label + title — the glyph alone names nothing. */
 .btn--icon { display: inline-flex; align-items: center; justify-content: center; padding: 0.5625rem; line-height: 0; }
