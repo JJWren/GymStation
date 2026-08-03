@@ -82,6 +82,21 @@
             {
                 <p style="margin:0.375rem 0 0"><span class="stamp stamp--ok">YOU TEACH</span> <a class="chip" href="/instructor/roll/@session.Id">LIVE ROLL →</a></p>
             }
+            @if (_openCovers.GetValueOrDefault(session.Id) is { } cover)
+            {
+                <p style="margin:0.375rem 0 0">
+                    <span class="stamp stamp--warn">NEEDS COVER</span>
+                    @if (_iAmInstructor && cover.CanAct)
+                    {
+                        <form method="post" action="/instructor/actions/accept-sub" style="display:inline;margin-left:0.375rem">
+                            <AntiforgeryToken />
+                            <input type="hidden" name="requestId" value="@cover.RequestId" />
+                            <input type="hidden" name="back" value="schedule" />
+                            <button class="btn btn--xs" type="submit">@(cover.NamedToMe ? "ACCEPT" : "CLAIM")</button>
+                        </form>
+                    }
+                </p>
+            }
             @if (session.Status == SessionStatus.Cancelled)
             {
                 <span class="stamp stamp--bad">CANCELLED</span>
@@ -144,6 +159,9 @@
     private HashSet<Guid> _minePersonIds = [];
     private Dictionary<(Guid SessionId, Guid PersonId), AttendanceRecord> _records = [];
     private int _windowMinutes = 60;
+    private bool _iAmInstructor;
+    private sealed record CoverInfo(Guid RequestId, bool NamedToMe, bool CanAct);
+    private Dictionary<Guid, CoverInfo> _openCovers = [];
     private DateTime _gymNow;
     private Guid _userId;
 
@@ -199,6 +217,25 @@
             _records = await db.AttendanceRecords
                 .Where(a => sessionIds.Contains(a.SessionId) && checkableIds.Contains(a.PersonId))
                 .ToDictionaryAsync(a => ValueTuple.Create(a.SessionId, a.PersonId));
+
+            // Cover on /schedule (#95): open substitution requests stamp the card;
+            // instructor viewers act inline — named-to-me shows ACCEPT, open shows
+            // CLAIM when the gym allows open claims. The endpoint re-validates.
+            _iAmInstructor = mine.Any(p => p.Roles.HasFlag(GymStation.Domain.People.PersonRoles.Instructor));
+            var openRequests = await db.SubstitutionRequests
+                .Where(r => sessionIds.Contains(r.SessionId) && r.Status == GymStation.Domain.Scheduling.SubstitutionStatus.Requested)
+                .ToListAsync();
+            var openClaims = settings?.OpenClaimsEnabled == true;
+            _openCovers = openRequests
+                .GroupBy(r => r.SessionId)
+                .ToDictionary(g => g.Key, g =>
+                {
+                    var request = g.OrderBy(r => r.Id).First();
+                    var namedToMe = request.ProposedSubPersonId is { } named && _minePersonIds.Contains(named);
+                    var canAct = namedToMe || (request.ProposedSubPersonId is null && openClaims
+                        && !_minePersonIds.Contains(request.RequestedByPersonId));
+                    return new CoverInfo(request.Id, namedToMe, canAct);
+                });
         }
     }
 

@@ -172,7 +172,12 @@ public static class InstructorActionEndpoints
     }
 
     // Allow-listed, never caller-controlled paths — no open redirect.
-    private static string Destination(string? back) => back == "teach" ? "/teach" : "/instructor/swaps";
+    private static string Destination(string? back) => back switch
+    {
+        "teach" => "/teach",
+        "schedule" => "/schedule",
+        _ => "/instructor/swaps",
+    };
 
     private static async Task<Guid?> PersonIdAsync(GymStationDbContext db, ClaimsPrincipal user)
     {
