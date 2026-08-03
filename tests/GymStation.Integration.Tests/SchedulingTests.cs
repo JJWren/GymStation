@@ -181,6 +181,42 @@ public class SchedulingTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task SundayStartWindow_OverlapsMondayMaterializedWeek_WithoutDuplicates()
+    {
+        // #126 flipped the product week to Sunday-first. A week previously
+        // materialized from a Monday start must not duplicate when the same
+        // days are requested through the overlapping Sunday-start window,
+        // and the newly-included Sunday must materialize on demand.
+        var (_, tenant, coach, _, _) = await SeedGymAsync();
+        await SeedWeekWithTemplateAsync(tenant, coach.Id); // materializes Monday..Sunday incl. Tuesday No-Gi
+
+        await using var context = fixture.CreateContext(tenant);
+        context.ClassTemplates.Add(new ClassTemplate
+        {
+            Id = Guid.NewGuid(),
+            Name = "Sunday Open Mat",
+            Day = DayOfWeek.Sunday,
+            StartTime = new TimeOnly(10, 0),
+            DurationMinutes = 120,
+            DefaultInstructorPersonId = coach.Id,
+        });
+        await context.SaveChangesAsync();
+
+        var schedule = new ScheduleService(context, new NotificationService(context));
+        var sunday = Weeks.WeekOf(Monday);
+        Assert.Equal(Monday.AddDays(-1), sunday);
+
+        var week = await schedule.GetWeekAsync(sunday);
+
+        // Window is Sunday..Saturday, the Tuesday occurrence is the SAME row
+        // (no duplicate), and the Sunday slot materialized.
+        Assert.All(week, s => Assert.InRange(s.Date, sunday, sunday.AddDays(6)));
+        Assert.Single(week, s => s.Name == "No-Gi");
+        Assert.Single(week, s => s.Name == "Sunday Open Mat" && s.Date == sunday);
+        Assert.Single(await context.ClassSessions.Where(s => s.Name == "No-Gi").ToListAsync());
+    }
+
+    [Fact]
     public async Task CancelSession_SetsStateAndNotifiesStaffAndInstructor()
     {
         var (_, tenant, coach, _, admin) = await SeedGymAsync();
