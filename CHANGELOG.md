@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.8.0](https://github.com/JJWren/GymStation/compare/v1.7.0...v1.8.0) (2026-08-03)
+
+
+### Features
+
+* drag correctness — no modal after drags, cross-day moves, modal date ([#155](https://github.com/JJWren/GymStation/issues/155)) ([f5904dc](https://github.com/JJWren/GymStation/commit/f5904dc32c0b21eb71b3390aa993f75b8697439e))
+* edge-hover week paging under a live drag ([#157](https://github.com/JJWren/GymStation/issues/157)) ([3f690b7](https://github.com/JJWren/GymStation/commit/3f690b718e07fb0be02e248800416a34d83e9fef))
+* sanitized markdown everywhere via one audited pipeline ([#158](https://github.com/JJWren/GymStation/issues/158)) ([78cf75e](https://github.com/JJWren/GymStation/commit/78cf75ebc9df13190da4e934412780731ee59a20))
+
 ## [1.7.0](https://github.com/JJWren/GymStation/compare/v1.6.0...v1.7.0) (2026-08-03)
 
 
