@@ -9,14 +9,14 @@
 <PageTitle>Settings · GymStation</PageTitle>
 
 <h1 class="page-title">SETTINGS</h1>
-<p class="page-sub">WORKFLOW · THEME · MEDIA — CLASS TAGS LIVE ON THE SCHEDULE PAGE</p>
+<p class="page-sub">WORKFLOW · THEME — CLASS TAGS LIVE ON THE SCHEDULE PAGE · LOGO &amp; HERO MOVED TO LANDING</p>
 
 @if (Failed)
 {
     <p class="auth-error" role="alert">That change was rejected — check the file type/size or the values and try again.</p>
 }
 
-<div class="detail-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:1.125rem;align-items:start">
+<div class="detail-cols" style="display:grid;grid-template-columns:minmax(0,44rem);gap:1.125rem">
     <section>
         <h2 class="section-h">Gym settings</h2>
         <EditForm class="form-card" FormName="gym-settings" Model="Form" OnValidSubmit="SaveAsync">
@@ -98,40 +98,7 @@
         </div>
     </section>
 
-    <section>
-        <h2 class="section-h">Logo &amp; hero image</h2>
-        <div class="form-card">
-            <div class="row-form" style="align-items:center">
-                @if (_settings?.LogoPath is { } logo)
-                {
-                    <img src="/media/@logo" alt="Gym logo" style="width:2.75rem;height:2.75rem;border-radius:0.5rem;object-fit:cover" />
-                }
-                else
-                {
-                    <span class="crest" style="width:2.75rem;height:2.75rem;border-radius:0.5rem;background:var(--tenant);display:inline-block"></span>
-                }
-                <MediaCropUpload Kind="logo" Label="logo" Aspect="1" OutWidth="512"
-                                 Hint="SQUARE — RENDERS AT ~44PX ON THE RAIL AND TOP BAR" />
-            </div>
-            <div class="row-form" style="align-items:center;margin-top:0.875rem">
-                @if (_settings?.HeroPath is { } hero)
-                {
-                    <img src="/media/@hero" alt="Public page hero" style="width:6rem;height:2.75rem;border-radius:0.5rem;object-fit:cover" />
-                }
-                else
-                {
-                    <span class="cap" style="margin:0">HERO: MAT-TEXTURE GRADIENT (NO IMAGE YET)</span>
-                }
-                <MediaCropUpload Kind="hero" Label="hero" Aspect="@(8 / 3.0)" OutWidth="1600"
-                                 Hint="WIDE STRIP — DARKENED BEHIND THE PUBLIC-PAGE TEXT" />
-            </div>
-            <p class="cap">
-                PNG/JPG/WEBP · MAX 2 MB · LOGO: SQUARE, 512×512 OR LARGER (EXPORTED AT 512PX) ·
-                HERO: WIDE, 1600×600 OR LARGER (DARKENED BEHIND THE PUBLIC-PAGE TEXT) ·
-                SHOWN ON THE RAIL, MEMBER TOP BAR, AND /@_gymSlug
-            </p>
-        </div>
-    </section>
+
 </div>
 
 @code {

@@ -40,4 +40,23 @@ public class GymSettings : ITenantOwned
 
     /// <summary>File-store path for the public-page hero image; null renders the mat-texture gradient.</summary>
     public string? HeroPath { get; set; }
+
+    // ---- Landing content (#93): the hero strip labels are REAL anchors to the
+    // page's sections, and VISIT is how a walk-in actually finds the gym. ----
+
+    /// <summary>Strip label anchoring to #schedule.</summary>
+    public string TaglineSchedule { get; set; } = "SCHEDULE";
+
+    /// <summary>Strip label anchoring to #instructors.</summary>
+    public string TaglineInstructors { get; set; } = "INSTRUCTORS";
+
+    /// <summary>Strip label anchoring to #visit.</summary>
+    public string TaglineVisit { get; set; } = "VISIT";
+
+    public string? VisitAddress { get; set; }
+    public string? VisitPhone { get; set; }
+    public string? VisitEmail { get; set; }
+    public string? SocialInstagram { get; set; }
+    public string? SocialFacebook { get; set; }
+    public string? SocialYouTube { get; set; }
 }

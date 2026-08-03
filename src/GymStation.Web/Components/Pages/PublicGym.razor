@@ -38,7 +38,11 @@ else
                     <div class="pub-crest" role="img" aria-label="@_gym.Name crest" style="background:var(--tenant)"></div>
                 }
                 <h1>@_gym.Name.ToUpperInvariant()</h1>
-                <p class="pub-tag">SCHEDULE · INSTRUCTORS · VISIT</p>
+                <p class="pub-tag">
+                    <a href="#schedule">@(_settings?.TaglineSchedule ?? "SCHEDULE")</a> ·
+                    <a href="#instructors">@(_settings?.TaglineInstructors ?? "INSTRUCTORS")</a> ·
+                    <a href="#visit">@(_settings?.TaglineVisit ?? "VISIT")</a>
+                </p>
                 @if (_signedInEmail is { } email)
                 {
                     <p class="pub-tag" style="margin:0 0 0.625rem">SIGNED IN AS @email.ToUpperInvariant()</p>
@@ -57,7 +61,7 @@ else
             </div>
         </header>
 
-        <section class="pub-strip">
+        <section class="pub-strip" id="schedule">
             <h2>THIS WEEK AT @_gym.Name.ToUpperInvariant() — LIVE</h2>
             <div class="pub-days">
                 @foreach (var day in _week)
@@ -77,7 +81,7 @@ else
             </div>
         </section>
 
-        <section class="pub-section">
+        <section class="pub-section" id="instructors">
             <h2>INSTRUCTORS</h2>
             <div class="pub-coaches">
                 @foreach (var (person, experience) in _instructors)
@@ -92,6 +96,46 @@ else
                     </div>
                 }
             </div>
+        </section>
+
+        <section class="pub-section" id="visit">
+            <h2>@(_settings?.TaglineVisit ?? "VISIT")</h2>
+            @if (_settings is { } vs && (vs.VisitAddress ?? vs.VisitPhone ?? vs.VisitEmail ?? vs.SocialInstagram ?? vs.SocialFacebook ?? vs.SocialYouTube) is not null)
+            {
+                <div class="patch">
+                    @if (vs.VisitAddress is { } address)
+                    {
+                        <p class="mono" style="margin:0 0 0.375rem">@address.ToUpperInvariant()</p>
+                    }
+                    @if (vs.VisitPhone is { } phone)
+                    {
+                        <p class="mono" style="margin:0 0 0.375rem"><a href="tel:@Uri.EscapeDataString(phone)">@phone</a></p>
+                    }
+                    @if (vs.VisitEmail is { } visitEmail)
+                    {
+                        <p class="mono" style="margin:0 0 0.375rem"><a href="mailto:@Uri.EscapeDataString(visitEmail)">@visitEmail.ToUpperInvariant()</a></p>
+                    }
+                    <p class="mono" style="margin:0">
+                        @* Render-side guard too: pre-existing bad data must never link. *@
+                        @if (SafeHttpUrl(vs.SocialInstagram) is { } ig)
+                        {
+                            <a href="@ig" rel="noopener noreferrer" target="_blank">INSTAGRAM</a>
+                        }
+                        @if (SafeHttpUrl(vs.SocialFacebook) is { } fb)
+                        {
+                            <text> </text><a href="@fb" rel="noopener noreferrer" target="_blank">FACEBOOK</a>
+                        }
+                        @if (SafeHttpUrl(vs.SocialYouTube) is { } yt)
+                        {
+                            <text> </text><a href="@yt" rel="noopener noreferrer" target="_blank">YOUTUBE</a>
+                        }
+                    </p>
+                </div>
+            }
+            else
+            {
+                <p class="cap" style="margin:0">DROP IN — FIRST CLASS IS ON THE MAT. ASK ANY COACH.</p>
+            }
         </section>
 
         <footer class="pub-foot">
@@ -115,6 +159,12 @@ else
     private bool _dark = true;
     private List<KeyValuePair<DayOfWeek, List<ClassTemplate>>> _week = [];
     private List<(Person Person, string? Experience)> _instructors = [];
+
+    private static string? SafeHttpUrl(string? raw)
+        => Uri.TryCreate(raw, UriKind.Absolute, out var uri)
+            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
+            ? raw
+            : null;
 
     protected override async Task OnInitializedAsync()
     {
