@@ -81,6 +81,20 @@
             }
             <p style="margin-top:0.75rem"><button class="btn btn--icon btn--save" type="submit" aria-label="Save landing" title="Save landing"><Glyph Name="save" /></button></p>
         </EditForm>
+
+        <h2 class="section-h">About</h2>
+        <EditForm class="form-card" FormName="about-content" Model="AboutForm" OnValidSubmit="SaveAboutAsync">
+            <label for="abt">Section title (also the strip anchor)</label>
+            <InputText id="abt" @bind-Value="AboutForm!.Title" />
+            <label for="abx">About the gym — empty hides the section</label>
+            <InputTextArea id="abx" @bind-Value="AboutForm!.Text" rows="6" />
+            <p class="cap" style="margin-top:0.25rem">MARKDOWN: **BOLD** · _ITALIC_ · ++UNDERLINE++ · - LISTS</p>
+            @if (_aboutError is not null)
+            {
+                <p class="validation-message">@_aboutError</p>
+            }
+            <p style="margin-top:0.75rem"><button class="btn btn--icon btn--save" type="submit" aria-label="Save about" title="Save about"><Glyph Name="save" /></button></p>
+        </EditForm>
     </section>
 
     <section>
@@ -125,6 +139,31 @@
                 SHOWN ON THE RAIL, MEMBER TOP BAR, AND /@_gymSlug
             </p>
         </div>
+
+        <h2 class="section-h">Section order</h2>
+        <div class="form-card">
+            <p class="cap" style="margin:0 0 0.5rem">TOP TO BOTTOM ON YOUR PUBLIC PAGE · EMPTY SECTIONS HIDE THEMSELVES · PROGRAMS AND STORIES APPEAR ONCE THEY HAVE CONTENT.</p>
+            @foreach (var key in _sectionOrder)
+            {
+                <div class="head-row" style="padding:0.25rem 0">
+                    <span class="mono">@SectionLabel(key)</span>
+                    <span class="row-form" style="margin:0">
+                        <form method="post" action="/admin/actions/landing-section-move" style="margin:0">
+                            <AntiforgeryToken />
+                            <input type="hidden" name="key" value="@key" />
+                            <input type="hidden" name="direction" value="-1" />
+                            <button class="btn btn--ghost btn--xs" type="submit" aria-label="Move @SectionLabel(key) up" title="Move up">▲</button>
+                        </form>
+                        <form method="post" action="/admin/actions/landing-section-move" style="margin:0">
+                            <AntiforgeryToken />
+                            <input type="hidden" name="key" value="@key" />
+                            <input type="hidden" name="direction" value="1" />
+                            <button class="btn btn--ghost btn--xs" type="submit" aria-label="Move @SectionLabel(key) down" title="Move down">▼</button>
+                        </form>
+                    </span>
+                </div>
+            }
+        </div>
     </section>
 </div>
 
@@ -136,11 +175,37 @@
     [SupplyParameterFromForm(FormName = "landing-content")]
     public LandingForm? Form { get; set; }
 
-    protected override void OnInitialized() => Form ??= new();
+    [SupplyParameterFromForm(FormName = "about-content")]
+    public AboutFormModel? AboutForm { get; set; }
+
+    protected override void OnInitialized()
+    {
+        Form ??= new();
+        AboutForm ??= new();
+    }
 
     private GymSettings? _settings;
     private string? _gymSlug;
     private string? _error;
+    private string? _aboutError;
+    private List<string> _sectionOrder = [.. LandingSections.Default];
+
+    public class AboutFormModel
+    {
+        public string Title { get; set; } = "ABOUT";
+        public string? Text { get; set; }
+    }
+
+    private string SectionLabel(string key) => key switch
+    {
+        LandingSections.About => _settings?.AboutTitle ?? "ABOUT",
+        LandingSections.Programs => _settings?.ProgramsTitle ?? "PROGRAMS",
+        LandingSections.Schedule => _settings?.TaglineSchedule ?? "SCHEDULE",
+        LandingSections.Instructors => _settings?.TaglineInstructors ?? "INSTRUCTORS",
+        LandingSections.Stories => _settings?.StoriesTitle ?? "SUCCESS STORIES",
+        LandingSections.Visit => _settings?.TaglineVisit ?? "VISIT",
+        _ => key.ToUpperInvariant(),
+    };
 
     public class LandingForm
     {
@@ -163,7 +228,21 @@
         _settings = await db.GymSettings.SingleOrDefaultAsync();
         _gymSlug = (await db.Gyms.SingleOrDefaultAsync(g => g.Id == db.CurrentGymId))?.Slug;
 
-        if (_settings is not null && HttpContext?.Request.Method != "POST")
+        _sectionOrder = LandingSections.Normalize(_settings?.SectionOrder);
+
+        // Two forms share this page now — prefill by posted-form identity so one
+        // form's POST can't blank the other's fields (the PersonDetail idiom).
+        var postedHandler = HttpContext?.Request.Method == "POST"
+            ? HttpContext.Request.Form["_handler"].ToString()
+            : null;
+
+        if (_settings is not null && postedHandler != "about-content")
+        {
+            AboutForm!.Title = _settings.AboutTitle;
+            AboutForm.Text = _settings.AboutText;
+        }
+
+        if (_settings is not null && postedHandler != "landing-content")
         {
             Form!.TaglineSchedule = _settings.TaglineSchedule;
             Form.TaglineInstructors = _settings.TaglineInstructors;
@@ -247,6 +326,36 @@
         settings.SocialYouTube = youtube;
         settings.SocialTikTok = tiktok;
         settings.SocialX = xUrl;
+        await db.SaveChangesAsync();
+        Nav.NavigateTo("/admin/landing");
+    }
+
+    private async Task SaveAboutAsync()
+    {
+        var form = AboutForm!;
+        var title = (form.Title ?? "").Trim().ToUpperInvariant();
+        if (title.Length == 0)
+        {
+            title = "ABOUT";
+        }
+
+        if (title.Length > 60)
+        {
+            _aboutError = "Keep the section title under 60 characters.";
+            return;
+        }
+
+        // Handlers reload in their own context (the v1.0.1 convention).
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var settings = await db.GymSettings.SingleOrDefaultAsync();
+        if (settings is null)
+        {
+            _aboutError = "No gym settings row — pick a gym first.";
+            return;
+        }
+
+        settings.AboutTitle = title;
+        settings.AboutText = string.IsNullOrWhiteSpace(form.Text) ? null : form.Text.Trim();
         await db.SaveChangesAsync();
         Nav.NavigateTo("/admin/landing");
     }

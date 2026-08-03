@@ -39,9 +39,15 @@ else
                 }
                 <h1>@_gym.Name.ToUpperInvariant()</h1>
                 <p class="pub-tag">
-                    <a href="#schedule">@(_settings?.TaglineSchedule ?? "SCHEDULE")</a> ·
-                    <a href="#instructors">@(_settings?.TaglineInstructors ?? "INSTRUCTORS")</a> ·
-                    <a href="#visit">@(_settings?.TaglineVisit ?? "VISIT")</a>
+                    @for (var i = 0; i < _visibleSections.Count; i++)
+                    {
+                        if (i > 0)
+                        {
+                            <text> · </text>
+                        }
+                        var anchorKey = _visibleSections[i];
+                        <a href="#@anchorKey">@LabelFor(anchorKey)</a>
+                    }
                 </p>
                 @if (_signedInEmail is { } email)
                 {
@@ -61,6 +67,19 @@ else
             </div>
         </header>
 
+        @* Sections render in the admin-set order (#134); empty ones auto-hide.
+           Hero and foot bracket the page immutably; Contact rides with visit. *@
+        @foreach (var sectionKey in _visibleSections)
+        {
+            switch (sectionKey)
+            {
+                case LandingSections.About:
+                    <section class="pub-section" id="about">
+                        <h2>@(_settings?.AboutTitle ?? "ABOUT")</h2>
+                        <div class="patch pub-about"><MarkdownBlock Text="@_settings?.AboutText" /></div>
+                    </section>
+                    break;
+                case LandingSections.Schedule:
         <section class="pub-strip" id="schedule">
             <h2>THIS WEEK AT @_gym.Name.ToUpperInvariant() — LIVE</h2>
             <div class="pub-days">
@@ -80,7 +99,8 @@ else
                 }
             </div>
         </section>
-
+                    break;
+                case LandingSections.Instructors:
         <section class="pub-section" id="instructors">
             <h2>INSTRUCTORS</h2>
             <div class="pub-coaches">
@@ -97,7 +117,8 @@ else
                 }
             </div>
         </section>
-
+                    break;
+                case LandingSections.Visit:
         <section class="pub-section" id="visit">
             <h2>@(_settings?.TaglineVisit ?? "VISIT")</h2>
             @if (_settings is { } vs && (vs.VisitAddress ?? vs.VisitPhone ?? vs.VisitEmail ?? vs.SocialInstagram ?? vs.SocialFacebook ?? vs.SocialYouTube ?? vs.SocialTikTok ?? vs.SocialX) is not null)
@@ -162,6 +183,9 @@ else
                 <p class="cap" style="margin:0">DROP IN — FIRST CLASS IS ON THE MAT. ASK ANY COACH.</p>
             }
         </section>
+                    break;
+            }
+        }
 
         <footer class="pub-foot">
             <span>© @DateTime.Today.Year @_gym.Name.ToUpperInvariant()</span>
@@ -180,10 +204,31 @@ else
     private string _portalPath = "/schedule";
     private Gym? _gym;
     private GymSettings? _settings;
+    private List<string> _visibleSections = [];
     private string _accent = "#C9503B";
     private bool _dark = true;
     private List<KeyValuePair<DayOfWeek, List<ClassTemplate>>> _week = [];
     private List<(Person Person, string? Experience)> _instructors = [];
+
+    // Programs and stories stay hidden until #135/#136 give them content.
+    private bool SectionVisible(string key) => key switch
+    {
+        LandingSections.About => !string.IsNullOrWhiteSpace(_settings?.AboutText),
+        LandingSections.Programs => false,
+        LandingSections.Stories => false,
+        _ => true,
+    };
+
+    private string LabelFor(string key) => key switch
+    {
+        LandingSections.About => _settings?.AboutTitle ?? "ABOUT",
+        LandingSections.Programs => _settings?.ProgramsTitle ?? "PROGRAMS",
+        LandingSections.Schedule => _settings?.TaglineSchedule ?? "SCHEDULE",
+        LandingSections.Instructors => _settings?.TaglineInstructors ?? "INSTRUCTORS",
+        LandingSections.Stories => _settings?.StoriesTitle ?? "SUCCESS STORIES",
+        LandingSections.Visit => _settings?.TaglineVisit ?? "VISIT",
+        _ => key.ToUpperInvariant(),
+    };
 
     private static string? SafeHttpUrl(string? raw)
         => Uri.TryCreate(raw, UriKind.Absolute, out var uri)
@@ -221,6 +266,7 @@ else
         }
 
         _settings = await db.GymSettings.SingleOrDefaultAsync();
+        _visibleSections = LandingSections.Normalize(_settings?.SectionOrder).Where(SectionVisible).ToList();
         if (_settings is not null)
         {
             if (ThemeMath.TryParseHexColor(_settings.AccentColorHex, out _))
