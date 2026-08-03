@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.9.0](https://github.com/JJWren/GymStation/compare/v1.8.0...v1.9.0) (2026-08-03)
+
+
+### Features
+
+* About section + admin-orderable landing sections ([#159](https://github.com/JJWren/GymStation/issues/159)) ([401592d](https://github.com/JJWren/GymStation/commit/401592daaf81d2659dc58b8f6616368171827777))
+* custom rank ladders — self-service RankSystems + Ranks UI ([#165](https://github.com/JJWren/GymStation/issues/165)) ([0675c4b](https://github.com/JJWren/GymStation/commit/0675c4b87651e21b665bbab635b95e18f06d0aec))
+* instructors go public — portraits, rich modal, ADR 0003 ([#163](https://github.com/JJWren/GymStation/issues/163)) ([d40b20d](https://github.com/JJWren/GymStation/commit/d40b20d5b25f40e0c667649c4ece8a110bd50ca7))
+* multi-discipline demo seed — BJJ + Bootcamp + Muay Thai ([#166](https://github.com/JJWren/GymStation/issues/166)) ([d741ed2](https://github.com/JJWren/GymStation/commit/d741ed2e738468f4c39937ebbfc202f998469c3e))
+* Programs — entity, admin CRUD, landing section + modal ([#161](https://github.com/JJWren/GymStation/issues/161)) ([f99679f](https://github.com/JJWren/GymStation/commit/f99679f6f7f12824bc8565dec0632a5c01ce1679))
+* public contact form, layered spam wall, /admin/messages ([#164](https://github.com/JJWren/GymStation/issues/164)) ([3c4b718](https://github.com/JJWren/GymStation/commit/3c4b718e217014d55472cfea52b48e5687885888))
+* success stories — entity, admin CRUD, landing section ([#162](https://github.com/JJWren/GymStation/issues/162)) ([23a2e5b](https://github.com/JJWren/GymStation/commit/23a2e5bbed1ee0cf6fc7e2cc8b293967acf3b4d5))
+
 ## [1.8.0](https://github.com/JJWren/GymStation/compare/v1.7.0...v1.8.0) (2026-08-03)
 
 
