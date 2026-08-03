@@ -153,7 +153,7 @@ public class DemoSeeder(GymStationDbContext db, TenantContext tenant)
 
         // The gym's own Muay Thai ladder (#140) — a CUSTOM system exactly as the
         // #139 UI would create it: GymId set, not seeded, armbands don't stripe.
-        var prajioud = new RankSystem { Id = Guid.NewGuid(), GymId = gym.Id, Name = "Muay Thai Prajioud" };
+        var prajioud = new RankSystem { Id = Guid.NewGuid(), GymId = gym.Id, Name = "Muay Thai Prajioud", IsSeeded = false };
         db.RankSystems.Add(prajioud);
         var armbands = new (string Name, string Band, string Bar)[]
         {
