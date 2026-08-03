@@ -65,7 +65,10 @@ public static class ProgramEndpoints
                 return Results.Redirect("/admin/landing/programs?failed=1");
             }
 
-            var ordered = await db.GymPrograms.OrderBy(p => p.SortOrder).ThenBy(p => p.Title).ToListAsync();
+            // Actives only: archived rows aren't part of the landing order, and
+            // including them here could swap with a row the admin page doesn't
+            // show as adjacent (review catch).
+            var ordered = await db.GymPrograms.Where(p => !p.Archived).OrderBy(p => p.SortOrder).ThenBy(p => p.Title).ToListAsync();
             var index = ordered.FindIndex(p => p.Id == programId);
             var target = index + direction;
             if (index >= 0 && target >= 0 && target < ordered.Count)
