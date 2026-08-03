@@ -43,7 +43,9 @@
         var offsetY = 0;
         var drag = null;
 
-        // JS is alive: the crop path replaces the plain submit entirely.
+        // JS is alive: the crop path replaces the plain submit entirely, and
+        // overlay-mode forms (#129) may hide their source row via this class.
+        form.classList.add('media-crop--js');
         if (plainSubmit) {
             plainSubmit.hidden = true;
         }

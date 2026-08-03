@@ -141,6 +141,24 @@ a { color: var(--ink); }
 .soc--tiktok { color: var(--ink); }
 .soc--x { color: var(--ink); }
 
+/* Image edit overlay (#129): the image IS the picker. Hovering dims it and
+   fades in a large stroke-only pencil; empty slots show a dashed tile with the
+   same affordance. With JS active the raw file row goes sr-only (still
+   keyboard-reachable); without JS it stays put — same progressive contract
+   as the crop UI itself. */
+.media-edit { position: relative; display: inline-block; cursor: pointer; line-height: 0; }
+.media-edit > img, .media-edit > .avatar, .media-edit > svg { transition: opacity .15s ease; }
+.media-edit:hover > img, .media-edit:hover > .avatar, .media-edit:hover > svg { opacity: .45; }
+.media-edit-veil { position: absolute; inset: 0; display: grid; place-items: center; opacity: 0; transition: opacity .15s ease; pointer-events: none; color: var(--ink); }
+.media-edit:hover .media-edit-veil { opacity: 1; }
+.media-edit-veil svg { width: 45%; height: 45%; max-width: 2.25rem; max-height: 2.25rem; }
+.media-edit--empty { border: 1.5px dashed var(--edge); border-radius: 0.5rem; display: inline-grid; place-items: center; color: var(--ink-faint); }
+.media-edit--empty:hover { border-color: var(--ink-dim); }
+form[data-overlay].media-crop--js .media-src-row { position: absolute; width: 1px; height: 1px; margin: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* Keyboard path: tabbing into the hidden file input reveals the row again, so
+   sighted keyboard users get a visible, operable control (and re-hide on blur). */
+form[data-overlay].media-crop--js .media-src-row:focus-within { position: static; width: auto; height: auto; overflow: visible; clip-path: none; white-space: normal; margin: 0.375rem 0 0; }
+
 /* Inline edit (#127): the server renders the editable fields (no-JS fallback);
    inline-edit.js swaps the read-only view in and the pencil toggles editing. */
 .ie, .ie .ie-view, .ie .ie-fields { display: inline-flex; align-items: center; gap: 0.5rem; min-width: 0; }
