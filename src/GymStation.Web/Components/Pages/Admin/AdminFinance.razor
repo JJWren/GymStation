@@ -29,11 +29,16 @@
     </p>
 }
 
+@* Semantic money colors (#124): green = collected/current, red = owed/behind.
+   A zero stays neutral — an empty alarm category is not an alarm. *@
 <div class="filters">
-    <span class="chip chip--on">$@_summary.CollectedInMonth.ToString("N0") COLLECTED · @_month.ToString("MMM").ToUpperInvariant()</span>
-    <span class="chip">$@_summary.Outstanding.ToString("N0") OUTSTANDING</span>
-    <span class="chip">@_summary.MembersCurrent CURRENT · @_summary.MembersBehind BEHIND</span>
-    <span class="chip">$@_summary.OtherIncomeInMonth.ToString("N0") OTHER INCOME · @_month.ToString("MMM").ToUpperInvariant()</span>
+    <span class="chip @(_summary.CollectedInMonth > 0 ? "chip--ok" : null)">$@_summary.CollectedInMonth.ToString("N0") COLLECTED · @_month.ToString("MMM").ToUpperInvariant()</span>
+    <span class="chip @(_summary.Outstanding > 0 ? "chip--bad" : null)">$@_summary.Outstanding.ToString("N0") OUTSTANDING</span>
+    <span class="chip chip--split">
+        <span class="chip-half @(_summary.MembersCurrent > 0 ? "chip-half--ok" : null)">@_summary.MembersCurrent CURRENT</span>
+        <span class="chip-half @(_summary.MembersBehind > 0 ? "chip-half--bad" : null)">@_summary.MembersBehind BEHIND</span>
+    </span>
+    <span class="chip @(_summary.OtherIncomeInMonth > 0 ? "chip--ok" : null)">$@_summary.OtherIncomeInMonth.ToString("N0") OTHER INCOME · @_month.ToString("MMM").ToUpperInvariant()</span>
 </div>
 
 <div class="detail-cols" style="display:grid;grid-template-columns:1.3fr 1fr;gap:1.125rem;align-items:start">
