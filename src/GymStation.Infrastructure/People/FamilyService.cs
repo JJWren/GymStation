@@ -258,6 +258,14 @@ public class FamilyService(GymStationDbContext db)
             var existing = await users.FindByEmailAsync(loginEmail);
             if (existing is not null)
             {
+                // (GymId, UserId) is unique — and a typo'd email must never attach the
+                // ward to somebody else's roster identity.
+                if (await db.Persons.AnyAsync(p => p.UserId == existing.Id, ct))
+                {
+                    throw new InvalidOperationException(
+                        "That email already belongs to another member of this gym — use a different one.");
+                }
+
                 person.UserId = existing.Id;
             }
             else

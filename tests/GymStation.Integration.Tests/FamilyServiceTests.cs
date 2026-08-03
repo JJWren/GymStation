@@ -233,6 +233,14 @@ public class FamilyServiceTests(PostgresFixture fixture)
         // The whole diary re-privatizes by construction: guardian authority derives
         // from IsWard, so the father can no longer act.
         Assert.False(await service.CanActForAsync(cast.Father, cast.Kid1));
+
+        // The staff path succeeds too, and a taken email is refused loudly instead of
+        // colliding on the (GymId, UserId) unique index or mislinking the ward.
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.GraduateAsync(FamilyActor.Staff, cast.FamilyId, cast.Kid2, "tom.grad@example.test", users));
+        var staffResult = await service.GraduateAsync(FamilyActor.Staff, cast.FamilyId, cast.Kid2, "ivy.grad@example.test", users);
+        Assert.NotNull(staffResult.TempPassword);
+        Assert.False((await context.FamilyMembers.AsNoTracking().SingleAsync(m => m.PersonId == cast.Kid2)).IsWard);
     }
 
     [Fact]
