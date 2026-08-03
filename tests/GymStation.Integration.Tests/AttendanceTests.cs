@@ -32,7 +32,10 @@ public class AttendanceTests(PostgresFixture fixture)
         var kid = new Person { Id = Guid.NewGuid(), FirstName = "Leo", LastName = "P", JoinedOn = new DateOnly(2026, 1, 1) };
         var guardianUserId = Guid.NewGuid();
         context.Persons.AddRange(member, kid);
-        context.GuardianLinks.Add(new GuardianLink { Id = Guid.NewGuid(), GuardianUserId = guardianUserId, ChildPersonId = kid.Id });
+        var family = new Family { Id = Guid.NewGuid(), Name = "TEST FAMILY" };
+        context.Families.Add(family);
+        context.FamilyMembers.Add(new FamilyMember { Id = Guid.NewGuid(), FamilyId = family.Id, PersonId = kid.Id, IsWard = true });
+        context.FamilyGuardians.Add(new FamilyGuardian { Id = Guid.NewGuid(), FamilyId = family.Id, GuardianUserId = guardianUserId, IsPrimary = true });
 
         // Date and time both come from the same shifted instant — taking Date from
         // "now" and time from "now + 15 min" seeds a day-old session when the

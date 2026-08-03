@@ -150,7 +150,10 @@
         {
             _userId = userId;
             var mine = await db.Persons.Where(p => p.UserId == userId && !p.Archived).ToListAsync();
-            var childIds = await db.GuardianLinks.Where(l => l.GuardianUserId == userId).Select(l => l.ChildPersonId).ToListAsync();
+            var childIds = await db.FamilyGuardians
+                .Where(g => g.GuardianUserId == userId && g.ActForWards)
+                .Join(db.FamilyMembers.Where(m => m.IsWard), g => g.FamilyId, m => m.FamilyId, (g, m) => m.PersonId)
+                .ToListAsync();
             var children = await db.Persons.Where(p => childIds.Contains(p.Id) && !p.Archived).ToListAsync();
             _checkable = [.. mine, .. children];
             _minePersonIds = mine.Select(p => p.Id).ToHashSet();

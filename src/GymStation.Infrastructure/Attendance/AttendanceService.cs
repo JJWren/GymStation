@@ -76,8 +76,12 @@ public class AttendanceService(GymStationDbContext db)
                 throw new InvalidOperationException("Self check-in must be for your own roster record.");
 
             case CheckInSource.Guardian:
-                var linked = await db.GuardianLinks.AnyAsync(
-                    l => l.GuardianUserId == actorUserId && l.ChildPersonId == person.Id, ct);
+                // ActForWards guardians of the person's family, ward members only (#89).
+                var linked = await db.FamilyGuardians
+                    .Where(g => g.GuardianUserId == actorUserId && g.ActForWards)
+                    .Join(db.FamilyMembers.Where(m => m.IsWard && m.PersonId == person.Id),
+                        g => g.FamilyId, m => m.FamilyId, (g, m) => m.Id)
+                    .AnyAsync(ct);
                 if (!linked)
                 {
                     throw new InvalidOperationException("You are not a linked guardian for this person.");

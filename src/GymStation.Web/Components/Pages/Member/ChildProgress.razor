@@ -108,8 +108,12 @@
 
         await using var db = await DbFactory.CreateDbContextAsync();
 
-        // Only THIS user's linked children — anyone else gets the not-yours screen.
-        _authorized = await db.GuardianLinks.AnyAsync(l => l.GuardianUserId == userId && l.ChildPersonId == PersonId);
+        // Only wards this login may act for — anyone else gets the not-yours screen (#89).
+        _authorized = await db.FamilyGuardians
+            .Where(g => g.GuardianUserId == userId && g.ActForWards)
+            .Join(db.FamilyMembers.Where(m => m.IsWard && m.PersonId == PersonId),
+                g => g.FamilyId, m => m.FamilyId, (g, m) => m.Id)
+            .AnyAsync();
         if (!_authorized)
         {
             return;

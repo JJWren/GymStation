@@ -233,10 +233,12 @@
 
         await using var db = await DbFactory.CreateDbContextAsync();
 
-        // Linked children render for guardians even when the guardian has no
-        // roster record of their own (Sarah's account is exactly this shape).
-        var childIds = await db.GuardianLinks.Where(l => l.GuardianUserId == userId)
-            .Select(l => l.ChildPersonId).ToListAsync();
+        // Wards render for acting guardians even when the guardian has no roster
+        // record of their own (Sarah's account is exactly this shape) (#89).
+        var childIds = await db.FamilyGuardians
+            .Where(g => g.GuardianUserId == userId && g.ActForWards)
+            .Join(db.FamilyMembers.Where(m => m.IsWard), g => g.FamilyId, m => m.FamilyId, (g, m) => m.PersonId)
+            .ToListAsync();
         _children = await db.Persons.Where(p => childIds.Contains(p.Id) && !p.Archived)
             .OrderBy(p => p.FirstName).ToListAsync();
         if (_children.Count > 0)

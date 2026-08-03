@@ -59,7 +59,7 @@ public class TenantIsolationTests(PostgresFixture fixture)
 
         Assert.Empty(await context.Persons.ToListAsync());
         Assert.Empty(await context.GymSettings.ToListAsync());
-        Assert.Empty(await context.GuardianLinks.ToListAsync());
+        Assert.Empty(await context.FamilyGuardians.ToListAsync());
     }
 
     [Fact]
@@ -125,7 +125,7 @@ public class TenantIsolationTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task GuardianLinks_AreTenantScoped()
+    public async Task Families_AreTenantScoped()
     {
         var (gymA, gymB) = await SeedTwoGymsAsync();
         var child = await SeedPersonAsync(gymA.Id, "Leo", "Park");
@@ -135,7 +135,10 @@ public class TenantIsolationTests(PostgresFixture fixture)
         tenantA.SetGym(gymA.Id);
         await using (var context = fixture.CreateContext(tenantA))
         {
-            context.GuardianLinks.Add(new GuardianLink { Id = Guid.NewGuid(), GuardianUserId = guardianUserId, ChildPersonId = child.Id });
+            var family = new Family { Id = Guid.NewGuid(), Name = "PARK FAMILY" };
+            context.Families.Add(family);
+            context.FamilyMembers.Add(new FamilyMember { Id = Guid.NewGuid(), FamilyId = family.Id, PersonId = child.Id, IsWard = true });
+            context.FamilyGuardians.Add(new FamilyGuardian { Id = Guid.NewGuid(), FamilyId = family.Id, GuardianUserId = guardianUserId, IsPrimary = true });
             await context.SaveChangesAsync();
         }
 
@@ -143,6 +146,7 @@ public class TenantIsolationTests(PostgresFixture fixture)
         tenantB.SetGym(gymB.Id);
         await using var contextB = fixture.CreateContext(tenantB);
 
-        Assert.Empty(await contextB.GuardianLinks.Where(l => l.GuardianUserId == guardianUserId).ToListAsync());
+        Assert.Empty(await contextB.Families.ToListAsync());
+        Assert.Empty(await contextB.FamilyGuardians.Where(g => g.GuardianUserId == guardianUserId).ToListAsync());
     }
 }

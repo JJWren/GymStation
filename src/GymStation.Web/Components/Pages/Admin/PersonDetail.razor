@@ -229,17 +229,18 @@ else
                 </form>
             </div>
 
-            <h2 class="section-h">Guardians</h2>
+            <h2 class="section-h">Family</h2>
             <div class="form-card">
-                @if (_guardianEmails.Count == 0)
+                @if (_family is null)
                 {
-                    <p class="cap">NO GUARDIAN LINKS. (LINKED GUARDIANS CAN CHECK THIS PERSON IN FROM PHASE 4.)</p>
+                    <p class="cap">NOT IN A FAMILY. FAMILIES CARRY GUARDIANSHIP AND (SOON) FAMILY BILLING — MANAGE THEM UNDER <a href="/admin/families">FAMILIES</a>.</p>
                 }
                 else
                 {
-                    @foreach (var email in _guardianEmails)
+                    <p class="mono"><a href="/admin/families/@_family.Id">@_family.Name</a> · @(_familyMembership!.IsWard ? "WARD — GUARDIANS ACT FOR THEM" : "ADULT MEMBER")</p>
+                    @foreach (var (email, isPrimary) in _guardianEmails)
                     {
-                        <p class="mono">@email</p>
+                        <p class="mono" style="margin-top:0.25rem">@email @(isPrimary ? "· PRIMARY" : null)</p>
                     }
                 }
             </div>
@@ -356,7 +357,9 @@ else
     private List<RankAward> _awards = [];
     private List<RankSystem> _systems = [];
     private Dictionary<Guid, string> _names = [];
-    private List<string> _guardianEmails = [];
+    private List<(string Email, bool IsPrimary)> _guardianEmails = [];
+    private Family? _family;
+    private FamilyMember? _familyMembership;
     private string? _ageGroup;
     private string? _awardError;
     private string? _editError;
@@ -436,10 +439,22 @@ else
             .Take(8)
             .ToList();
 
-        var guardianUserIds = await db.GuardianLinks.Where(l => l.ChildPersonId == PersonId)
-            .Select(l => l.GuardianUserId).ToListAsync();
-        _guardianEmails = await db.Users.Where(u => guardianUserIds.Contains(u.Id))
-            .Select(u => u.Email ?? u.UserName ?? "unknown").ToListAsync();
+        // The person's family, if any: guardians shown by email, primacy marked (#89).
+        _familyMembership = await db.FamilyMembers.SingleOrDefaultAsync(m => m.PersonId == PersonId);
+        if (_familyMembership is not null)
+        {
+            _family = await db.Families.SingleOrDefaultAsync(f => f.Id == _familyMembership.FamilyId);
+            var guardians = await db.FamilyGuardians
+                .Where(g => g.FamilyId == _familyMembership.FamilyId)
+                .OrderByDescending(g => g.IsPrimary)
+                .ToListAsync();
+            var guardianUserIds = guardians.Select(g => g.GuardianUserId).ToList();
+            var emails = await db.Users.Where(u => guardianUserIds.Contains(u.Id))
+                .ToDictionaryAsync(u => u.Id, u => u.Email ?? u.UserName ?? "unknown");
+            _guardianEmails = guardians
+                .Select(g => (emails.GetValueOrDefault(g.GuardianUserId, "unknown"), g.IsPrimary))
+                .ToList();
+        }
 
         var profile = await db.StaffProfiles.SingleOrDefaultAsync(p => p.PersonId == PersonId);
         if (profile is not null && HttpContext?.Request.Method != "POST")

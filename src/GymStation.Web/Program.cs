@@ -75,6 +75,7 @@ app.MapRazorComponents<App>()
 app.MapAuthEndpoints();
 app.MapOpsEndpoints();
 app.MapAdminActionEndpoints();
+app.MapFamilyActionEndpoints();
 app.MapInstructorActionEndpoints();
 app.MapMemberActionEndpoints();
 app.MapMediaEndpoints();

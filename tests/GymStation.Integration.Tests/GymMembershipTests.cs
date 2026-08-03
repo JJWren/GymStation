@@ -46,7 +46,20 @@ public class GymMembershipTests(PostgresFixture fixture)
                 JoinedOn = new DateOnly(2026, 1, 1),
             };
             context.Persons.Add(child);
-            context.GuardianLinks.Add(new GuardianLink { Id = Guid.NewGuid(), GuardianUserId = guardianUserId, ChildPersonId = child.Id });
+            var family = new Family { Id = Guid.NewGuid(), Name = "TEST FAMILY" };
+            context.Families.Add(family);
+            context.FamilyMembers.Add(new FamilyMember { Id = Guid.NewGuid(), FamilyId = family.Id, PersonId = child.Id, IsWard = true });
+            context.FamilyGuardians.Add(new FamilyGuardian
+            {
+                Id = Guid.NewGuid(),
+                FamilyId = family.Id,
+                GuardianUserId = guardianUserId,
+                IsPrimary = true,
+                ActForWards = true,
+                ManageGuardians = true,
+                ManageMembers = true,
+                ViewBilling = true,
+            });
             await context.SaveChangesAsync();
         }
 

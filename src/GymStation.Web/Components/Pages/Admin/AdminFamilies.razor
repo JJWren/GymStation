@@ -1,0 +1,67 @@
+@page "/admin/families"
+@attribute [Authorize(Policy = "GymStaff")]
+@layout AdminLayout
+@using GymStation.Domain.People
+@inject IDbContextFactory<GymStationDbContext> DbFactory
+
+<PageTitle>Families · GymStation</PageTitle>
+
+<h1 class="page-title">FAMILIES</h1>
+<p class="page-sub">GUARDIANSHIP AND (SOON) FAMILY BILLING · ADMINS MANAGE STRUCTURE ONLY — NEVER ACT AS A GUARDIAN</p>
+
+@if (Failed)
+{
+    <p class="auth-error" role="alert">That change was rejected — check the values and try again.</p>
+}
+
+@foreach (var row in _rows)
+{
+    <div class="form-card" style="margin-bottom:0.5rem">
+        <div class="head-row">
+            <b><a href="/admin/families/@row.Family.Id">@row.Family.Name</a></b>
+            <span class="cap" style="margin:0">@row.MemberCount MEMBER(S) · @row.WardCount WARD(S) · @row.GuardianCount GUARDIAN(S)</span>
+        </div>
+        @if (row.PrimaryEmail is not null)
+        {
+            <p class="cap" style="margin:0.25rem 0 0">PRIMARY: @row.PrimaryEmail.ToUpperInvariant()</p>
+        }
+    </div>
+}
+@if (_rows.Count == 0)
+{
+    <p class="cap">NO FAMILIES YET — CREATE ONE, THEN ADD MEMBERS AND A GUARDIAN LOGIN FROM ITS PAGE.</p>
+}
+
+<h2 class="section-h">Create family</h2>
+<form method="post" action="/admin/family-actions/create" class="row-form">
+    <AntiforgeryToken />
+    <input type="text" name="name" placeholder="HALE FAMILY" aria-label="Family name" required maxlength="80" style="min-width:12.5rem" />
+    <button class="btn btn--ghost btn--xs" type="submit">+ FAMILY</button>
+</form>
+
+@code {
+    [SupplyParameterFromQuery(Name = "failed")] public int? FailedFlag { get; set; }
+    private bool Failed => FailedFlag is not null;
+
+    private List<(Family Family, int MemberCount, int WardCount, int GuardianCount, string? PrimaryEmail)> _rows = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var families = await db.Families.OrderBy(f => f.Name).ToListAsync();
+        var members = await db.FamilyMembers.ToListAsync();
+        var guardians = await db.FamilyGuardians.ToListAsync();
+        var primaryUserIds = guardians.Where(g => g.IsPrimary).Select(g => g.GuardianUserId).Distinct().ToList();
+        var emails = await db.Users.Where(u => primaryUserIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.Email ?? u.UserName ?? "unknown");
+
+        _rows = families.Select(f =>
+        {
+            var familyMembers = members.Where(m => m.FamilyId == f.Id).ToList();
+            var familyGuardians = guardians.Where(g => g.FamilyId == f.Id).ToList();
+            var primary = familyGuardians.FirstOrDefault(g => g.IsPrimary);
+            return (f, familyMembers.Count, familyMembers.Count(m => m.IsWard), familyGuardians.Count,
+                primary is null ? null : emails.GetValueOrDefault(primary.GuardianUserId));
+        }).ToList();
+    }
+}
