@@ -195,6 +195,17 @@ public class LedgerTests(PostgresFixture fixture)
         Assert.Contains(primaryCharges, c => c.CycleKey == "2026-08");
         Assert.Contains(primaryCharges, c => c.CycleKey == $"2026-08:family:{family.Id}");
         Assert.Contains(primaryCharges, c => c.Amount == 150m && c.Description.Contains("HALE FAMILY"));
+
+        // Doctrine pin: once the primary's OWN Person joins the family (adults are
+        // billing-only members), the family plan covers them too — next cycle raises
+        // the family charge but no personal one.
+        context.FamilyMembers.Add(new FamilyMember { Id = Guid.NewGuid(), FamilyId = family.Id, PersonId = primaryPerson.Id, IsWard = false });
+        await context.SaveChangesAsync();
+
+        Assert.Equal(1, await ledger.RaiseMonthlyChargesAsync(new DateOnly(2026, 9, 1)));
+        var september = await context.Charges.Where(c => c.PersonId == primaryPerson.Id && c.RaisedOn == new DateOnly(2026, 9, 1)).ToListAsync();
+        Assert.Single(september);
+        Assert.Equal($"2026-09:family:{family.Id}", september[0].CycleKey);
     }
 
     [Fact]
