@@ -1,0 +1,96 @@
+@page "/admin/landing/programs"
+@attribute [Authorize(Policy = "GymStaff")]
+@layout AdminLayout
+@using GymStation.Domain.Marketing
+@inject IDbContextFactory<GymStationDbContext> DbFactory
+
+<PageTitle>Programs · GymStation</PageTitle>
+
+<h1 class="page-title">PROGRAMS</h1>
+<p class="page-sub"><a href="/admin/landing">LANDING</a> ▸ WHAT A WALK-IN JOINS FOR — SCHEDULE TAGS STAY CLASS TYPES</p>
+
+@if (FailedFlag == 1)
+{
+    <p class="auth-error" role="alert">That change was rejected — check the title (80 max) or the image (PNG/JPG/WEBP, 2 MB) and try again.</p>
+}
+
+@foreach (var program in _programs)
+{
+    <div class="form-card" style="margin-bottom:0.625rem;max-width:46rem;@(program.Archived ? "opacity:.55" : null)">
+        <div class="row-form" style="align-items:flex-start;margin:0;flex-wrap:nowrap">
+            <div>
+                @* The image is the picker (#129); square IG-style crop like events. *@
+                <label class="media-edit@(program.ImagePath is null ? " media-edit--empty" : null)" for="prgimg-@program.Id"
+                       title="Click to set the program image" style="@(program.ImagePath is null ? "width:4.5rem;height:4.5rem" : null)">
+                    @if (program.ImagePath is not null)
+                    {
+                        <img src="/media/@program.ImagePath" alt="Image for @program.Title" style="width:4.5rem;height:4.5rem;border-radius:0.5rem;object-fit:cover" />
+                    }
+                    else
+                    {
+                        <span class="cap" style="margin:0;line-height:1.2">IMAGE</span>
+                    }
+                    <span class="media-edit-veil" aria-hidden="true"><Glyph Name="pencil" /></span>
+                </label>
+                <MediaCropUpload Kind="program" Label="program image" Aspect="1" OutWidth="1024"
+                                 Action="/admin/actions/upload-program-image" InputId="@($"prgimg-{program.Id}")" Overlay="true"
+                                 Hint="SQUARE · SHOWN ON THE PUBLIC PAGE">
+                    <input type="hidden" name="programId" value="@program.Id" />
+                </MediaCropUpload>
+            </div>
+            <form method="post" action="/admin/actions/update-program" style="flex:1;margin:0;min-width:0">
+                <AntiforgeryToken />
+                <input type="hidden" name="programId" value="@program.Id" />
+                <input type="text" name="title" value="@program.Title" aria-label="Program title" required maxlength="80" style="width:100%" />
+                <textarea name="description" rows="3" aria-label="Program description" style="width:100%;margin-top:0.375rem">@program.Description</textarea>
+                <p class="cap" style="margin-top:0.25rem">MARKDOWN: **BOLD** · _ITALIC_ · ++UNDERLINE++ · - LISTS</p>
+                <p style="margin:0.375rem 0 0"><button class="btn btn--icon btn--save btn--xs" type="submit" aria-label="Save program" title="Save program"><Glyph Name="save" /></button></p>
+            </form>
+            <span style="display:flex;flex-direction:column;gap:0.25rem;flex:none">
+                <form method="post" action="/admin/actions/program-move" style="margin:0">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="programId" value="@program.Id" />
+                    <input type="hidden" name="direction" value="-1" />
+                    <button class="btn btn--ghost btn--xs" type="submit" aria-label="Move @program.Title up" title="Move up">▲</button>
+                </form>
+                <form method="post" action="/admin/actions/program-move" style="margin:0">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="programId" value="@program.Id" />
+                    <input type="hidden" name="direction" value="1" />
+                    <button class="btn btn--ghost btn--xs" type="submit" aria-label="Move @program.Title down" title="Move down">▼</button>
+                </form>
+                <form method="post" action="/admin/actions/program-archived" style="margin:0">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="programId" value="@program.Id" />
+                    <input type="hidden" name="archived" value="@((!program.Archived).ToString())" />
+                    <button class="btn btn--ghost btn--xs" type="submit">@(program.Archived ? "UNARCHIVE" : "ARCHIVE")</button>
+                </form>
+            </span>
+        </div>
+    </div>
+}
+@if (_programs.Count == 0)
+{
+    <p class="cap">NO PROGRAMS YET — BJJ, BOOTCAMP, AND MUAY THAI BELONG HERE.</p>
+}
+
+<form method="post" action="/admin/actions/add-program" class="row-form" style="margin-top:0.625rem;max-width:46rem">
+    <AntiforgeryToken />
+    <input type="text" name="title" placeholder="BRAZILIAN JIU-JITSU" aria-label="New program title" required maxlength="80" style="flex:1;min-width:12rem" />
+    <button class="btn btn--icon btn--save btn--xs" type="submit" aria-label="Add program" title="Add program"><Glyph Name="save" /></button>
+</form>
+<p class="cap" style="max-width:46rem">ACTIVE PROGRAMS LIST ON YOUR PUBLIC PAGE IN THIS ORDER · ARCHIVED ONES KEEP THEIR CONTENT BUT VANISH THERE.</p>
+
+@code {
+    [SupplyParameterFromQuery(Name = "failed")] public int? FailedFlag { get; set; }
+
+    private List<GymProgram> _programs = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _programs = await db.GymPrograms
+            .OrderBy(p => p.Archived).ThenBy(p => p.SortOrder).ThenBy(p => p.Title)
+            .ToListAsync();
+    }
+}

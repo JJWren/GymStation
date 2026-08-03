@@ -56,6 +56,7 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
     public DbSet<TrainingRoll> TrainingRolls => Set<TrainingRoll>();
     public DbSet<GymEvent> GymEvents => Set<GymEvent>();
     public DbSet<EventRsvp> EventRsvps => Set<EventRsvp>();
+    public DbSet<GymStation.Domain.Marketing.GymProgram> GymPrograms => Set<GymStation.Domain.Marketing.GymProgram>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -314,6 +315,14 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
             e.Property(r => r.PartnerLabel).HasMaxLength(120);
             e.Property(r => r.Summary).HasMaxLength(300);
             e.HasQueryFilter(r => CurrentGymId != null && r.GymId == CurrentGymId);
+        });
+
+        builder.Entity<GymStation.Domain.Marketing.GymProgram>(e =>
+        {
+            e.Property(x => x.Title).HasMaxLength(80);
+            e.Property(x => x.ImagePath).HasMaxLength(300);
+            e.HasIndex(x => new { x.GymId, x.SortOrder });
+            e.HasQueryFilter(x => CurrentGymId != null && x.GymId == CurrentGymId);
         });
 
         builder.Entity<GymEvent>(e =>

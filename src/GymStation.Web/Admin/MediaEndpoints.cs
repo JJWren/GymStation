@@ -98,6 +98,46 @@ public static class MediaEndpoints
             return Results.Redirect($"/admin/people/{personId}");
         }).RequireAuthorization("GymStaff").ValidateAntiforgery();
 
+        // Program images (#135): staff upload; PUBLIC serving via the /media
+        // allow-list below — programs are marketing content by definition.
+        app.MapPost("/admin/actions/upload-program-image", async (HttpRequest request, GymStationDbContext db, IFileStore store) =>
+        {
+            var form = await request.ReadFormAsync();
+            var file = form.Files.GetFile("file");
+
+            if (!Guid.TryParse(form["programId"], out var programId))
+            {
+                return Results.Redirect("/admin/landing/programs");
+            }
+
+            if (file is null || file.Length == 0 || file.Length > MaxUploadBytes)
+            {
+                return Results.Redirect("/admin/landing/programs?failed=1");
+            }
+
+            var extension = Path.GetExtension(file.FileName);
+            if (!AllowedTypes.ContainsKey(extension))
+            {
+                return Results.Redirect("/admin/landing/programs?failed=1");
+            }
+
+            var program = await db.GymPrograms.SingleOrDefaultAsync(x => x.Id == programId);
+            if (program is null)
+            {
+                return Results.Redirect("/admin/landing/programs");
+            }
+
+            var path = $"gyms/{program.GymId}/programs/{program.Id}{extension.ToLowerInvariant()}";
+            await using (var content = file.OpenReadStream())
+            {
+                await store.SaveAsync(content, path);
+            }
+
+            program.ImagePath = path;
+            await db.SaveChangesAsync();
+            return Results.Redirect("/admin/landing/programs");
+        }).RequireAuthorization("GymStaff").ValidateAntiforgery();
+
         // Event flyers (#130): staff upload; every signed-in person of the gym can view
         // (events are member-facing pages), so serving is authed but not staff-gated.
         app.MapPost("/admin/actions/upload-event-image", async (HttpRequest request, GymStationDbContext db, IFileStore store) =>
@@ -183,13 +223,14 @@ public static class MediaEndpoints
             return Results.Stream(stream, contentType);
         }).RequireAuthorization("GymStaff");
 
-        // Public pages need logos/heroes without auth. ONLY those two public asset kinds
-        // are servable — nothing else that may ever land in the file store (e.g. member
-        // portraits) is reachable through this endpoint.
+        // Public pages need logos/heroes/program images without auth. ONLY these
+        // public MARKETING asset kinds are servable — nothing else that may ever
+        // land in the file store (e.g. member portraits, event flyers) is
+        // reachable through this endpoint.
         app.MapGet("/media/{**path}", async (string path, IFileStore store) =>
         {
             var match = System.Text.RegularExpressions.Regex.Match(
-                path, @"^gyms/[0-9a-fA-F-]{36}/(logo|hero)(\.[A-Za-z]+)$");
+                path, @"^gyms/[0-9a-fA-F-]{36}/(logo|hero|programs/[0-9a-fA-F-]{36})(\.[A-Za-z]+)$");
             if (!match.Success || !AllowedTypes.TryGetValue(match.Groups[2].Value, out var contentType))
             {
                 return Results.NotFound();
