@@ -39,7 +39,8 @@ a { color: var(--ink); }
 .auth-shell h1 { font: 1.625rem/1.1 var(--font-display); text-align: center; }
 /* Brand lockups (#141): centered mark above the auth wordmark; STATION takes
    the accent per the spec's primary lockup. */
-.auth-shell .auth-mark { text-align: center; margin: 0 0 0.875rem; }
+.auth-shell .auth-mark { margin: 0 0 0.875rem; }
+.auth-shell .auth-mark svg { margin-inline: auto; }
 .auth-shell h1 em { font-style: normal; color: var(--tenant); }
 .legal-shell .legal-home svg { display: block; margin: 0 auto 0.5rem; }
 .pub-foot .foot-lock { display: inline-flex; align-items: center; gap: 0.4375rem; }
