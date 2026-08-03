@@ -54,6 +54,16 @@
     /// page's image (a label for <see cref="InputId"/>) becomes the picker. Requires InputId.</summary>
     [Parameter] public bool Overlay { get; set; }
 
+    protected override void OnParametersSet()
+    {
+        // Without an id there is no external label to open the picker, and the
+        // hidden row would be the ONLY picker — fail the render, not the user.
+        if (Overlay && string.IsNullOrEmpty(InputId))
+        {
+            throw new InvalidOperationException("MediaCropUpload Overlay mode requires InputId (the image label's target).");
+        }
+    }
+
     /// <summary>Extra hidden fields posted with the file (e.g. personId). The crop JS
     /// builds FormData from the whole form, so these ride along on both paths.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
