@@ -17,6 +17,11 @@
 <h1 class="page-title">EVENTS</h1>
 <p class="page-sub">TOURNAMENTS · SEMINARS · GRADINGS — PUBLISHED TO EVERY MEMBER'S FEED</p>
 
+@if (FailedFlag == 1)
+{
+    <p class="auth-error" role="alert">That flyer was rejected — PNG/JPG/WEBP, 2 MB max. Try again.</p>
+}
+
 <div class="detail-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:1.125rem;align-items:start">
     <section>
         <h2 class="section-h">Upcoming</h2>
@@ -132,6 +137,8 @@
 
 @code {
     [CascadingParameter] public HttpContext? HttpContext { get; set; }
+
+    [SupplyParameterFromQuery(Name = "failed")] public int? FailedFlag { get; set; }
 
     // Parameter name MUST match the identifier bound in markup: SSR form inputs render
     // names from the bind expression ("Form.Title"), and the binder matches them against
