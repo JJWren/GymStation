@@ -159,4 +159,4 @@ _Avoid_: alert, message (a ContactMessage is a visitor inquiry; broader member m
 
 **ContactMessage**:
 A visitor's inquiry submitted through the public page's contact form: name, a way to reach them (email or phone), and their message. Read by staff in the Gym's Messages box; never a Notification, though its arrival raises one.
-_Avoid_: notification, lead, enquiry record
+_Avoid_: notification, lead, inquiry record

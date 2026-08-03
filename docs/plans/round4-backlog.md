@@ -52,10 +52,10 @@ Shared `WeekOf()` (Domain) replaces `MondayOf()`: rail headers/?start= snap, mem
 Joshua-authored belt-patch mark + favicon (Claude Design → synced to design/assets/, spec design/foundations/logo.html). wwwroot/favicon.svg + head link; `BrandMark.razor` (field = var(--tenant), bar/stripes fixed — never restriped, never tenant-colored); auth-shell + footer lockups (mono lockup in chrome/footers); tenant-recolored patch replaces accent-block crest fallbacks; min 20px in UI.
 
 ### #127 — Inline edit + family rename
-`inline-edit.js` (media-crop.js mold): text+pencil ⇄ input+💾/✕, Enter/Esc, ✕ = client revert, 💾 = normal POST (PRG); no-JS = plain form. AdminFamilyDetail h1 (Rename section deleted; posts /admin/family-actions/rename) + member MyFamily rename row.
+`inline-edit.js` (media-crop.js mold): text+pencil ⇄ input + save/cancel icon buttons (the #123 SVG set), Enter/Esc; cancel = client revert, save = normal POST (PRG); no-JS = plain form. AdminFamilyDetail h1 (Rename section deleted; posts /admin/family-actions/rename) + member MyFamily rename row.
 
 ### #128 — Person page reshape
-h1 pencil → [First][Last][💾][✕]; edit-person form drops names, keeps DOB + checkboxes, absorbs Phone + SMS consent (SetContactAsync semantics: clearing number clears consent); Contact section deleted.
+h1 pencil → [First][Last][save][cancel] inline; edit-person form drops names, keeps DOB + checkboxes, absorbs Phone + SMS consent (SetContactAsync semantics: clearing number clears consent); Contact section deleted.
 
 ### #129 — Image overlay
 MediaCropUpload overlay mode: preview is the click target (label-for), hover dim ~55% + stroke pencil fade; file-input row hidden when JS active; dashed placeholder when no image. Applied: portrait, logo, hero.
@@ -82,7 +82,7 @@ Program entity (Title, Description md, ImagePath, SortOrder, Archived) + AddProg
 SuccessStory entity (Body md, AttributedTo, SortOrder, Archived) + AddSuccessStories. Section-level image (StoriesImagePath), public allow-list gyms/{gym}/stories.*, cards render body + attribution.
 
 ### #137 — Instructor public presence
-Doctrine change + ADR 0003: portraits staff-only EXCEPT unarchived Instructor-role persons → anonymous endpoint scoped to exactly that set (role loss/archive re-privatizes by construction); conditional upload hint. StaffProfile.Hobbies + AddStaffHobbies. Card hover glow; modal: portrait, name, BeltBar if ranked, ExperienceSummary, gym About text, Bio (markdown), Hobbies, ✕. Auth-matrix tests (instructor 200 / member 404 / archived 404).
+Doctrine change + ADR 0003: portraits staff-only EXCEPT unarchived Instructor-role persons → anonymous endpoint scoped to exactly that set (role loss/archive re-privatizes by construction); conditional upload hint. StaffProfile.Hobbies + AddStaffHobbies. Card hover glow; modal: portrait, name, BeltBar if ranked, ExperienceSummary, gym About text, Bio (markdown), Hobbies, close control. Auth-matrix tests (instructor 200 / member 404 / archived 404).
 
 ### #138 — Contact form + messages
 ContactMessage + AddContactMessages. Public CONTACT block with Visit: first/last/email/phone/message; email-or-phone required; phone mask "(###) ###-####" as-you-type (static JS), digits normalized server-side. Spam: honeypot + signed min-time + per-IP rate limit + link-cap/keyword/length heuristics + strict format + best-effort MX (fail-open — lab DNS unreliable). /admin/messages (read/unread, pager) + nav MESSAGES + unread badge + envelope glyph; in-app admin fan-out; optional GymSettings.ContactForwardEmail via existing SMTP path. Bodies plain + pre-wrap, never markdown.
