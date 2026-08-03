@@ -18,17 +18,20 @@ public interface IMxLookup
 
 public sealed class DnsMxLookup : IMxLookup
 {
+    // One client for the singleton's lifetime — per-call construction would
+    // defeat UseCache entirely (the cache is per-instance).
+    private readonly DnsClient.LookupClient _lookup = new(new DnsClient.LookupClientOptions
+    {
+        Timeout = TimeSpan.FromMilliseconds(1500),
+        Retries = 0,
+        UseCache = true,
+    });
+
     public async Task<bool> ProbablyAcceptsMailAsync(string domain, CancellationToken ct = default)
     {
         try
         {
-            var lookup = new DnsClient.LookupClient(new DnsClient.LookupClientOptions
-            {
-                Timeout = TimeSpan.FromMilliseconds(1500),
-                Retries = 0,
-                UseCache = true,
-            });
-            var response = await lookup.QueryAsync(domain, DnsClient.QueryType.MX, cancellationToken: ct);
+            var response = await _lookup.QueryAsync(domain, DnsClient.QueryType.MX, cancellationToken: ct);
             if (response.HasError)
             {
                 return true; // resolver trouble — fail open
@@ -40,7 +43,7 @@ public sealed class DnsMxLookup : IMxLookup
             }
 
             // No MX: many small domains receive on their A record — one more probe.
-            var a = await lookup.QueryAsync(domain, DnsClient.QueryType.A, cancellationToken: ct);
+            var a = await _lookup.QueryAsync(domain, DnsClient.QueryType.A, cancellationToken: ct);
             return a.HasError || a.Answers.ARecords().Any();
         }
         catch

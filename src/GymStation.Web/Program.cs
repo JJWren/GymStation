@@ -33,6 +33,8 @@ builder.Services.AddGymStationWorkers();
 builder.Services.AddRateLimiter(o =>
 {
     o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    // Enforced-empty rejection: bots get a bare 429 and nothing else.
+    o.OnRejected = (_, _) => ValueTask.CompletedTask;
     o.AddPolicy("contact", httpContext =>
         System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
             httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
