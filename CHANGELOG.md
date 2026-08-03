@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.7.0](https://github.com/JJWren/GymStation/compare/v1.6.0...v1.7.0) (2026-08-03)
+
+
+### Features
+
+* event flyers - square 1:1 images end-to-end ([#130](https://github.com/JJWren/GymStation/issues/130)) ([4fa8404](https://github.com/JJWren/GymStation/commit/4fa840431c171b21ecf4d84870df3e22720b011a))
+* event flyers — square 1:1 images end-to-end ([#154](https://github.com/JJWren/GymStation/issues/154)) ([deeff08](https://github.com/JJWren/GymStation/commit/deeff08ec89fc9ae499174d7deba333ad10e14bd))
+* inline pencil edit for family names; Rename surfaces removed ([#149](https://github.com/JJWren/GymStation/issues/149)) ([fb0d916](https://github.com/JJWren/GymStation/commit/fb0d9164d4b6a31053bb78f1d92c6ad930c09f76))
+* person name edits at the title; contact merges into the edit form ([#151](https://github.com/JJWren/GymStation/issues/151)) ([8f30b8b](https://github.com/JJWren/GymStation/commit/8f30b8b9cb2f760e4ea5c168abd7b3ac47256493))
+* the image is the picker — hover-pencil overlay, file rows hidden ([#152](https://github.com/JJWren/GymStation/issues/152)) ([ba3acf1](https://github.com/JJWren/GymStation/commit/ba3acf12ab14a892180c3bf07e8090a532289a63))
+
 ## [1.6.0](https://github.com/JJWren/GymStation/compare/v1.5.0...v1.6.0) (2026-08-03)
 
 
