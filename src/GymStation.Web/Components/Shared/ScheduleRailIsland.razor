@@ -1,0 +1,359 @@
+@using GymStation.Domain.Scheduling
+@using GymStation.Infrastructure
+@using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
+@inject IDbContextFactory<GymStationDbContext> DbFactory
+@inject GymStation.Infrastructure.Scheduling.ScheduleService Schedule
+@inject GymStation.Infrastructure.Tenancy.TenantContext Tenant
+@inject Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider AuthState
+@inject IJSRuntime JS
+
+@* The repo's FIRST InteractiveServer island (#96): the admin rail grid with
+   pointer drag (time-move, 30-min snap) and bottom-edge resize (30-min snap,
+   15-min floor) on OCCURRENCES only — templates stay modal-only. It prerenders
+   statically, so before the circuit connects every card is still a working link
+   into the SSR edit modal: the no-JS fallback is the page it always was. *@
+
+<div class="rail-grid @(_drag is not null ? "rail-grid--dragging" : null)"
+     style="grid-template-rows:auto repeat(@_slots, var(--slot-h))"
+     @ref="_gridRef"
+     @onpointermove="OnPointerMove" @onpointermove:preventDefault="_drag is not null"
+     @onpointerup="OnPointerUp"
+     @onpointercancel="OnPointerUp">
+    <div></div>
+    @for (var i = 0; i < 7; i++)
+    {
+        <h3 style="grid-column:@(i + 2);grid-row:1">
+            @_weekStart.AddDays(i).ToString("ddd dd").ToUpperInvariant()
+            @foreach (var banner in _allDayByDay.GetValueOrDefault(i, []))
+            {
+                <a class="rail-allday" href="/admin/events" title="@banner.Title">★ @banner.Title</a>
+            }
+        </h3>
+    }
+    @for (var i = 0; i < 7; i++)
+    {
+        <div class="rail-col" style="grid-column:@(i + 2);grid-row:2 / span @_slots" aria-hidden="true"></div>
+    }
+    @foreach (var (time, row) in _hourMarks)
+    {
+        <span class="rail-time" style="grid-row:@row" aria-hidden="true">@time.ToString("HH\\:mm")</span>
+    }
+    @foreach (var eventCard in _eventCards)
+    {
+        <a class="rail-ses rail-event"
+           style="grid-column:@eventCard.Column;grid-row:@eventCard.Row / span @eventCard.Span"
+           href="/admin/events"
+           aria-label="@eventCard.Event.Title, @eventCard.Event.StartsOn.ToString("dddd dd MMMM")">
+            <b>★ @eventCard.Event.StartTime!.Value.ToString("HH\\:mm")</b>
+            <span>@eventCard.Event.Title</span>
+        </a>
+    }
+    @foreach (var card in _cards)
+    {
+        var preview = _drag?.SessionId == card.Session.Id ? _drag : null;
+        <a class="rail-ses @(card.Session.Status == SessionStatus.Cancelled ? "rail-ses--cancelled" : null) @(preview is not null ? "rail-ses--moving" : null)"
+           style="grid-column:@card.Column;grid-row:@(preview?.PreviewRow ?? card.Row) / span @(preview?.PreviewSpan ?? card.Span);width:calc(@card.WidthPercent.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)% - 0.1875rem);margin-left:@card.LeftPercent.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%;touch-action:none"
+           href="/admin/schedule?start=@_weekStart.ToString("yyyy-MM-dd")&edit=@card.Session.Id"
+           draggable="false"
+           @onclick:preventDefault="_suppressClick"
+           @onclick="() => _suppressClick = false"
+           @onpointerdown="e => StartMove(card, e)"
+           aria-label="Edit @card.Session.Name, @card.Session.Date.ToString("dddd dd MMMM"), @card.Session.StartTime.ToString("HH\\:mm")">
+            <b>@((preview is not null ? PreviewStart(card, preview) : card.Session.StartTime).ToString("HH\\:mm"))</b>
+            <span>@card.Session.Name</span>
+            <i>@(_personNames.GetValueOrDefault(card.Session.InstructorPersonId ?? Guid.Empty, "UNASSIGNED").ToUpperInvariant())</i>
+            @if (card.Session.Status == SessionStatus.Cancelled)
+            {
+                <em>CANCELLED</em>
+            }
+            <span class="rail-ses-resize" title="Drag to resize"
+                  @onpointerdown="e => StartResize(card, e)" @onpointerdown:stopPropagation="true"></span>
+        </a>
+    }
+</div>
+@if (_islandError is not null)
+{
+    <p class="auth-error" role="alert" style="margin-top:0.375rem">@_islandError</p>
+}
+
+@code {
+    [Parameter, EditorRequired] public string WeekStartIso { get; set; } = "";
+
+    private record RailCard(ClassSession Session, int Column, int Row, int Span, double WidthPercent, double LeftPercent);
+    private record EventCard(GymStation.Domain.Events.GymEvent Event, int Column, int Row, int Span);
+
+    private sealed class DragState
+    {
+        public Guid SessionId { get; init; }
+        public bool Resizing { get; init; }
+        public double StartY { get; set; }
+        public int DeltaSlots { get; set; }
+        public bool Moved { get; set; }
+        public int PreviewRow { get; set; }
+        public int PreviewSpan { get; set; }
+    }
+
+    private DateOnly _weekStart;
+    private TimeOnly _open = new(6, 0);
+    private TimeOnly _close = new(22, 0);
+    private int _slots = 32;
+    private int _totalMinutes = 960;
+    private List<ClassSession> _sessions = [];
+    private List<RailCard> _cards = [];
+    private List<EventCard> _eventCards = [];
+    private Dictionary<int, List<GymStation.Domain.Events.GymEvent>> _allDayByDay = [];
+    private List<(TimeOnly Time, int Row)> _hourMarks = [];
+    private Dictionary<Guid, string> _personNames = [];
+    private DragState? _drag;
+    private bool _suppressClick;
+    private double _slotPx = 25;
+    private string? _islandError;
+    private ElementReference _gridRef;
+    private IJSObjectReference? _module;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _weekStart = DateOnly.TryParse(WeekStartIso, out var parsed) ? parsed : DateOnly.FromDateTime(DateTime.Today);
+
+        // The interactive circuit has NO HTTP request: the tenant middleware never
+        // ran, so the scoped TenantContext is empty and every filtered query would
+        // return nothing. The circuit's authenticated principal still carries the
+        // active-gym claim (signed cookie → claims factory), so the island resumes
+        // the tenant from there — and re-verifies STAFF standing before doing
+        // anything, because endpoint policies don't guard circuit calls.
+        var principal = (await AuthState.GetAuthenticationStateAsync()).User;
+        var gymRaw = principal.FindFirstValue(GymStation.Web.Tenancy.ActiveGymMiddleware.ActiveGymClaim);
+        var userRaw = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(gymRaw, out var gymId) || !Guid.TryParse(userRaw, out var userId))
+        {
+            return;
+        }
+
+        await using (var db = await DbFactory.CreateDbContextAsync())
+        {
+            var isStaff = await db.Persons.IgnoreQueryFilters().AnyAsync(p =>
+                p.GymId == gymId && p.UserId == userId && !p.Archived
+                && ((int)p.Roles & (int)(GymStation.Domain.People.PersonRoles.Admin | GymStation.Domain.People.PersonRoles.Owner)) != 0);
+            if (!isStaff)
+            {
+                return;
+            }
+        }
+
+        Tenant.SetGym(gymId);
+        await LoadAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // The slot height is rem-based under a viewport-scaled type clamp —
+            // it must be measured, never assumed.
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/rail-island.js");
+            _slotPx = await _module.InvokeAsync<double>("slotPx", _gridRef);
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var settings = await db.GymSettings.SingleOrDefaultAsync();
+        (_open, _close) = settings is null ? (new TimeOnly(6, 0), new TimeOnly(22, 0)) : (settings.OpenTime, settings.CloseTime);
+        if (_close <= _open)
+        {
+            (_open, _close) = (new TimeOnly(6, 0), new TimeOnly(22, 0));
+        }
+
+        _totalMinutes = MinutesOf(_close) - MinutesOf(_open);
+        _slots = (_totalMinutes + 29) / 30;
+
+        _hourMarks = [];
+        for (var time = new TimeOnly(_open.Hour, 0); time < _close; time = time.AddHours(1))
+        {
+            if (time >= _open)
+            {
+                _hourMarks.Add((time, (MinutesOf(time) - MinutesOf(_open)) / 30 + 2));
+            }
+        }
+
+        // Direct factory-context read (v1.0.1 convention): the PAGE's own load
+        // already materialized this week's sessions, and the scoped ScheduleService
+        // must not be queried while the page's scope is live. The drop-time WRITE
+        // still goes through ScheduleService — the interactive circuit has its own
+        // scope, and the validation + time-change notifications ride along.
+        _sessions = await db.ClassSessions
+            .Where(s => s.Date >= _weekStart && s.Date < _weekStart.AddDays(7))
+            .OrderBy(s => s.StartTime)
+            .ToListAsync();
+        var nameIds = _sessions.Where(s => s.InstructorPersonId != null).Select(s => s.InstructorPersonId!.Value).Distinct().ToList();
+        _personNames = await db.Persons.Where(p => nameIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id, p => p.DisplayName);
+
+        var weekEvents = await db.GymEvents
+            .Where(e => e.StartsOn >= _weekStart && e.StartsOn < _weekStart.AddDays(7))
+            .OrderBy(e => e.StartTime)
+            .ToListAsync();
+        _allDayByDay = weekEvents.Where(e => e.StartTime is null)
+            .GroupBy(e => e.StartsOn.DayNumber - _weekStart.DayNumber)
+            .ToDictionary(g => g.Key, g => g.ToList());
+        _eventCards = [];
+        foreach (var gymEvent in weekEvents.Where(e => e.StartTime is not null))
+        {
+            var day = gymEvent.StartsOn.DayNumber - _weekStart.DayNumber;
+            var startMin = Math.Clamp(MinutesOf(gymEvent.StartTime!.Value) - MinutesOf(_open), 0, Math.Max(0, _totalMinutes - 15));
+            var endMin = Math.Clamp(startMin + (gymEvent.DurationMinutes ?? 60), startMin + 15, _totalMinutes);
+            _eventCards.Add(new EventCard(gymEvent, day + 2, startMin / 30 + 2, Math.Max(1, (endMin - startMin + 29) / 30)));
+        }
+
+        _cards = [];
+        for (var day = 0; day < 7; day++)
+        {
+            var date = _weekStart.AddDays(day);
+            var todays = _sessions.Where(s => s.Date == date).OrderBy(s => s.StartTime).ThenBy(s => s.Id).ToList();
+
+            // Greedy overlap lanes, same as the static grid always did.
+            var lanes = new int[todays.Count];
+            var laneEnds = new List<int>();
+            for (var i = 0; i < todays.Count; i++)
+            {
+                var start = MinutesOf(todays[i].StartTime);
+                var lane = laneEnds.FindIndex(end => end <= start);
+                if (lane < 0)
+                {
+                    lane = laneEnds.Count;
+                    laneEnds.Add(0);
+                }
+
+                lanes[i] = lane;
+                laneEnds[lane] = start + todays[i].DurationMinutes;
+            }
+
+            var laneCount = Math.Max(1, laneEnds.Count);
+            for (var i = 0; i < todays.Count; i++)
+            {
+                var session = todays[i];
+                var startMin = Math.Clamp(MinutesOf(session.StartTime) - MinutesOf(_open), 0, Math.Max(0, _totalMinutes - 15));
+                var endMin = Math.Clamp(startMin + session.DurationMinutes, startMin + 15, _totalMinutes);
+                var row = startMin / 30 + 2;
+                var span = Math.Max(1, (endMin - startMin + 29) / 30);
+                var width = 100.0 / laneCount;
+                _cards.Add(new RailCard(session, day + 2, row, span, width, lanes[i] * width));
+            }
+        }
+    }
+
+    private static int MinutesOf(TimeOnly time) => time.Hour * 60 + time.Minute;
+
+    private TimeOnly PreviewStart(RailCard card, DragState drag)
+        => drag.Resizing
+            ? card.Session.StartTime
+            : TimeOnly.FromTimeSpan(TimeSpan.FromMinutes(Math.Clamp(
+                MinutesOf(card.Session.StartTime) + drag.DeltaSlots * 30,
+                MinutesOf(_open),
+                MinutesOf(_close) - card.Session.DurationMinutes)));
+
+    private void StartMove(RailCard card, PointerEventArgs e)
+    {
+        if (card.Session.Status == SessionStatus.Cancelled)
+        {
+            return;
+        }
+
+        _drag = new DragState { SessionId = card.Session.Id, StartY = e.ClientY, PreviewRow = card.Row, PreviewSpan = card.Span };
+        _suppressClick = false;
+        _islandError = null;
+    }
+
+    private void StartResize(RailCard card, PointerEventArgs e)
+    {
+        if (card.Session.Status == SessionStatus.Cancelled)
+        {
+            return;
+        }
+
+        _drag = new DragState { SessionId = card.Session.Id, Resizing = true, StartY = e.ClientY, PreviewRow = card.Row, PreviewSpan = card.Span };
+        _suppressClick = true;
+        _islandError = null;
+    }
+
+    private void OnPointerMove(PointerEventArgs e)
+    {
+        if (_drag is not { } drag)
+        {
+            return;
+        }
+
+        var card = _cards.SingleOrDefault(c => c.Session.Id == drag.SessionId);
+        if (card is null)
+        {
+            return;
+        }
+
+        drag.DeltaSlots = (int)Math.Round((e.ClientY - drag.StartY) / Math.Max(1, _slotPx));
+        if (Math.Abs(e.ClientY - drag.StartY) > 6)
+        {
+            drag.Moved = true;
+            _suppressClick = true;
+        }
+
+        if (drag.Resizing)
+        {
+            drag.PreviewSpan = Math.Max(1, card.Span + drag.DeltaSlots);
+            drag.PreviewRow = card.Row;
+        }
+        else
+        {
+            var startMin = Math.Clamp(
+                MinutesOf(card.Session.StartTime) + drag.DeltaSlots * 30,
+                MinutesOf(_open),
+                MinutesOf(_close) - card.Session.DurationMinutes) - MinutesOf(_open);
+            drag.PreviewRow = startMin / 30 + 2;
+            drag.PreviewSpan = card.Span;
+        }
+    }
+
+    private async Task OnPointerUp(PointerEventArgs e)
+    {
+        if (_drag is not { } drag)
+        {
+            return;
+        }
+
+        _drag = null;
+        var card = _cards.SingleOrDefault(c => c.Session.Id == drag.SessionId);
+        if (card is null || !drag.Moved)
+        {
+            return;
+        }
+
+        var session = card.Session;
+        try
+        {
+            if (drag.Resizing)
+            {
+                // 30-min snap with a 15-min floor; never past close.
+                var duration = Math.Max(15, (card.Span + drag.DeltaSlots) * 30);
+                duration = Math.Min(duration, MinutesOf(_close) - MinutesOf(session.StartTime));
+                if (duration != session.DurationMinutes && duration >= 15)
+                {
+                    await Schedule.UpdateSessionAsync(session.Id, session.Name, session.StartTime, duration, session.InstructorPersonId);
+                }
+            }
+            else
+            {
+                var start = PreviewStart(card, drag);
+                if (start != session.StartTime)
+                {
+                    await Schedule.UpdateSessionAsync(session.Id, session.Name, start, session.DurationMinutes, session.InstructorPersonId);
+                }
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            _islandError = ex.Message;
+        }
+
+        await LoadAsync();
+    }
+}

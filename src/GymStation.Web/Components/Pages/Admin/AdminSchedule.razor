@@ -23,55 +23,11 @@
     · OPEN CLAIMS: @(_settings?.OpenClaimsEnabled == true ? "ON" : "OFF")
 </p>
 
-<div class="rail-grid" style="grid-template-rows:auto repeat(@_slots, var(--slot-h))">
-    <div></div>
-    @for (var i = 0; i < 7; i++)
-    {
-        <h3 style="grid-column:@(i + 2);grid-row:1">
-            @_weekStart.AddDays(i).ToString("ddd dd").ToUpperInvariant()
-            @foreach (var banner in _allDayByDay.GetValueOrDefault(i, []))
-            {
-                <a class="rail-allday" href="/admin/events" title="@banner.Title">★ @banner.Title</a>
-            }
-        </h3>
-    }
-    @for (var i = 0; i < 7; i++)
-    {
-        <div class="rail-col" style="grid-column:@(i + 2);grid-row:2 / span @_slots" aria-hidden="true"></div>
-    }
-    @foreach (var (time, row) in _hourMarks)
-    {
-        <span class="rail-time" style="grid-row:@row" aria-hidden="true">@time.ToString("HH\\:mm")</span>
-    }
-    @foreach (var card in _cards)
-    {
-        <a class="rail-ses @(card.Session.Status == SessionStatus.Cancelled ? "rail-ses--cancelled" : null)"
-           style="grid-column:@card.Column;grid-row:@card.Row / span @card.Span;width:calc(@card.WidthPercent.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)% - 0.1875rem);margin-left:@card.LeftPercent.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%"
-           href="/admin/schedule?start=@_weekStart.ToString("yyyy-MM-dd")&edit=@card.Session.Id"
-           aria-label="Edit @card.Session.Name, @card.Session.Date.ToString("dddd dd MMMM"), @card.Session.StartTime.ToString("HH\\:mm")">
-            <b>@card.Session.StartTime.ToString("HH\\:mm")</b>
-            <span>@card.Session.Name</span>
-            <i>@(_personNames.GetValueOrDefault(card.Session.InstructorPersonId ?? Guid.Empty, "UNASSIGNED").ToUpperInvariant())</i>
-            @if (card.Session.Status == SessionStatus.Cancelled)
-            {
-                <em>CANCELLED</em>
-            }
-        </a>
-    }
-    @foreach (var eventCard in _eventCards)
-    {
-        <a class="rail-ses rail-event"
-           style="grid-column:@eventCard.Column;grid-row:@eventCard.Row / span @eventCard.Span"
-           href="/admin/events"
-           aria-label="@eventCard.Event.Title, @eventCard.Event.StartsOn.ToString("dddd dd MMMM")">
-            <b>★ @eventCard.Event.StartTime!.Value.ToString("HH\\:mm")</b>
-            <span>@eventCard.Event.Title</span>
-        </a>
-    }
-</div>
+<ScheduleRailIsland WeekStartIso="@_weekStart.ToString("yyyy-MM-dd")" @rendermode="InteractiveServer" />
 <p class="cap" style="margin-top:0.375rem">
     MAT HOURS @_open.ToString("HH\\:mm")–@_close.ToString("HH\\:mm") (SET IN SETTINGS) ·
-    CLICK A CLASS TO EDIT THE OCCURRENCE, CANCEL IT, OR CHANGE ITS WEEKLY TEMPLATE
+    CLICK A CLASS TO EDIT · DRAG IT TO MOVE THE TIME (30-MIN SNAP) · DRAG THE BOTTOM EDGE TO RESIZE —
+    OCCURRENCES ONLY; TEMPLATES CHANGE IN THE EDITOR
 </p>
 
 @if (_editSession is { } editing)
@@ -367,26 +323,9 @@
     private ClassSession? _editSession;
     private ClassTemplate? _editTemplate;
 
-    private async Task<List<GymStation.Domain.Events.GymEvent>> LoadWeekEventsAsync()
-    {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        return await db.GymEvents
-            .Where(e => e.StartsOn >= _weekStart && e.StartsOn < _weekStart.AddDays(7))
-            .OrderBy(e => e.StartTime)
-            .ToListAsync();
-    }
-
-    private record RailCard(ClassSession Session, int Column, int Row, int Span, double WidthPercent, double LeftPercent);
-    private record EventCard(GymStation.Domain.Events.GymEvent Event, int Column, int Row, int Span);
-
-    private List<EventCard> _eventCards = [];
-    private Dictionary<int, List<GymStation.Domain.Events.GymEvent>> _allDayByDay = [];
 
     private TimeOnly _open = new(6, 0);
     private TimeOnly _close = new(22, 0);
-    private int _slots = 32;
-    private List<RailCard> _cards = [];
-    private List<(TimeOnly Time, int Row)> _hourMarks = [];
 
     public class AddTemplateForm
     {
@@ -455,7 +394,7 @@
         _pausedTemplates = await db.ClassTemplates.Where(t => !t.Active).OrderBy(t => t.Name).ToListAsync();
         RestoreForm!.TemplateId ??= _pausedTemplates.FirstOrDefault()?.Id;
 
-        await BuildRailAsync();
+        LoadOpenClose();
 
         if (Guid.TryParse(EditRaw, out var editId))
         {
@@ -495,92 +434,12 @@
 
     private static int MinutesOf(TimeOnly time) => (int)time.ToTimeSpan().TotalMinutes;
 
-    private async Task BuildRailAsync()
+    private void LoadOpenClose()
     {
-        _open = _settings?.OpenTime ?? new TimeOnly(6, 0);
-        _close = _settings?.CloseTime ?? new TimeOnly(22, 0);
-
-        // Settings enforce sane hours, but seeded/hand-edited rows may not —
-        // anything narrower than one slot falls back to the defaults instead of
-        // feeding Math.Clamp a min above its max below.
-        if (MinutesOf(_close) - MinutesOf(_open) < 30)
+        (_open, _close) = _settings is null ? (new TimeOnly(6, 0), new TimeOnly(22, 0)) : (_settings.OpenTime, _settings.CloseTime);
+        if (_close <= _open)
         {
             (_open, _close) = (new TimeOnly(6, 0), new TimeOnly(22, 0));
-        }
-
-        var totalMinutes = MinutesOf(_close) - MinutesOf(_open);
-        _slots = (totalMinutes + 29) / 30;
-
-        _hourMarks = [];
-        for (var time = new TimeOnly(_open.Hour, 0); time < _close; time = time.AddHours(1))
-        {
-            if (time < _open)
-            {
-                continue;
-            }
-
-            _hourMarks.Add((time, (MinutesOf(time) - MinutesOf(_open)) / 30 + 2));
-        }
-
-        // Events on the rail (#94): timed ones position like sessions (dashed star
-        // card, full column width — they sit across lanes); untimed ones ride the
-        // day header as banners.
-        var weekEvents = await LoadWeekEventsAsync();
-        _allDayByDay = weekEvents.Where(e => e.StartTime is null)
-            .GroupBy(e => e.StartsOn.DayNumber - _weekStart.DayNumber)
-            .ToDictionary(g => g.Key, g => g.ToList());
-        _eventCards = [];
-        foreach (var gymEvent in weekEvents.Where(e => e.StartTime is not null))
-        {
-            var day = gymEvent.StartsOn.DayNumber - _weekStart.DayNumber;
-            var startMin = Math.Clamp(MinutesOf(gymEvent.StartTime!.Value) - MinutesOf(_open), 0, Math.Max(0, totalMinutes - 15));
-            var endMin = Math.Clamp(startMin + (gymEvent.DurationMinutes ?? 60), startMin + 15, totalMinutes);
-            _eventCards.Add(new EventCard(gymEvent, day + 2, startMin / 30 + 2, Math.Max(1, (endMin - startMin + 29) / 30)));
-        }
-
-        _cards = [];
-        for (var day = 0; day < 7; day++)
-        {
-            var date = _weekStart.AddDays(day);
-            var todays = _sessions.Where(s => s.Date == date)
-                .OrderBy(s => s.StartTime).ThenBy(s => s.Name).ToList();
-
-            // Greedy lanes: concurrent sessions share the column width side by side.
-            var laneEnds = new List<int>();
-            var lanes = new int[todays.Count];
-            for (var i = 0; i < todays.Count; i++)
-            {
-                var startMin = MinutesOf(todays[i].StartTime);
-                var placed = false;
-                for (var lane = 0; lane < laneEnds.Count; lane++)
-                {
-                    if (laneEnds[lane] <= startMin)
-                    {
-                        lanes[i] = lane;
-                        laneEnds[lane] = startMin + todays[i].DurationMinutes;
-                        placed = true;
-                        break;
-                    }
-                }
-
-                if (!placed)
-                {
-                    lanes[i] = laneEnds.Count;
-                    laneEnds.Add(startMin + todays[i].DurationMinutes);
-                }
-            }
-
-            var laneCount = Math.Max(1, laneEnds.Count);
-            for (var i = 0; i < todays.Count; i++)
-            {
-                var session = todays[i];
-                var startMin = Math.Clamp(MinutesOf(session.StartTime) - MinutesOf(_open), 0, Math.Max(0, totalMinutes - 15));
-                var endMin = Math.Clamp(startMin + session.DurationMinutes, startMin + 15, totalMinutes);
-                var row = startMin / 30 + 2;
-                var span = Math.Max(1, (endMin - startMin + 29) / 30);
-                var width = 100.0 / laneCount;
-                _cards.Add(new RailCard(session, day + 2, row, span, width, lanes[i] * width));
-            }
         }
     }
 
