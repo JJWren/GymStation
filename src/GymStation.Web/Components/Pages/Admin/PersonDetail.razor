@@ -43,8 +43,8 @@ else
                     <button type="button" class="btn btn--ghost btn--icon btn--xs ie-edit" aria-label="Edit name" title="Edit name"><Glyph Name="pencil" /></button>
                 </div>
                 <div class="ie-fields">
-                    <input type="text" name="firstName" value="@_person.FirstName" aria-label="First name" required maxlength="60" class="ie-input--title" style="min-width:8rem" />
-                    <input type="text" name="lastName" value="@_person.LastName" aria-label="Last name" required maxlength="60" class="ie-input--title" style="min-width:8rem" />
+                    <input type="text" name="firstName" value="@_person.FirstName" aria-label="First name" required maxlength="80" class="ie-input--title" style="min-width:8rem" />
+                    <input type="text" name="lastName" value="@_person.LastName" aria-label="Last name" required maxlength="80" class="ie-input--title" style="min-width:8rem" />
                     <button class="btn btn--icon btn--save btn--xs" type="submit" aria-label="Save name" title="Save name"><Glyph Name="save" /></button>
                     <button type="button" class="btn btn--icon btn--del btn--xs ie-cancel" aria-label="Cancel editing" title="Cancel editing" hidden><Glyph Name="x" /></button>
                 </div>
@@ -483,9 +483,8 @@ else
         try
         {
             // Names moved to the inline title edit (#128) — this form updates
-            // everything else, contact included, in one submit.
-            await People.UpdateAsync(PersonId, _person!.FirstName, _person.LastName, form.DateOfBirth, roles, form.IsVisitor);
-            await People.SetContactAsync(PersonId, form.PhoneNumber, form.SmsAllowed);
+            // everything else, contact included, atomically in one submit.
+            await People.UpdateWithContactAsync(PersonId, form.DateOfBirth, roles, form.IsVisitor, form.PhoneNumber, form.SmsAllowed);
             Nav.NavigateTo($"/admin/people/{PersonId}");
         }
         catch (InvalidOperationException ex)
