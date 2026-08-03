@@ -88,6 +88,24 @@ public class PersonServiceTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task SetName_TrimsValidatesAndLeavesEverythingElseAlone()
+    {
+        var (tenant, _, member) = await SeedAsync();
+
+        await using var context = fixture.CreateContext(tenant);
+        var service = new PersonService(context);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.SetNameAsync(member.Id, " ", "Nair"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.SetNameAsync(member.Id, new string('a', 61), "Nair"));
+
+        await service.SetNameAsync(member.Id, "  Dara ", " Nair-Smith ");
+        var stored = await context.Persons.SingleAsync(p => p.Id == member.Id);
+        Assert.Equal("Dara", stored.FirstName);
+        Assert.Equal("Nair-Smith", stored.LastName);
+        Assert.Equal(PersonRoles.Member, stored.Roles); // untouched — names only (#128)
+    }
+
+    [Fact]
     public async Task Contact_SetsTrimsAndClears_WithConsentTiedToTheNumber()
     {
         var (tenant, _, member) = await SeedAsync();

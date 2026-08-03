@@ -45,6 +45,28 @@ public class PersonService(GymStationDbContext db)
         await db.SaveChangesAsync(ct);
     }
 
+    /// <summary>Renames a Person. Names edit inline at the page title (#128); every
+    /// other field still flows through <see cref="UpdateAsync"/>.</summary>
+    public async Task SetNameAsync(Guid personId, string firstName, string lastName, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName))
+        {
+            throw new InvalidOperationException("First and last name are required.");
+        }
+
+        if (firstName.Trim().Length > 60 || lastName.Trim().Length > 60)
+        {
+            throw new InvalidOperationException("Names are 60 characters max.");
+        }
+
+        var person = await db.Persons.SingleOrDefaultAsync(p => p.Id == personId, ct)
+            ?? throw new InvalidOperationException("Person not found in the active gym.");
+
+        person.FirstName = firstName.Trim();
+        person.LastName = lastName.Trim();
+        await db.SaveChangesAsync(ct);
+    }
+
     /// <summary>Sets or clears a Person's contact number and text consent. Clearing the
     /// number always clears consent with it — there is nothing left to consent to.</summary>
     public async Task SetContactAsync(Guid personId, string? phoneNumber, bool smsAllowed, CancellationToken ct = default)
