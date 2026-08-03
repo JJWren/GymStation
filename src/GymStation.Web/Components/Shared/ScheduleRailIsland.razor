@@ -246,12 +246,20 @@
     private static int MinutesOf(TimeOnly time) => time.Hour * 60 + time.Minute;
 
     private TimeOnly PreviewStart(RailCard card, DragState drag)
-        => drag.Resizing
-            ? card.Session.StartTime
-            : TimeOnly.FromTimeSpan(TimeSpan.FromMinutes(Math.Clamp(
-                MinutesOf(card.Session.StartTime) + drag.DeltaSlots * 30,
-                MinutesOf(_open),
-                MinutesOf(_close) - card.Session.DurationMinutes)));
+    {
+        if (drag.Resizing)
+        {
+            return card.Session.StartTime;
+        }
+
+        // A session longer than the mat-hours window must not flip the clamp
+        // bounds (min > max throws) — it just pins to open.
+        var maxStart = Math.Max(MinutesOf(_open), MinutesOf(_close) - card.Session.DurationMinutes);
+        return TimeOnly.FromTimeSpan(TimeSpan.FromMinutes(Math.Clamp(
+            MinutesOf(card.Session.StartTime) + drag.DeltaSlots * 30,
+            MinutesOf(_open),
+            maxStart)));
+    }
 
     private void StartMove(RailCard card, PointerEventArgs e)
     {
@@ -299,15 +307,18 @@
 
         if (drag.Resizing)
         {
-            drag.PreviewSpan = Math.Max(1, card.Span + drag.DeltaSlots);
+            // Preview stays inside the grid — matching what the drop will persist.
+            var maxSpan = Math.Max(1, _slots - (card.Row - 2));
+            drag.PreviewSpan = Math.Clamp(card.Span + drag.DeltaSlots, 1, maxSpan);
             drag.PreviewRow = card.Row;
         }
         else
         {
+            var maxStart = Math.Max(MinutesOf(_open), MinutesOf(_close) - card.Session.DurationMinutes);
             var startMin = Math.Clamp(
                 MinutesOf(card.Session.StartTime) + drag.DeltaSlots * 30,
                 MinutesOf(_open),
-                MinutesOf(_close) - card.Session.DurationMinutes) - MinutesOf(_open);
+                maxStart) - MinutesOf(_open);
             drag.PreviewRow = startMin / 30 + 2;
             drag.PreviewSpan = card.Span;
         }
