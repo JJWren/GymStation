@@ -32,7 +32,7 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
     public DbSet<GymSettings> GymSettings => Set<GymSettings>();
     public DbSet<Person> Persons => Set<Person>();
     public DbSet<GuardianLink> GuardianLinks => Set<GuardianLink>();
-    public DbSet<InstructorProfile> InstructorProfiles => Set<InstructorProfile>();
+    public DbSet<StaffProfile> StaffProfiles => Set<StaffProfile>();
     public DbSet<RankSystem> RankSystems => Set<RankSystem>();
     public DbSet<Rank> Ranks => Set<Rank>();
     public DbSet<RankAward> RankAwards => Set<RankAward>();
@@ -95,13 +95,13 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
             e.HasQueryFilter(l => CurrentGymId != null && l.GymId == CurrentGymId);
         });
 
-        builder.Entity<InstructorProfile>(e =>
+        builder.Entity<StaffProfile>(e =>
         {
             e.HasKey(p => p.PersonId);
             e.Property(p => p.Bio).HasMaxLength(2000);
             e.Property(p => p.ExperienceSummary).HasMaxLength(300);
             e.Property(p => p.PayRate).HasPrecision(10, 2);
-            e.HasOne(p => p.Person).WithOne().HasForeignKey<InstructorProfile>(p => p.PersonId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(p => p.Person).WithOne().HasForeignKey<StaffProfile>(p => p.PersonId).OnDelete(DeleteBehavior.Cascade);
             e.HasQueryFilter(p => CurrentGymId != null && p.GymId == CurrentGymId);
         });
 

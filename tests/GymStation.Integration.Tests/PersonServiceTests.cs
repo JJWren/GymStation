@@ -111,6 +111,31 @@ public class PersonServiceTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task StaffOnly_CannotKeepALogin()
+    {
+        var (tenant, _, member) = await SeedAsync();
+
+        await using var context = fixture.CreateContext(tenant);
+        var service = new PersonService(context);
+
+        // member (seeded with a UserId? — Dara has none; give her one)
+        var person = await context.Persons.SingleAsync(p => p.Id == member.Id);
+        person.UserId = Guid.NewGuid();
+        await context.SaveChangesAsync();
+
+        var blocked = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.UpdateAsync(member.Id, "Dara", "Nair", null, PersonRoles.Staff, visitor: false));
+        Assert.Contains("Staff-only", blocked.Message);
+
+        // Staff alongside a portal-capable role is fine, and staff-only without a login is fine.
+        await service.UpdateAsync(member.Id, "Dara", "Nair", null, PersonRoles.Staff | PersonRoles.Member, visitor: false);
+        person.UserId = null;
+        await context.SaveChangesAsync();
+        await service.UpdateAsync(member.Id, "Dara", "Nair", null, PersonRoles.Staff, visitor: false);
+        Assert.Equal(PersonRoles.Staff, (await context.Persons.SingleAsync(p => p.Id == member.Id)).Roles);
+    }
+
+    [Fact]
     public async Task Archive_RoundTrips()
     {
         var (tenant, _, member) = await SeedAsync();

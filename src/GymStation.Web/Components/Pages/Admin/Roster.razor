@@ -24,6 +24,7 @@
     <a class="chip @(Role == "member" ? "active" : null)" href="/admin/roster?role=member&size=@_size">MEMBERS</a>
     <a class="chip @(Role == "visitors" ? "active" : null)" href="/admin/roster?role=visitors&size=@_size">VISITORS</a>
     <a class="chip @(Role == "instructor" ? "active" : null)" href="/admin/roster?role=instructor&size=@_size">INSTRUCTORS</a>
+    <a class="chip @(Role == "staff" ? "active" : null)" href="/admin/roster?role=staff&size=@_size">STAFF</a>
     <a class="chip @(Role == "kids" ? "active" : null)" href="/admin/roster?role=kids&size=@_size">KIDS</a>
     <a class="chip @(Role == "adult" ? "active" : null)" href="/admin/roster?role=adult&size=@_size">ADULTS</a>
     <form method="get" style="display:contents">
@@ -121,6 +122,7 @@
         <label><InputCheckbox @bind-Value="Form!.IsMember" /> MEMBER</label>
         <label><InputCheckbox @bind-Value="Form!.IsInstructor" /> INSTRUCTOR</label>
         <label><InputCheckbox @bind-Value="Form!.IsAdmin" /> ADMIN</label>
+        <label><InputCheckbox @bind-Value="Form!.IsStaff" /> STAFF (FRONT DESK/OPS)</label>
         <label><InputCheckbox @bind-Value="Form!.IsVisitor" /> VISITOR (DROP-IN, NO PLAN)</label>
     </div>
     @if (_formError is not null)
@@ -179,6 +181,7 @@
         public bool IsMember { get; set; }
         public bool IsInstructor { get; set; }
         public bool IsAdmin { get; set; }
+        public bool IsStaff { get; set; }
         public bool IsVisitor { get; set; }
     }
 
@@ -204,6 +207,7 @@
             "member" => query.Where(p => p.Roles.HasFlag(PersonRoles.Member) && !p.Visitor),
             "visitors" => query.Where(p => p.Visitor),
             "instructor" => query.Where(p => p.Roles.HasFlag(PersonRoles.Instructor)),
+            "staff" => query.Where(p => p.Roles.HasFlag(PersonRoles.Staff)),
             "kids" => query.Where(p => p.DateOfBirth != null && p.DateOfBirth > Today.AddYears(-16)),
             "adult" => query.Where(p => p.DateOfBirth == null || p.DateOfBirth <= Today.AddYears(-16)),
             _ => query,
@@ -303,13 +307,14 @@
         if (form.IsMember) roles |= PersonRoles.Member;
         if (form.IsInstructor) roles |= PersonRoles.Instructor;
         if (form.IsAdmin) roles |= PersonRoles.Admin;
+        if (form.IsStaff) roles |= PersonRoles.Staff;
 
         // Nothing checked used to silently create a Member — now the choice is
         // mandatory. A visitor-only tick gets the standard visitor shape (#29):
         // Member role for portal purposes plus the Visitor flag.
         if (roles == PersonRoles.None && !form.IsVisitor)
         {
-            _formError = "Pick at least one: member, instructor, admin, or visitor.";
+            _formError = "Pick at least one: member, instructor, admin, staff, or visitor.";
             return;
         }
 
@@ -321,6 +326,12 @@
         }
 
         Guid? userId = null;
+        if (!string.IsNullOrWhiteSpace(form.LinkEmail) && roles == PersonRoles.Staff)
+        {
+            _formError = "Staff-only grants no portal — skip the login link, or add MEMBER alongside STAFF.";
+            return;
+        }
+
         if (!string.IsNullOrWhiteSpace(form.LinkEmail))
         {
             var user = await Users.FindByEmailAsync(form.LinkEmail.Trim());

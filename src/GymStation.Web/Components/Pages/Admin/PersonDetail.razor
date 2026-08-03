@@ -153,10 +153,10 @@ else
         </section>
 
         <section>
-            @if (_person.HasRole(PersonRoles.Instructor))
+            @if ((_person.Roles & StaffishRoles) != 0)
             {
-                <h2 class="section-h">Instructor profile</h2>
-                <EditForm class="form-card" FormName="instructor-profile" Model="ProfileForm" OnValidSubmit="SaveProfileAsync">
+                <h2 class="section-h">Staff profile</h2>
+                <EditForm class="form-card" FormName="staff-profile" Model="ProfileForm" OnValidSubmit="SaveProfileAsync">
                     <label for="exp">Experience summary</label>
                     <InputText id="exp" @bind-Value="ProfileForm!.ExperienceSummary" />
                     <label for="bio">Bio</label>
@@ -265,6 +265,7 @@ else
                     <label><InputCheckbox @bind-Value="PersonForm!.IsInstructor" /> INSTRUCTOR</label>
                     <label><InputCheckbox @bind-Value="PersonForm!.IsAdmin" /> ADMIN</label>
                     <label><InputCheckbox @bind-Value="PersonForm!.IsOwner" /> OWNER</label>
+                    <label><InputCheckbox @bind-Value="PersonForm!.IsStaff" /> STAFF (FRONT DESK/OPS — NO PORTAL ACCESS)</label>
                     <label><InputCheckbox @bind-Value="PersonForm!.IsVisitor" /> VISITOR — UNTICK & ASSIGN A PLAN TO CONVERT</label>
                 </div>
                 @if (_editError is not null)
@@ -305,6 +306,10 @@ else
 }
 
 @code {
+    // The profile card renders for anyone the gym pays or fronts publicly.
+    private const PersonRoles StaffishRoles =
+        PersonRoles.Instructor | PersonRoles.Admin | PersonRoles.Owner | PersonRoles.Staff;
+
     [Parameter] public Guid PersonId { get; set; }
 
     [SupplyParameterFromQuery(Name = "failed")] public int? FailedFlag { get; set; }
@@ -315,8 +320,8 @@ else
     [SupplyParameterFromForm(FormName = "record-award")]
     public RecordAwardForm? AwardForm { get; set; }
 
-    [SupplyParameterFromForm(FormName = "instructor-profile")]
-    public InstructorProfileForm? ProfileForm { get; set; }
+    [SupplyParameterFromForm(FormName = "staff-profile")]
+    public StaffProfileForm? ProfileForm { get; set; }
 
     [SupplyParameterFromForm(FormName = "edit-person")]
     public EditPersonForm? PersonForm { get; set; }
@@ -375,7 +380,7 @@ else
         public bool SelfReported { get; set; }
     }
 
-    public class InstructorProfileForm
+    public class StaffProfileForm
     {
         public string? ExperienceSummary { get; set; }
         public string? Bio { get; set; }
@@ -392,6 +397,7 @@ else
         public bool IsInstructor { get; set; }
         public bool IsAdmin { get; set; }
         public bool IsOwner { get; set; }
+        public bool IsStaff { get; set; }
         public bool IsVisitor { get; set; }
     }
 
@@ -435,10 +441,10 @@ else
         _guardianEmails = await db.Users.Where(u => guardianUserIds.Contains(u.Id))
             .Select(u => u.Email ?? u.UserName ?? "unknown").ToListAsync();
 
-        var profile = await db.InstructorProfiles.SingleOrDefaultAsync(p => p.PersonId == PersonId);
+        var profile = await db.StaffProfiles.SingleOrDefaultAsync(p => p.PersonId == PersonId);
         if (profile is not null && HttpContext?.Request.Method != "POST")
         {
-            ProfileForm = new InstructorProfileForm
+            ProfileForm = new StaffProfileForm
             {
                 ExperienceSummary = profile.ExperienceSummary,
                 Bio = profile.Bio,
@@ -462,6 +468,7 @@ else
             PersonForm.IsInstructor = _person.Roles.HasFlag(PersonRoles.Instructor);
             PersonForm.IsAdmin = _person.Roles.HasFlag(PersonRoles.Admin);
             PersonForm.IsOwner = _person.Roles.HasFlag(PersonRoles.Owner);
+            PersonForm.IsStaff = _person.Roles.HasFlag(PersonRoles.Staff);
             PersonForm.IsVisitor = _person.Visitor;
         }
 
@@ -493,6 +500,7 @@ else
         if (form.IsInstructor) roles |= PersonRoles.Instructor;
         if (form.IsAdmin) roles |= PersonRoles.Admin;
         if (form.IsOwner) roles |= PersonRoles.Owner;
+        if (form.IsStaff) roles |= PersonRoles.Staff;
 
         try
         {
@@ -550,11 +558,11 @@ else
     {
         var form = ProfileForm!;
         await using var db = await DbFactory.CreateDbContextAsync();
-        var profile = await db.InstructorProfiles.SingleOrDefaultAsync(p => p.PersonId == PersonId);
+        var profile = await db.StaffProfiles.SingleOrDefaultAsync(p => p.PersonId == PersonId);
         if (profile is null)
         {
-            profile = new InstructorProfile { PersonId = PersonId };
-            db.InstructorProfiles.Add(profile);
+            profile = new StaffProfile { PersonId = PersonId };
+            db.StaffProfiles.Add(profile);
         }
 
         profile.ExperienceSummary = form.ExperienceSummary;

@@ -69,6 +69,7 @@ public class DemoSeeder(GymStationDbContext db, TenantContext tenant)
         var ana = Cast("Ana", "Duarte", PersonRoles.Instructor | PersonRoles.Member, new DateOnly(1990, 9, 12), null, 2018);
         var dana = Cast("Dana", "Okafor", PersonRoles.Instructor | PersonRoles.Member, new DateOnly(1994, 1, 25), adultPlan.Id, 2021);
         var reyes = Cast("Ana", "Reyes", PersonRoles.Member, new DateOnly(1996, 12, 25), adultPlan.Id, 2021);
+        var kim = Cast("Priya", "Kim", PersonRoles.Staff, new DateOnly(1998, 5, 30), null, 2023);
         var webb = Cast("Marcus", "Webb", PersonRoles.Member, new DateOnly(1993, 6, 2), adultPlan.Id, 2024);
         var omar = Cast("Omar", "Haddad", PersonRoles.Member, new DateOnly(1988, 4, 17), adultPlan.Id, 2019);
         var tom = Cast("Tom", "Hale", PersonRoles.Member, today.AddYears(-15), adultPlan.Id, 2025);
@@ -232,10 +233,11 @@ public class DemoSeeder(GymStationDbContext db, TenantContext tenant)
             new GymEvent { Id = Guid.NewGuid(), Title = "Leg-lock Fundamentals Seminar", Kind = GymEventKind.Seminar, StartsOn = today.AddDays(24), TimeInfo = "11:00–14:00", Location = name, Details = "$40 members — guest black belt.", PublishedByPersonId = silva.Id },
             new GymEvent { Id = Guid.NewGuid(), Title = "Quarterly promotion day", Kind = GymEventKind.Grading, StartsOn = today.AddDays(58), TimeInfo = "After competition class", PublishedByPersonId = silva.Id });
 
-        db.InstructorProfiles.AddRange(
-            new InstructorProfile { PersonId = silva.Id, ExperienceSummary = "Head coach · 20+ yrs on the mat", Bio = "2nd degree black belt. Fundamentals-first.", PayRate = 45m, PayRateUnit = PayRateUnit.PerClass },
-            new InstructorProfile { PersonId = ana.Id, ExperienceSummary = "No-gi program · 1st degree black", PayRate = 40m, PayRateUnit = PayRateUnit.PerClass },
-            new InstructorProfile { PersonId = dana.Id, ExperienceSummary = "Kids program · brown belt", PayRate = 35m, PayRateUnit = PayRateUnit.PerClass });
+        db.StaffProfiles.AddRange(
+            new StaffProfile { PersonId = silva.Id, ExperienceSummary = "Head coach · 20+ yrs on the mat", Bio = "2nd degree black belt. Fundamentals-first.", PayRate = 45m, PayRateUnit = PayRateUnit.PerClass },
+            new StaffProfile { PersonId = ana.Id, ExperienceSummary = "No-gi program · 1st degree black", PayRate = 40m, PayRateUnit = PayRateUnit.PerClass },
+            new StaffProfile { PersonId = dana.Id, ExperienceSummary = "Kids program · brown belt", PayRate = 35m, PayRateUnit = PayRateUnit.PerClass },
+            new StaffProfile { PersonId = kim.Id, ExperienceSummary = "Front desk & ops", PayRate = 1400m, PayRateUnit = PayRateUnit.Monthly });
 
         await db.SaveChangesAsync(ct);
         tenant.Clear();
