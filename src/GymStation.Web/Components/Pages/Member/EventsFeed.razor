@@ -16,6 +16,11 @@
         var going = _counts.GetValueOrDefault((gymEvent.Id, RsvpStatus.Going));
         var interested = _counts.GetValueOrDefault((gymEvent.Id, RsvpStatus.Interested));
         <div class="form-card" style="margin-top:0.75rem">
+            @if (gymEvent.ImagePath is not null)
+            {
+                @* The flyer leads the card (#130) — cards without one stay compact. *@
+                <img class="event-flyer" src="/media/event/@gymEvent.Id" alt="Flyer for @gymEvent.Title" />
+            }
             <span class="chip @(gymEvent.Kind == GymEventKind.Tournament ? "chip--on" : null)">@gymEvent.Kind.ToString().ToUpperInvariant()</span>
             <h3 style="font:700 1rem/1.25 var(--font-body);margin:0.5rem 0 0.125rem"><a href="/events/@gymEvent.Id" style="text-decoration:none">@gymEvent.Title</a></h3>
             <p class="cap">

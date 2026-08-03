@@ -98,6 +98,68 @@ public static class MediaEndpoints
             return Results.Redirect($"/admin/people/{personId}");
         }).RequireAuthorization("GymStaff").ValidateAntiforgery();
 
+        // Event flyers (#130): staff upload; every signed-in person of the gym can view
+        // (events are member-facing pages), so serving is authed but not staff-gated.
+        app.MapPost("/admin/actions/upload-event-image", async (HttpRequest request, GymStationDbContext db, IFileStore store) =>
+        {
+            var form = await request.ReadFormAsync();
+            var file = form.Files.GetFile("file");
+
+            if (!Guid.TryParse(form["eventId"], out var eventId))
+            {
+                return Results.Redirect("/admin/events");
+            }
+
+            if (file is null || file.Length == 0 || file.Length > MaxUploadBytes)
+            {
+                return Results.Redirect("/admin/events?failed=1");
+            }
+
+            var extension = Path.GetExtension(file.FileName);
+            if (!AllowedTypes.ContainsKey(extension))
+            {
+                return Results.Redirect("/admin/events?failed=1");
+            }
+
+            var gymEvent = await db.GymEvents.SingleOrDefaultAsync(x => x.Id == eventId);
+            if (gymEvent is null)
+            {
+                return Results.Redirect("/admin/events");
+            }
+
+            var path = $"gyms/{gymEvent.GymId}/events/{gymEvent.Id}{extension.ToLowerInvariant()}";
+            await using (var content = file.OpenReadStream())
+            {
+                await store.SaveAsync(content, path);
+            }
+
+            gymEvent.ImagePath = path;
+            await db.SaveChangesAsync();
+            return Results.Redirect("/admin/events");
+        }).RequireAuthorization("GymStaff").ValidateAntiforgery();
+
+        app.MapGet("/media/event/{eventId:guid}", async (Guid eventId, HttpContext http, GymStationDbContext db, IFileStore store) =>
+        {
+            // The tenant query filter scopes the lookup — a cross-gym id is a 404.
+            var gymEvent = await db.GymEvents.SingleOrDefaultAsync(x => x.Id == eventId);
+            if (gymEvent?.ImagePath is not { } path
+                || !path.StartsWith($"gyms/{gymEvent.GymId}/events/{gymEvent.Id}", StringComparison.OrdinalIgnoreCase)
+                || !AllowedTypes.TryGetValue(Path.GetExtension(path), out var contentType))
+            {
+                return Results.NotFound();
+            }
+
+            var stream = await store.OpenReadAsync(path);
+            if (stream is null)
+            {
+                return Results.NotFound();
+            }
+
+            // Replacements reuse the same URL — don't let browsers keep the old flyer.
+            http.Response.Headers.CacheControl = "no-store";
+            return Results.Stream(stream, contentType);
+        }).RequireAuthorization();
+
         app.MapGet("/admin/media/portrait/{personId:guid}", async (Guid personId, HttpContext http, GymStationDbContext db, IFileStore store) =>
         {
             var person = await db.Persons.SingleOrDefaultAsync(p => p.Id == personId);

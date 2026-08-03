@@ -22,7 +22,7 @@ Loop process per issue: branch off pulled master → implement → rig-verify �
 - [x] #127 — Inline edit pattern (pencil → save/cancel) + family rename (inline-edit.js + .ie markup pattern; AdminFamilyDetail title + member MyFamily; Rename section and RENAME row deleted; Esc/cancel reverts client-side)
 - [x] #128 — Person page: name in header; contact merges into edit form (PersonService.SetNameAsync + /admin/actions/rename-person; inline [First][Last] at the title; edit-person keeps DOB+roles and absorbs phone+SMS; Contact section deleted; inline-edit.js multi-input)
 - [x] #129 — Image edit overlay: click image, hover pencil; hide file inputs (MediaCropUpload Overlay param + media-edit/veil CSS; portrait + logo + hero converted; source rows sr-only under JS, plain form without)
-- [ ] #130 — Event images: 1:1 flyer end-to-end
+- [x] #130 — Event images: 1:1 flyer end-to-end (AddEventImage; upload-event-image + authed /media/event/{id}; admin card overlay tile — publish form points there since forms can't nest; feed card leads with the flyer; detail between cap and details)
 - [ ] #131 — Schedule drag: no modal after drag; cross-day drag; modal date field
 - [ ] #132 — Schedule drag: edge-hover week paging
 - [ ] #133 — Markdown everywhere (sanitized): Markdig + MarkdownBlock
