@@ -32,7 +32,7 @@ Loop process per issue: branch off pulled master → implement → rig-verify �
 - [x] #137 — Instructors: public portraits + rich landing modal (ADR 0003 + InstructorPortraits.PubliclyVisible matrix [tested]; anonymous /media/instructor-portrait/{gym}/{person} no-store; Hobbies + AddStaffHobbies; conditional upload hint; glowing cards → ?instructor= modal w/ photo, belt, experience, bio, hobbies, About; curl matrix 200/404/404/200)
 - [x] #138 — Public contact form + spam wall + /admin/messages (ContactMessage + AddContactMessages; honeypot/min-time[DataProtection ts]/per-IP rate limit/heuristics/strict email/MX fail-open via injectable IMxLookup; phone mask per spec; MESSAGES nav + unread badge + envelope; in-app fan-out + optional forward email; 9 service tests + live rig pass)
 - [x] #139 — Custom rank ladders: admin UI for RankSystems + Ranks (RankService write ops w/ seeded-immutable guard + unique-index-safe two-phase reorder; RankSystem.Archived; /admin/ranks/ladders w/ color pickers + BeltBar previews; award-with-history refuses removal; picker gains the ladder optgroup automatically; 3 integration tests)
-- [ ] #140 — Multi-discipline demo seed: BJJ + Bootcamp + Muay Thai
+- [x] #140 — Multi-discipline demo seed: BJJ + Bootcamp + Muay Thai
 
 ## Per-issue notes
 
@@ -92,6 +92,7 @@ Admin create/edit/archive RankSystems + Ranks (name, band/bar colors, order, str
 
 ### #140 — Multi-discipline seed
 DemoSeeder: Bootcamp + Muay Thai class types/templates, Muay Thai prajioud ladder, three Programs, sample About + stories. Random(7) fiction determinism preserved ($510 intact); no binary images. Lab demos need a fresh slug.
+Shipped: new coach Chai Rattana (Kru, black armband) + six cross-training templates in a SEPARATE array with their own Random(11) history loop — the shared Random(42) sequence is untouched by construction, and the seeder test asserts $510 exactly as the regression lock. Prajioud ladder seeded as a per-gym CUSTOM system (editable in #139's UI; IBJJF stays read-only). Webb/Omar armband awards back-dated before their newest BJJ award so roster primary belts stay the design fiction. Rig: fresh slug `coastline-tri` — landing About/Programs/Stories + program modal markdown, Chai instructor modal (black armband BeltBar + About text), Sunday grid with all 15 templates, ladders + board verified by screenshot.
 
 ## Verification standard
 Suite green + new tests per issue (WeekOf/materialization windows; date-move fan-out; markdown injection inert; portrait auth matrix; contact spam wall: honeypot/min-time/rate-limit/email-or-phone/MX fail-open; program/story CRUD + ordering; ladder CRUD end-to-end; seeder integrity). Rig per issue: fresh `gymstation-rig-db` postgres + idempotent script + seed-demo + curl antiforgery login — NEVER touch `gymstation-db` (live lab). Playwright breakpoint screenshots for the landing (sections, modals, contact) and the icon sweep. Releases + lab deploys per wave; migrations (A #125; B #130; D #134 #135 #136 #137 #138) each grep-verified in the staged migrate script before the image bump.
