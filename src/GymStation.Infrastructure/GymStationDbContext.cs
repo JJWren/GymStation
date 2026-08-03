@@ -312,7 +312,6 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
         builder.Entity<GymEvent>(e =>
         {
             e.Property(x => x.Title).HasMaxLength(150);
-            e.Property(x => x.ImagePath).HasMaxLength(300);
             e.Property(x => x.TimeInfo).HasMaxLength(100);
             e.Property(x => x.Location).HasMaxLength(200);
             e.Property(x => x.Details).HasMaxLength(2000);

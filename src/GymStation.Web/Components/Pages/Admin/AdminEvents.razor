@@ -32,26 +32,6 @@
                     · @_counts.GetValueOrDefault((gymEvent.Id, RsvpStatus.Going)) GOING
                     · @_counts.GetValueOrDefault((gymEvent.Id, RsvpStatus.Interested)) INTERESTED
                 </p>
-                @* Flyer tile (#130) — the image is the picker, same as every image. *@
-                <div class="row-form" style="margin-top:0.375rem;align-items:center">
-                    <label class="media-edit@(gymEvent.ImagePath is null ? " media-edit--empty" : null)" for="evimg-@gymEvent.Id"
-                           title="Click to set the event flyer" style="@(gymEvent.ImagePath is null ? "width:3.5rem;height:3.5rem" : null)">
-                        @if (gymEvent.ImagePath is not null)
-                        {
-                            <img src="/media/event/@gymEvent.Id" alt="Flyer for @gymEvent.Title" style="width:3.5rem;height:3.5rem;border-radius:0.5rem;object-fit:cover" />
-                        }
-                        else
-                        {
-                            <span class="cap" style="margin:0;line-height:1.2">FLYER</span>
-                        }
-                        <span class="media-edit-veil" aria-hidden="true"><Glyph Name="pencil" /></span>
-                    </label>
-                    <MediaCropUpload Kind="event" Label="flyer" Aspect="1" OutWidth="1024"
-                                     Action="/admin/actions/upload-event-image" InputId="@($"evimg-{gymEvent.Id}")" Overlay="true"
-                                     Hint="SQUARE FLYER · IG-POST FORMAT">
-                        <input type="hidden" name="eventId" value="@gymEvent.Id" />
-                    </MediaCropUpload>
-                </div>
             </div>
         }
         @if (_events.Count == 0)
@@ -85,9 +65,6 @@
         <EditForm class="form-card" FormName="add-event" Model="Form" OnValidSubmit="PublishAsync">
             <label for="etitle">Title</label>
             <InputText id="etitle" @bind-Value="Form!.Title" />
-            @* Forms can't nest (#130): the flyer attaches right after publishing,
-               via the new card's image tile in the Upcoming list. *@
-            <p class="cap" style="margin:0.375rem 0 0">FLYER: PUBLISH FIRST, THEN CLICK THE NEW CARD'S IMAGE TILE (SQUARE, IG-POST FORMAT).</p>
             <div class="form-grid">
                 <div>
                     <label for="ekind">Kind</label>
