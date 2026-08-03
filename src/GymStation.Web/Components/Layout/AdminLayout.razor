@@ -35,6 +35,7 @@
             <NavLink class="tab" href="/admin/schedule">SCHEDULE</NavLink>
             <NavLink class="tab" href="/instructor/swaps">SWAPS</NavLink>
             <NavLink class="tab" href="/admin/inbox">INBOX</NavLink>
+            <NavLink class="tab tab--msg" href="/admin/messages"><Glyph Name="envelope" /> MESSAGES@(_unreadMessages > 0 ? $" ({_unreadMessages})" : null)</NavLink>
             <NavLink class="tab" href="/admin/finance">FINANCE</NavLink>
             <NavLink class="tab" href="/admin/events">EVENTS</NavLink>
             <NavLink class="tab" href="/admin/reports">REPORTS</NavLink>
@@ -82,6 +83,7 @@
     private bool _dark = true;
     private string? _logoPath;
     private string? _email;
+    private int _unreadMessages;
     private int? _idleMinutes;
 
     protected override async Task OnInitializedAsync()
@@ -94,6 +96,7 @@
         if (Tenant.CurrentGymId is { } gymId)
         {
             await using var db = await DbFactory.CreateDbContextAsync();
+        _unreadMessages = await db.ContactMessages.CountAsync(m => m.ReadUtc == null);
             var gym = await db.Gyms.SingleOrDefaultAsync(g => g.Id == gymId);
             _gymName = gym?.Name.ToUpperInvariant();
             _gymSlug = gym?.Slug;

@@ -18,6 +18,19 @@ public static class AdminActionEndpoints
             .RequireAuthorization("GymStaff")
             .ValidateAntiforgery();
 
+        // Contact-message read state (#138): per-message toggle.
+        group.MapPost("/message-read", async ([FromForm] Guid messageId, [FromForm] bool read, GymStationDbContext db) =>
+        {
+            var message = await db.ContactMessages.SingleOrDefaultAsync(m => m.Id == messageId);
+            if (message is not null)
+            {
+                message.ReadUtc = read ? DateTimeOffset.UtcNow : null;
+                await db.SaveChangesAsync();
+            }
+
+            return Results.Redirect("/admin/messages");
+        });
+
         // Landing section ordering (#134): one step at a time. Tampered requests
         // are rejected outright — a junk key must not trigger a silent write of
         // the normalized order.
