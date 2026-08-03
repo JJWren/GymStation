@@ -46,22 +46,32 @@
     {
         <div class="form-card" style="margin-top:0.75rem">
             <div class="head-row">
-                <b>@view.Family.Name</b>
+                @if (view.MyGuardian.IsPrimary || view.MyGuardian.ManageMembers)
+                {
+                    @* Name edits inline via the pencil (#127); the RENAME row is gone. *@
+                    <form method="post" action="/family-actions/rename" class="ie" data-inline-edit style="margin:0">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="familyId" value="@view.Family.Id" />
+                        <div class="ie-view" hidden>
+                            <b>@view.Family.Name</b>
+                            <button type="button" class="btn btn--ghost btn--icon btn--xs ie-edit" aria-label="Edit family name" title="Edit family name"><Glyph Name="pencil" /></button>
+                        </div>
+                        <div class="ie-fields">
+                            <input type="text" name="name" value="@view.Family.Name" aria-label="Family name" required maxlength="80" style="min-width:9rem" />
+                            <button class="btn btn--icon btn--save btn--xs" type="submit" aria-label="Save family name" title="Save family name"><Glyph Name="save" /></button>
+                            <button type="button" class="btn btn--icon btn--del btn--xs ie-cancel" aria-label="Cancel editing" title="Cancel editing" hidden><Glyph Name="x" /></button>
+                        </div>
+                    </form>
+                }
+                else
+                {
+                    <b>@view.Family.Name</b>
+                }
                 @if (view.MyGuardian.IsPrimary)
                 {
                     <span class="stamp stamp--ok">YOU'RE PRIMARY</span>
                 }
             </div>
-
-            @if (view.MyGuardian.IsPrimary || view.MyGuardian.ManageMembers)
-            {
-                <form method="post" action="/family-actions/rename" class="row-form" style="margin-top:0.375rem">
-                    <AntiforgeryToken />
-                    <input type="hidden" name="familyId" value="@view.Family.Id" />
-                    <input type="text" name="name" value="@view.Family.Name" aria-label="Family name" required maxlength="80" style="min-width:9rem" />
-                    <button class="btn btn--ghost btn--xs" type="submit">RENAME</button>
-                </form>
-            }
 
             @foreach (var adultWard in view.AdultAgedWards)
             {
