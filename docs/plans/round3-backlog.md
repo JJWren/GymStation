@@ -33,7 +33,7 @@ Loop process per issue: branch off pulled master → implement → rig-verify �
 - [x] #93 — Landing editor (LANDING rail section)
 - [x] #94 — Events structured time + on both schedules
 - [x] #95 — Instructor cover on /schedule
-- [ ] #96 — Schedule drag/resize island
+- [x] #96 — Schedule drag/resize island
 
 ## Per-issue notes
 
