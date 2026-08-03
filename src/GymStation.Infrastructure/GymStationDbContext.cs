@@ -57,6 +57,7 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
     public DbSet<GymEvent> GymEvents => Set<GymEvent>();
     public DbSet<EventRsvp> EventRsvps => Set<EventRsvp>();
     public DbSet<GymStation.Domain.Marketing.GymProgram> GymPrograms => Set<GymStation.Domain.Marketing.GymProgram>();
+    public DbSet<GymStation.Domain.Marketing.SuccessStory> SuccessStories => Set<GymStation.Domain.Marketing.SuccessStory>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -321,6 +322,13 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
         {
             e.Property(x => x.Title).HasMaxLength(80);
             e.Property(x => x.ImagePath).HasMaxLength(300);
+            e.HasIndex(x => new { x.GymId, x.SortOrder });
+            e.HasQueryFilter(x => CurrentGymId != null && x.GymId == CurrentGymId);
+        });
+
+        builder.Entity<GymStation.Domain.Marketing.SuccessStory>(e =>
+        {
+            e.Property(x => x.AttributedTo).HasMaxLength(80);
             e.HasIndex(x => new { x.GymId, x.SortOrder });
             e.HasQueryFilter(x => CurrentGymId != null && x.GymId == CurrentGymId);
         });

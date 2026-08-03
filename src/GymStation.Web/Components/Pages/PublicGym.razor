@@ -139,6 +139,27 @@ else
             </div>
         </section>
                     break;
+                case LandingSections.Stories:
+                    <section class="pub-section" id="stories">
+                        <h2>@(_settings?.StoriesTitle ?? "SUCCESS STORIES")</h2>
+                        @if (_settings?.StoriesImagePath is { } storiesImage)
+                        {
+                            <img class="pub-stories-img" src="/media/@storiesImage" alt="" />
+                        }
+                        <div class="pub-stories">
+                            @foreach (var story in _stories)
+                            {
+                                <div class="pub-story">
+                                    <MarkdownBlock Text="@story.Body" />
+                                    @if (story.AttributedTo is { } by)
+                                    {
+                                        <p class="cap" style="margin-top:0.375rem">— @by.ToUpperInvariant()</p>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </section>
+                    break;
                 case LandingSections.Visit:
         <section class="pub-section" id="visit">
             <h2>@(_settings?.TaglineVisit ?? "VISIT")</h2>
@@ -247,6 +268,7 @@ else
     private List<string> _visibleSections = [];
     private List<GymStation.Domain.Marketing.GymProgram> _programs = [];
     private GymStation.Domain.Marketing.GymProgram? _openProgram;
+    private List<GymStation.Domain.Marketing.SuccessStory> _stories = [];
 
     [SupplyParameterFromQuery(Name = "program")] public string? ProgramRaw { get; set; }
     private string _accent = "#C9503B";
@@ -261,7 +283,7 @@ else
     {
         LandingSections.About => !string.IsNullOrWhiteSpace(_settings?.AboutText),
         LandingSections.Programs => _programs.Count > 0,
-        LandingSections.Stories => false,
+        LandingSections.Stories => _stories.Count > 0,
         LandingSections.Schedule => _week.Any(day => day.Value.Count > 0),
         LandingSections.Instructors => _instructors.Count > 0,
         _ => true,
@@ -352,6 +374,11 @@ else
         {
             _openProgram = _programs.FirstOrDefault(p => p.Id == programId);
         }
+
+        _stories = await db.SuccessStories
+            .Where(s => !s.Archived)
+            .OrderBy(s => s.SortOrder).ThenBy(s => s.Id)
+            .ToListAsync();
 
         // Visibility depends on the data above — compute LAST, or an empty
         // schedule/instructor list could never hide its section (review catch).

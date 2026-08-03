@@ -28,7 +28,7 @@ Loop process per issue: branch off pulled master → implement → rig-verify �
 - [x] #133 — Markdown everywhere (sanitized): Markdig + MarkdownBlock (AppMarkdown pipeline: raw HTML off, link-scheme allow-list, ++underline++, soft-break=break; applied to event details + diary notes; caps hints on all four textareas; 11 sanitization tests)
 - [x] #134 — Landing: About section + admin-orderable sections (AddLandingSections: SectionOrder + About/Programs/Stories titles+texts; LandingSections.Normalize/Move domain helper + tests; PublicGym renders per stored order w/ auto-hide + ordered anchors; /admin/landing About editor + ▲▼ order card)
 - [x] #135 — Programs: entity, admin CRUD, landing section + modal (GymProgram entity [glossary term Program, GymEvent naming precedent] + AddPrograms; /admin/landing/programs CRUD w/ overlay image tiles + reorder + archive; public cards → SSR ?program= modal w/ markdown; /media allow-list gains programs/{guid}; tenant-isolation test)
-- [ ] #136 — Success stories: entity, admin CRUD, landing section
+- [x] #136 — Success stories: entity, admin CRUD, landing section (SuccessStory + AddSuccessStories; /admin/landing/stories w/ shared 16:9 section image via upload-stories-image; public cards render markdown + attribution; /media allow-list gains stories; tenant-isolation test)
 - [ ] #137 — Instructors: public portraits + rich landing modal
 - [ ] #138 — Public contact form + spam wall + /admin/messages
 - [ ] #139 — Custom rank ladders: admin UI for RankSystems + Ranks

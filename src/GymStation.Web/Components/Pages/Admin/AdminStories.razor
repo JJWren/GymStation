@@ -1,0 +1,106 @@
+@page "/admin/landing/stories"
+@attribute [Authorize(Policy = "GymStaff")]
+@layout AdminLayout
+@using GymStation.Domain.Marketing
+@using GymStation.Domain.Tenancy
+@inject IDbContextFactory<GymStationDbContext> DbFactory
+
+<PageTitle>Success stories · GymStation</PageTitle>
+
+<h1 class="page-title">SUCCESS STORIES</h1>
+<p class="page-sub"><a href="/admin/landing">LANDING</a> ▸ PROOF FROM YOUR OWN MATS — SHOWN WITH ONE SHARED SECTION IMAGE</p>
+
+@if (FailedFlag == 1)
+{
+    <p class="auth-error" role="alert">That change was rejected — a story needs text (attribution 80 max), images are PNG/JPG/WEBP, 2 MB.</p>
+}
+
+<h2 class="section-h">Section image</h2>
+<div class="form-card" style="max-width:46rem">
+    <div class="row-form" style="align-items:center;margin:0">
+        <label class="media-edit@(_settings?.StoriesImagePath is null ? " media-edit--empty" : null)" for="stories-file"
+               title="Click to change the section image" style="@(_settings?.StoriesImagePath is null ? "width:6rem;height:3.375rem" : null)">
+            @if (_settings?.StoriesImagePath is { } image)
+            {
+                <img src="/media/@image" alt="Stories section image" style="width:6rem;height:3.375rem;border-radius:0.5rem;object-fit:cover" />
+            }
+            else
+            {
+                <span class="cap" style="margin:0;line-height:1.2">IMAGE</span>
+            }
+            <span class="media-edit-veil" aria-hidden="true"><Glyph Name="pencil" /></span>
+        </label>
+        <MediaCropUpload Kind="stories" Label="stories image" Aspect="@(16 / 9.0)" OutWidth="1280"
+                         Action="/admin/actions/upload-stories-image" InputId="stories-file" Overlay="true"
+                         Hint="WIDE — LEADS THE SECTION ABOVE THE CARDS" />
+    </div>
+</div>
+
+<h2 class="section-h">Stories</h2>
+@foreach (var story in _stories)
+{
+    <div class="form-card" style="margin-bottom:0.625rem;max-width:46rem;@(story.Archived ? "opacity:.55" : null)">
+        <div class="row-form" style="align-items:flex-start;margin:0;flex-wrap:nowrap">
+            <form method="post" action="/admin/actions/update-story" style="flex:1;margin:0;min-width:0">
+                <AntiforgeryToken />
+                <input type="hidden" name="storyId" value="@story.Id" />
+                <textarea name="body" rows="3" aria-label="Story" required style="width:100%">@story.Body</textarea>
+                <input type="text" name="attributedTo" value="@story.AttributedTo" placeholder="SAM O., BLUE BELT" aria-label="Attribution" maxlength="80" style="width:100%;margin-top:0.375rem" />
+                <p class="cap" style="margin-top:0.25rem">MARKDOWN: **BOLD** · _ITALIC_ · ++UNDERLINE++ · - LISTS</p>
+                <p style="margin:0.375rem 0 0"><button class="btn btn--icon btn--save btn--xs" type="submit" aria-label="Save story" title="Save story"><Glyph Name="save" /></button></p>
+            </form>
+            <span style="display:flex;flex-direction:column;gap:0.25rem;flex:none">
+                @if (!story.Archived)
+                {
+                    <form method="post" action="/admin/actions/story-move" style="margin:0">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="storyId" value="@story.Id" />
+                        <input type="hidden" name="direction" value="-1" />
+                        <button class="btn btn--ghost btn--xs" type="submit" aria-label="Move story up" title="Move up">▲</button>
+                    </form>
+                    <form method="post" action="/admin/actions/story-move" style="margin:0">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="storyId" value="@story.Id" />
+                        <input type="hidden" name="direction" value="1" />
+                        <button class="btn btn--ghost btn--xs" type="submit" aria-label="Move story down" title="Move down">▼</button>
+                    </form>
+                }
+                <form method="post" action="/admin/actions/story-archived" style="margin:0">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="storyId" value="@story.Id" />
+                    <input type="hidden" name="archived" value="@((!story.Archived).ToString())" />
+                    <button class="btn btn--ghost btn--xs" type="submit">@(story.Archived ? "UNARCHIVE" : "ARCHIVE")</button>
+                </form>
+            </span>
+        </div>
+    </div>
+}
+@if (_stories.Count == 0)
+{
+    <p class="cap">NO STORIES YET — "LOST 40LBS AND FOUND A FAMILY" BELONGS HERE.</p>
+}
+
+<form method="post" action="/admin/actions/add-story" class="form-card" style="margin-top:0.625rem;max-width:46rem">
+    <AntiforgeryToken />
+    <label for="nsbody">New story</label>
+    <textarea id="nsbody" name="body" rows="3" required style="width:100%"></textarea>
+    <label for="nsby">Who it's by (optional)</label>
+    <input id="nsby" type="text" name="attributedTo" maxlength="80" style="width:100%" />
+    <p style="margin-top:0.625rem"><button class="btn btn--icon btn--save btn--xs" type="submit" aria-label="Add story" title="Add story"><Glyph Name="save" /></button></p>
+</form>
+
+@code {
+    [SupplyParameterFromQuery(Name = "failed")] public int? FailedFlag { get; set; }
+
+    private List<SuccessStory> _stories = [];
+    private GymSettings? _settings;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _settings = await db.GymSettings.SingleOrDefaultAsync();
+        _stories = await db.SuccessStories
+            .OrderBy(s => s.Archived).ThenBy(s => s.SortOrder).ThenBy(s => s.Id)
+            .ToListAsync();
+    }
+}

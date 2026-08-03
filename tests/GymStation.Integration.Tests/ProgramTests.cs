@@ -53,4 +53,35 @@ public class ProgramTests(PostgresFixture fixture)
             Assert.Empty(await foreign.GymPrograms.ToListAsync());
         }
     }
+
+    [Fact]
+    public async Task Stories_AreTenantScoped_AndPublicQueryOrdersActives()
+    {
+        var tenant = await SeedGymAsync();
+        var otherTenant = await SeedGymAsync();
+
+        await using (var context = fixture.CreateContext(tenant))
+        {
+            context.SuccessStories.AddRange(
+                new Domain.Marketing.SuccessStory { Id = Guid.NewGuid(), Body = "Second", SortOrder = 2 },
+                new Domain.Marketing.SuccessStory { Id = Guid.NewGuid(), Body = "First", AttributedTo = "Sam O.", SortOrder = 1 },
+                new Domain.Marketing.SuccessStory { Id = Guid.NewGuid(), Body = "Hidden", SortOrder = 0, Archived = true });
+            await context.SaveChangesAsync();
+        }
+
+        await using (var context = fixture.CreateContext(tenant))
+        {
+            var visible = await context.SuccessStories
+                .Where(s => !s.Archived)
+                .OrderBy(s => s.SortOrder).ThenBy(s => s.Id)
+                .Select(s => s.Body)
+                .ToListAsync();
+            Assert.Equal(["First", "Second"], visible);
+        }
+
+        await using (var foreign = fixture.CreateContext(otherTenant))
+        {
+            Assert.Empty(await foreign.SuccessStories.ToListAsync());
+        }
+    }
 }
