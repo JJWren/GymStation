@@ -81,7 +81,15 @@
                 </div>
                 <div>
                     <label for="etime">Time info</label>
-                    <InputText id="etime" @bind-Value="Form!.TimeInfo" placeholder="11:00–14:00" />
+                    <InputText id="etime" @bind-Value="Form!.TimeInfo" placeholder="after comp class" />
+                </div>
+                <div>
+                    <label for="estart">Start (HH:mm — positions it on both schedules; empty = all-day banner)</label>
+                    <InputText id="estart" @bind-Value="Form!.Start" placeholder="11:00" />
+                </div>
+                <div>
+                    <label for="edur">Duration (minutes)</label>
+                    <InputNumber id="edur" @bind-Value="Form!.DurationMinutes" />
                 </div>
                 <div>
                     <label for="eloc">Location</label>
@@ -121,6 +129,8 @@
         public GymEventKind Kind { get; set; } = GymEventKind.Tournament;
         public DateOnly StartsOn { get; set; } = DateOnly.FromDateTime(DateTime.Today).AddDays(14);
         public string? TimeInfo { get; set; }
+        public string? Start { get; set; }
+        public int? DurationMinutes { get; set; }
         public string? Location { get; set; }
         public string? Details { get; set; }
     }
@@ -148,6 +158,24 @@
         }
 
         var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        TimeOnly? startTime = null;
+        if (!string.IsNullOrWhiteSpace(form.Start))
+        {
+            if (!TimeOnly.TryParseExact(form.Start.Trim(), "HH\\:mm", out var parsed))
+            {
+                _error = "Start must be HH:mm (24h), or empty for an all-day banner.";
+                return;
+            }
+
+            if (form.DurationMinutes is not null and (< 15 or > 720))
+            {
+                _error = "Duration must be 15–720 minutes (or empty).";
+                return;
+            }
+
+            startTime = parsed;
+        }
+
         Guid publisherPersonId = Guid.Empty;
         if (Guid.TryParse(raw, out var userId))
         {
@@ -162,6 +190,8 @@
             Kind = form.Kind,
             StartsOn = form.StartsOn,
             TimeInfo = form.TimeInfo,
+            StartTime = startTime,
+            DurationMinutes = startTime is null ? null : form.DurationMinutes,
             Location = form.Location,
             Details = form.Details,
             PublishedByPersonId = publisherPersonId,
