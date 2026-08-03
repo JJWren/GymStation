@@ -326,6 +326,12 @@
         }
 
         Guid? userId = null;
+        if (!string.IsNullOrWhiteSpace(form.LinkEmail) && roles == PersonRoles.Staff)
+        {
+            _formError = "Staff-only grants no portal — skip the login link, or add MEMBER alongside STAFF.";
+            return;
+        }
+
         if (!string.IsNullOrWhiteSpace(form.LinkEmail))
         {
             var user = await Users.FindByEmailAsync(form.LinkEmail.Trim());

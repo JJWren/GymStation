@@ -28,6 +28,15 @@ public class PersonService(GymStationDbContext db)
             await EnsureAnotherActiveOwnerAsync(personId, ct);
         }
 
+        // Staff grants zero portal surface — a Staff-ONLY person with a login would
+        // still reach the member shell (its pages gate on authentication, not roles).
+        // Keep the invariant here, not in pages (#87).
+        if (roles == PersonRoles.Staff && person.UserId is not null)
+        {
+            throw new InvalidOperationException(
+                "Staff-only can't keep a login — the Staff role grants no portal. Add another role or unlink the login first.");
+        }
+
         person.FirstName = firstName.Trim();
         person.LastName = lastName.Trim();
         person.DateOfBirth = dateOfBirth;
