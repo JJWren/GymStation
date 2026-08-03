@@ -39,7 +39,7 @@ public class DemoSeederTests(PostgresFixture fixture)
         Assert.Equal(510m, (await db.Charges.SumAsync(c => c.Amount)) - await db.Payments.SumAsync(p => p.Amount));
         Assert.Equal(5, await db.Expenses.CountAsync());
         Assert.Equal(3, await db.GymEvents.CountAsync());
-        Assert.Equal(3, await db.InstructorProfiles.CountAsync());
+        Assert.Equal(4, await db.StaffProfiles.CountAsync()); // 3 coaches + Priya Kim (front desk, Staff role)
 
         // Second run refuses.
         var again = new TenantContext();

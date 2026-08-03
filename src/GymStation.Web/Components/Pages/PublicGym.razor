@@ -167,7 +167,11 @@ else
             .Where(p => !p.Archived && p.Roles.HasFlag(PersonRoles.Instructor))
             .OrderBy(p => p.FirstName)
             .ToListAsync();
-        var profiles = await db.InstructorProfiles.ToDictionaryAsync(p => p.PersonId, p => p.ExperienceSummary);
+        // Profiles now cover admins/owners/staff too — fetch only the instructors'.
+        var instructorIds = instructorPersons.Select(p => p.Id).ToList();
+        var profiles = await db.StaffProfiles
+            .Where(p => instructorIds.Contains(p.PersonId))
+            .ToDictionaryAsync(p => p.PersonId, p => p.ExperienceSummary);
         _instructors = instructorPersons.Select(p => (p, profiles.GetValueOrDefault(p.Id))).ToList();
     }
 }

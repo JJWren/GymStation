@@ -24,7 +24,7 @@ Loop process per issue: branch off pulled master → implement → rig-verify �
 - [x] #84 — Swap-mode/open-claims move to Settings
 - [x] #85 — Footer: privacy · terms · cookies · help
 - [x] #86 — Per-user idle auto-sign-out (off by default)
-- [ ] #87 — Staff role + StaffProfile
+- [x] #87 — Staff role + StaffProfile
 - [ ] #88 — Finance view (OtherIncome, editable money records, RAISE retired)
 - [ ] #89 — Family schema + admin structure management
 - [ ] #90 — Family member shell: MY FAMILY + ward switcher + ward diaries

@@ -10,10 +10,11 @@ public enum PayRateUnit
 }
 
 /// <summary>
-/// Instructor-only profile data for a Person holding the Instructor role.
-/// Pay is stored + displayed only; payroll computation stays on the future board.
+/// Profile data for anyone the gym pays or fronts publicly — the Instructor,
+/// Admin, Owner, or Staff roles (formerly InstructorProfile). Pay is stored +
+/// displayed only; payroll computation stays on the future board.
 /// </summary>
-public class InstructorProfile : ITenantOwned
+public class StaffProfile : ITenantOwned
 {
     public Guid PersonId { get; set; }
     public Person Person { get; set; } = null!;
