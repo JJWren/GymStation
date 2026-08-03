@@ -90,6 +90,8 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
             e.Property(s => s.SocialInstagram).HasMaxLength(200);
             e.Property(s => s.SocialFacebook).HasMaxLength(200);
             e.Property(s => s.SocialYouTube).HasMaxLength(200);
+            e.Property(s => s.SocialTikTok).HasMaxLength(200);
+            e.Property(s => s.SocialX).HasMaxLength(200);
             e.HasQueryFilter(s => CurrentGymId != null && s.GymId == CurrentGymId);
         });
 

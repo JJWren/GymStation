@@ -59,4 +59,6 @@ public class GymSettings : ITenantOwned
     public string? SocialInstagram { get; set; }
     public string? SocialFacebook { get; set; }
     public string? SocialYouTube { get; set; }
+    public string? SocialTikTok { get; set; }
+    public string? SocialX { get; set; }
 }

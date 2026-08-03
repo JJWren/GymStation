@@ -16,7 +16,7 @@ Loop process per issue: branch off pulled master → implement → rig-verify �
 
 - [x] #123 — Icon-only buttons: green save / red delete + app-wide hover affordance (Glyph.razor SVG set; .btn--icon/--save/--del + --glow hover on all buttons; 31 call sites converted per semantic rule)
 - [x] #124 — Finance chips: semantic colors (chip--ok/--bad + split CURRENT|BEHIND pill; zeros stay neutral)
-- [ ] #125 — Landing socials: TikTok + X, brand-color icons, run-together fix
+- [x] #125 — Landing socials: TikTok + X, brand-color icons, run-together fix (AddSocialPlatforms; five hand-drawn brand marks in a flex-gapped badge row)
 - [ ] #126 — Sunday-first weeks everywhere
 - [ ] #141 — Platform brand: belt-patch logo + favicon adoption
 - [ ] #127 — Inline edit pattern (pencil → save/cancel) + family rename
