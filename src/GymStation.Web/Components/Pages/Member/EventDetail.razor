@@ -25,6 +25,11 @@
             @(_gymEvent.Location is null ? null : $" · {_gymEvent.Location.ToUpperInvariant()}")
         </p>
 
+        @if (_gymEvent.ImagePath is not null)
+        {
+            <img class="event-flyer event-flyer--detail" src="/media/event/@_gymEvent.Id" alt="Flyer for @_gymEvent.Title" />
+        }
+
         @if (!string.IsNullOrWhiteSpace(_gymEvent.Details))
         {
             <div class="form-card" style="margin-top:0.75rem">
