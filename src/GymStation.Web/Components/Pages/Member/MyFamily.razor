@@ -52,15 +52,15 @@
                     <form method="post" action="/family-actions/rename" class="ie" data-inline-edit style="margin:0">
                         <AntiforgeryToken />
                         <input type="hidden" name="familyId" value="@view.Family.Id" />
-                        <span class="ie-view" hidden>
+                        <div class="ie-view" hidden>
                             <b>@view.Family.Name</b>
                             <button type="button" class="btn btn--ghost btn--icon btn--xs ie-edit" aria-label="Edit family name" title="Edit family name"><Glyph Name="pencil" /></button>
-                        </span>
-                        <span class="ie-fields">
+                        </div>
+                        <div class="ie-fields">
                             <input type="text" name="name" value="@view.Family.Name" aria-label="Family name" required maxlength="80" style="min-width:9rem" />
                             <button class="btn btn--icon btn--save btn--xs" type="submit" aria-label="Save family name" title="Save family name"><Glyph Name="save" /></button>
                             <button type="button" class="btn btn--icon btn--del btn--xs ie-cancel" aria-label="Cancel editing" title="Cancel editing" hidden><Glyph Name="x" /></button>
-                        </span>
+                        </div>
                     </form>
                 }
                 else

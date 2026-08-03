@@ -20,13 +20,21 @@
             if (editing) { input.focus(); input.select(); }
         }
 
+        // Reverting must hand keyboard focus back to the pencil — hiding the
+        // focused input would otherwise drop focus to <body>.
+        function revert() {
+            input.value = input.defaultValue;
+            show(false);
+            edit.focus();
+        }
+
         if (cancel) {
             cancel.hidden = false;
-            cancel.addEventListener('click', function () { input.value = input.defaultValue; show(false); });
+            cancel.addEventListener('click', revert);
         }
         edit.addEventListener('click', function () { show(true); });
         input.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') { e.preventDefault(); input.value = input.defaultValue; show(false); }
+            if (e.key === 'Escape') { e.preventDefault(); revert(); }
         });
         show(false);
     }

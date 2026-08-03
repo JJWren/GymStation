@@ -19,15 +19,15 @@ else
 <form method="post" action="/admin/family-actions/rename" class="ie" data-inline-edit style="margin:0">
     <AntiforgeryToken />
     <input type="hidden" name="familyId" value="@FamilyId" />
-    <span class="ie-view" hidden>
+    <div class="ie-view" hidden>
         <h1 class="page-title" style="margin:0">@_family.Name</h1>
         <button type="button" class="btn btn--ghost btn--icon btn--xs ie-edit" aria-label="Edit family name" title="Edit family name"><Glyph Name="pencil" /></button>
-    </span>
-    <span class="ie-fields">
+    </div>
+    <div class="ie-fields">
         <input type="text" name="name" value="@_family.Name" aria-label="Family name" required maxlength="80" class="ie-input--title" />
         <button class="btn btn--icon btn--save btn--xs" type="submit" aria-label="Save family name" title="Save family name"><Glyph Name="save" /></button>
         <button type="button" class="btn btn--icon btn--del btn--xs ie-cancel" aria-label="Cancel editing" title="Cancel editing" hidden><Glyph Name="x" /></button>
-    </span>
+    </div>
 </form>
     <p class="page-sub"><a href="/admin/families">FAMILIES</a> ▸ STRUCTURE ONLY — GUARDIANS DO THE ACTING</p>
 
