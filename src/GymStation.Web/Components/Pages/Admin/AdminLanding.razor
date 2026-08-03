@@ -84,7 +84,7 @@
 
         <h2 class="section-h">About</h2>
         <EditForm class="form-card" FormName="about-content" Model="AboutForm" OnValidSubmit="SaveAboutAsync">
-            <label for="abt">Section title (also the strip anchor)</label>
+            <label for="abt">Section title (labels the section and its strip link)</label>
             <InputText id="abt" @bind-Value="AboutForm!.Title" />
             <label for="abx">About the gym — empty hides the section</label>
             <InputTextArea id="abx" @bind-Value="AboutForm!.Text" rows="6" />

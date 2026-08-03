@@ -210,12 +210,16 @@ else
     private List<KeyValuePair<DayOfWeek, List<ClassTemplate>>> _week = [];
     private List<(Person Person, string? Experience)> _instructors = [];
 
-    // Programs and stories stay hidden until #135/#136 give them content.
+    // Empty sections hide themselves (#134); programs and stories additionally
+    // stay hidden until #135/#136 give them a data source. Visit stays — its
+    // DROP IN fallback is the page's call to action even for a bare gym.
     private bool SectionVisible(string key) => key switch
     {
         LandingSections.About => !string.IsNullOrWhiteSpace(_settings?.AboutText),
         LandingSections.Programs => false,
         LandingSections.Stories => false,
+        LandingSections.Schedule => _week.Any(day => day.Value.Count > 0),
+        LandingSections.Instructors => _instructors.Count > 0,
         _ => true,
     };
 
@@ -266,7 +270,6 @@ else
         }
 
         _settings = await db.GymSettings.SingleOrDefaultAsync();
-        _visibleSections = LandingSections.Normalize(_settings?.SectionOrder).Where(SectionVisible).ToList();
         if (_settings is not null)
         {
             if (ThemeMath.TryParseHexColor(_settings.AccentColorHex, out _))
@@ -294,5 +297,9 @@ else
             .Where(p => instructorIds.Contains(p.PersonId))
             .ToDictionaryAsync(p => p.PersonId, p => p.ExperienceSummary);
         _instructors = instructorPersons.Select(p => (p, profiles.GetValueOrDefault(p.Id))).ToList();
+
+        // Visibility depends on the data above — compute LAST, or an empty
+        // schedule/instructor list could never hide its section (review catch).
+        _visibleSections = LandingSections.Normalize(_settings?.SectionOrder).Where(SectionVisible).ToList();
     }
 }
