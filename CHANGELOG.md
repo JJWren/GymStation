@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.6.0](https://github.com/JJWren/GymStation/compare/v1.5.0...v1.6.0) (2026-08-03)
+
+
+### Features
+
+* belt-patch brand mark + favicon adoption ([#148](https://github.com/JJWren/GymStation/issues/148)) ([e6eab18](https://github.com/JJWren/GymStation/commit/e6eab18a6da1eab9a89f0dcb4155720346d501bf))
+* five-platform brand icons on the public VISIT block ([#146](https://github.com/JJWren/GymStation/issues/146)) ([3b32f81](https://github.com/JJWren/GymStation/commit/3b32f81ad2351f41b88354a55e429a97c86629ec))
+* icon-only save/delete buttons + app-wide hover affordance ([#143](https://github.com/JJWren/GymStation/issues/143)) ([459467d](https://github.com/JJWren/GymStation/commit/459467d3df4ea641f0060c80af340b8ca7a32430))
+* semantic money colors on the finance chips ([#145](https://github.com/JJWren/GymStation/issues/145)) ([8c7cdec](https://github.com/JJWren/GymStation/commit/8c7cdecba5775d837668d7796292ad99432da99c))
+* Sunday-first weeks everywhere ([#147](https://github.com/JJWren/GymStation/issues/147)) ([263c790](https://github.com/JJWren/GymStation/commit/263c790fa8f777320cd90ab70fc5aabb21807800))
+
 ## [1.5.0](https://github.com/JJWren/GymStation/compare/v1.4.0...v1.5.0) (2026-08-03)
 
 
