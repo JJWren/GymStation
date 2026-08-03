@@ -46,7 +46,7 @@ public static class AppMarkdown
             }
         }
 
-        var writer = new System.IO.StringWriter();
+        using var writer = new System.IO.StringWriter();
         var renderer = new Markdig.Renderers.HtmlRenderer(writer);
         Pipeline.Setup(renderer);
         renderer.Render(document);
@@ -59,6 +59,13 @@ public static class AppMarkdown
     private static string SafeUrl(string? url)
     {
         if (string.IsNullOrWhiteSpace(url))
+        {
+            return "#";
+        }
+
+        // Protocol-relative (//evil.example) and UNC-ish (\\evil) destinations are
+        // absolute navigation in browsers despite having no scheme to filter.
+        if (url.StartsWith("//") || url.StartsWith(@"\\"))
         {
             return "#";
         }

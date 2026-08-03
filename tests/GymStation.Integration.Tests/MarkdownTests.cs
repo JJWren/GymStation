@@ -28,6 +28,16 @@ public class MarkdownTests
         Assert.DoesNotContain("data:", html, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void ProtocolRelativeDestinations_AreNeutralized()
+    {
+        // //evil.example carries no scheme yet browsers navigate it absolutely.
+        var html = AppMarkdown.ToHtml("[x](//evil.example) [y](\\\\evil)");
+        Assert.DoesNotContain("//evil.example", html);
+        Assert.DoesNotContain("\\\\evil", html);
+        Assert.Contains("href=\"#\"", html);
+    }
+
     [Theory]
     [InlineData("[gym](https://example.com)", "href=\"https://example.com\"")]
     [InlineData("[mail](mailto:hi@example.com)", "href=\"mailto:hi@example.com\"")]
