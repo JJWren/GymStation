@@ -136,10 +136,6 @@ namespace GymStation.Infrastructure.Migrations
                     b.Property<Guid>("GymId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("ImagePath")
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)");
-
                     b.Property<int>("Kind")
                         .HasColumnType("integer");
 

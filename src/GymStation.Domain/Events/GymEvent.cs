@@ -39,9 +39,6 @@ public class GymEvent : ITenantOwned
     public string? Location { get; set; }
     public string? Details { get; set; }
 
-    /// <summary>File-store path of the 1:1 flyer (#130); null keeps cards compact.</summary>
-    public string? ImagePath { get; set; }
-
     public Guid PublishedByPersonId { get; set; }
     public DateTimeOffset CreatedUtc { get; set; } = DateTimeOffset.UtcNow;
 }
