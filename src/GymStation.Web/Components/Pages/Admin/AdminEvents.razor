@@ -161,7 +161,7 @@
         TimeOnly? startTime = null;
         if (!string.IsNullOrWhiteSpace(form.Start))
         {
-            if (!TimeOnly.TryParseExact(form.Start.Trim(), "HH\\:mm", out var parsed))
+            if (!TimeOnly.TryParseExact(form.Start.Trim(), "HH\\:mm", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsed))
             {
                 _error = "Start must be HH:mm (24h), or empty for an all-day banner.";
                 return;
