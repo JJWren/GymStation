@@ -78,6 +78,18 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
             // Explicit defaults so pre-existing rows land on real mat hours, not 00:00.
             e.Property(s => s.OpenTime).HasDefaultValue(new TimeOnly(6, 0));
             e.Property(s => s.CloseTime).HasDefaultValue(new TimeOnly(22, 0));
+
+            // Landing content (#93): strip labels default so pre-existing rows keep
+            // the original wording; contact/socials stay optional.
+            e.Property(s => s.TaglineSchedule).HasMaxLength(30).HasDefaultValue("SCHEDULE");
+            e.Property(s => s.TaglineInstructors).HasMaxLength(30).HasDefaultValue("INSTRUCTORS");
+            e.Property(s => s.TaglineVisit).HasMaxLength(30).HasDefaultValue("VISIT");
+            e.Property(s => s.VisitAddress).HasMaxLength(300);
+            e.Property(s => s.VisitPhone).HasMaxLength(30);
+            e.Property(s => s.VisitEmail).HasMaxLength(200);
+            e.Property(s => s.SocialInstagram).HasMaxLength(200);
+            e.Property(s => s.SocialFacebook).HasMaxLength(200);
+            e.Property(s => s.SocialYouTube).HasMaxLength(200);
             e.HasQueryFilter(s => CurrentGymId != null && s.GymId == CurrentGymId);
         });
 

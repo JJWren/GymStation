@@ -30,7 +30,7 @@ Loop process per issue: branch off pulled master → implement → rig-verify �
 - [x] #90 — Family member shell: MY FAMILY + ward switcher + ward diaries
 - [x] #91 — Family plans + primary billing
 - [x] #92 — Ward graduation + 18 nudge
-- [ ] #93 — Landing editor (LANDING rail section)
+- [x] #93 — Landing editor (LANDING rail section)
 - [ ] #94 — Events structured time + on both schedules
 - [ ] #95 — Instructor cover on /schedule
 - [ ] #96 — Schedule drag/resize island

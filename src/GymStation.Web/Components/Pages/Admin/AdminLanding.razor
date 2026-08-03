@@ -1,0 +1,203 @@
+@page "/admin/landing"
+@attribute [Authorize(Policy = "GymStaff")]
+@layout AdminLayout
+@using GymStation.Domain.Tenancy
+@inject IDbContextFactory<GymStationDbContext> DbFactory
+@inject NavigationManager Nav
+
+<PageTitle>Landing · GymStation</PageTitle>
+
+<h1 class="page-title">LANDING</h1>
+<p class="page-sub">YOUR PUBLIC PAGE'S CONTENT — STRIP ANCHORS · VISIT BLOCK · LOGO &amp; HERO@(_gymSlug is null ? null : " · ")@if (_gymSlug is not null)
+    {
+        <a href="/@_gymSlug">VIEW IT LIVE ▸</a>
+    }</p>
+
+@if (Failed)
+{
+    <p class="auth-error" role="alert">That change was rejected — check the file type/size or the values and try again.</p>
+}
+
+<div class="detail-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:1.125rem;align-items:start">
+    <section>
+        <h2 class="section-h">Strip &amp; visit</h2>
+        <EditForm class="form-card" FormName="landing-content" Model="Form" OnValidSubmit="SaveAsync">
+            <p class="cap" style="margin:0 0 0.5rem">
+                THE STRIP UNDER YOUR GYM NAME — EACH LABEL IS A REAL ANCHOR THAT SCROLLS TO ITS SECTION.
+            </p>
+            <div class="form-grid">
+                <div>
+                    <label for="lts">Schedule label</label>
+                    <InputText id="lts" @bind-Value="Form!.TaglineSchedule" />
+                </div>
+                <div>
+                    <label for="lti">Instructors label</label>
+                    <InputText id="lti" @bind-Value="Form!.TaglineInstructors" />
+                </div>
+                <div>
+                    <label for="ltv">Visit label</label>
+                    <InputText id="ltv" @bind-Value="Form!.TaglineVisit" />
+                </div>
+            </div>
+
+            <p class="cap" style="margin:0.875rem 0 0.5rem">
+                THE VISIT BLOCK — HOW A WALK-IN ACTUALLY FINDS YOU. EMPTY FIELDS SIMPLY DON'T RENDER.
+            </p>
+            <label for="lva">Address</label>
+            <InputText id="lva" @bind-Value="Form!.VisitAddress" />
+            <div class="form-grid" style="margin-top:0.5rem">
+                <div>
+                    <label for="lvp">Phone</label>
+                    <InputText id="lvp" @bind-Value="Form!.VisitPhone" />
+                </div>
+                <div>
+                    <label for="lve">Email</label>
+                    <InputText id="lve" @bind-Value="Form!.VisitEmail" type="email" />
+                </div>
+                <div>
+                    <label for="lsi">Instagram URL</label>
+                    <InputText id="lsi" @bind-Value="Form!.SocialInstagram" />
+                </div>
+                <div>
+                    <label for="lsf">Facebook URL</label>
+                    <InputText id="lsf" @bind-Value="Form!.SocialFacebook" />
+                </div>
+                <div>
+                    <label for="lsy">YouTube URL</label>
+                    <InputText id="lsy" @bind-Value="Form!.SocialYouTube" />
+                </div>
+            </div>
+            @if (_error is not null)
+            {
+                <p class="validation-message">@_error</p>
+            }
+            <p style="margin-top:0.75rem"><button class="btn" type="submit">SAVE LANDING</button></p>
+        </EditForm>
+    </section>
+
+    <section>
+        <h2 class="section-h">Logo &amp; hero image</h2>
+        <div class="form-card">
+            <div class="row-form" style="align-items:center">
+                @if (_settings?.LogoPath is { } logo)
+                {
+                    <img src="/media/@logo" alt="Gym logo" style="width:2.75rem;height:2.75rem;border-radius:0.5rem;object-fit:cover" />
+                }
+                else
+                {
+                    <span class="crest" style="width:2.75rem;height:2.75rem;border-radius:0.5rem;background:var(--tenant);display:inline-block"></span>
+                }
+                <MediaCropUpload Kind="logo" Label="logo" Aspect="1" OutWidth="512"
+                                 Hint="SQUARE — RENDERS AT ~44PX ON THE RAIL AND TOP BAR" />
+            </div>
+            <div class="row-form" style="align-items:center;margin-top:0.875rem">
+                @if (_settings?.HeroPath is { } hero)
+                {
+                    <img src="/media/@hero" alt="Public page hero" style="width:6rem;height:2.75rem;border-radius:0.5rem;object-fit:cover" />
+                }
+                else
+                {
+                    <span class="cap" style="margin:0">HERO: MAT-TEXTURE GRADIENT (NO IMAGE YET)</span>
+                }
+                <MediaCropUpload Kind="hero" Label="hero" Aspect="@(8 / 3.0)" OutWidth="1600"
+                                 Hint="WIDE STRIP — DARKENED BEHIND THE PUBLIC-PAGE TEXT" />
+            </div>
+            <p class="cap">
+                PNG/JPG/WEBP · MAX 2 MB · LOGO: SQUARE, 512×512 OR LARGER (EXPORTED AT 512PX) ·
+                HERO: WIDE, 1600×600 OR LARGER (DARKENED BEHIND THE PUBLIC-PAGE TEXT) ·
+                SHOWN ON THE RAIL, MEMBER TOP BAR, AND /@_gymSlug
+            </p>
+        </div>
+    </section>
+</div>
+
+@code {
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+    [SupplyParameterFromQuery(Name = "failed")] public int? FailedFlag { get; set; }
+    private bool Failed => FailedFlag == 1;
+
+    [SupplyParameterFromForm(FormName = "landing-content")]
+    public LandingForm? Form { get; set; }
+
+    protected override void OnInitialized() => Form ??= new();
+
+    private GymSettings? _settings;
+    private string? _gymSlug;
+    private string? _error;
+
+    public class LandingForm
+    {
+        public string TaglineSchedule { get; set; } = "SCHEDULE";
+        public string TaglineInstructors { get; set; } = "INSTRUCTORS";
+        public string TaglineVisit { get; set; } = "VISIT";
+        public string? VisitAddress { get; set; }
+        public string? VisitPhone { get; set; }
+        public string? VisitEmail { get; set; }
+        public string? SocialInstagram { get; set; }
+        public string? SocialFacebook { get; set; }
+        public string? SocialYouTube { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _settings = await db.GymSettings.SingleOrDefaultAsync();
+        _gymSlug = (await db.Gyms.SingleOrDefaultAsync(g => g.Id == db.CurrentGymId))?.Slug;
+
+        if (_settings is not null && HttpContext?.Request.Method != "POST")
+        {
+            Form!.TaglineSchedule = _settings.TaglineSchedule;
+            Form.TaglineInstructors = _settings.TaglineInstructors;
+            Form.TaglineVisit = _settings.TaglineVisit;
+            Form.VisitAddress = _settings.VisitAddress;
+            Form.VisitPhone = _settings.VisitPhone;
+            Form.VisitEmail = _settings.VisitEmail;
+            Form.SocialInstagram = _settings.SocialInstagram;
+            Form.SocialFacebook = _settings.SocialFacebook;
+            Form.SocialYouTube = _settings.SocialYouTube;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        var form = Form!;
+        string Label(string? raw, string fallback)
+        {
+            var trimmed = raw?.Trim().ToUpperInvariant() ?? "";
+            return trimmed.Length == 0 ? fallback : trimmed;
+        }
+
+        if (new[] { form.TaglineSchedule, form.TaglineInstructors, form.TaglineVisit }.Any(t => t is { Length: > 30 }))
+        {
+            _error = "Keep strip labels under 30 characters.";
+            return;
+        }
+
+        static string? Clean(string? raw, int max)
+        {
+            var trimmed = raw?.Trim();
+            return string.IsNullOrEmpty(trimmed) ? null : trimmed[..Math.Min(trimmed.Length, max)];
+        }
+
+        // Handlers reload in their own context (the v1.0.1 convention).
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var settings = await db.GymSettings.SingleOrDefaultAsync();
+        if (settings is null)
+        {
+            _error = "No gym settings row — pick a gym first.";
+            return;
+        }
+
+        settings.TaglineSchedule = Label(form.TaglineSchedule, "SCHEDULE");
+        settings.TaglineInstructors = Label(form.TaglineInstructors, "INSTRUCTORS");
+        settings.TaglineVisit = Label(form.TaglineVisit, "VISIT");
+        settings.VisitAddress = Clean(form.VisitAddress, 300);
+        settings.VisitPhone = Clean(form.VisitPhone, 30);
+        settings.VisitEmail = Clean(form.VisitEmail, 200);
+        settings.SocialInstagram = Clean(form.SocialInstagram, 200);
+        settings.SocialFacebook = Clean(form.SocialFacebook, 200);
+        settings.SocialYouTube = Clean(form.SocialYouTube, 200);
+        await db.SaveChangesAsync();
+        Nav.NavigateTo("/admin/landing");
+    }
+}
