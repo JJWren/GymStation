@@ -200,6 +200,7 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
         }
 
         var created = 0;
+        var attempted = new List<Guid>();
 
         // The high-water mark is the idempotency, not row existence: an owner who
         // deletes this month's materialized rent must not have it resurrected on
@@ -222,6 +223,7 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
                 RecurringExpenseId = recurring.Id,
             });
             recurring.LastMaterializedMonth = monthStart;
+            attempted.Add(recurring.Id);
             created++;
         }
 
@@ -233,8 +235,15 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
             }
             catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: "23505" })
             {
-                // A concurrent pass materialized the same rows; the index kept it correct.
+                // The (recurring, spentOn) row already exists — a concurrent pass, or
+                // legacy data the backfill didn't cover. The high-water mark must still
+                // advance or every future pass re-collides on the same row, so persist
+                // the marks alone, straight to the database.
                 db.ChangeTracker.Clear();
+                await db.RecurringExpenses
+                    .Where(r => attempted.Contains(r.Id)
+                        && (r.LastMaterializedMonth == null || r.LastMaterializedMonth < monthStart))
+                    .ExecuteUpdateAsync(u => u.SetProperty(r => r.LastMaterializedMonth, monthStart), ct);
                 return 0;
             }
         }

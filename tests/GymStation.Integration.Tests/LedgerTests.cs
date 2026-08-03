@@ -202,6 +202,42 @@ public class LedgerTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task CollidingMaterializedRow_StillAdvancesTheHighWaterMark()
+    {
+        var (tenant, _, _, _) = await SeedAsync();
+
+        await using var context = fixture.CreateContext(tenant);
+        var category = new ExpenseCategory { Id = Guid.NewGuid(), Name = "RENT" };
+        context.ExpenseCategories.Add(category);
+        await context.SaveChangesAsync();
+
+        var ledger = new LedgerService(context, new NotificationService(context));
+        await ledger.AddRecurringExpenseAsync(category.Id, 4200m, 1, null);
+        var recurring = await context.RecurringExpenses.SingleAsync();
+
+        // Anomalous state: the month's row already exists but the mark is behind
+        // (concurrent pass / legacy data). The pass must not throw forever — it
+        // persists the mark even though the insert collides.
+        context.Expenses.Add(new Expense
+        {
+            Id = Guid.NewGuid(),
+            CategoryId = category.Id,
+            Amount = 4200m,
+            SpentOn = new DateOnly(2026, 8, 1),
+            RecurringExpenseId = recurring.Id,
+        });
+        await context.SaveChangesAsync();
+
+        Assert.Equal(0, await ledger.MaterializeRecurringExpensesAsync(new DateOnly(2026, 8, 15)));
+        var reloaded = await context.RecurringExpenses.AsNoTracking().SingleAsync();
+        Assert.Equal(new DateOnly(2026, 8, 1), reloaded.LastMaterializedMonth);
+
+        // And the next pass is a clean no-op, not another collision.
+        Assert.Equal(0, await ledger.MaterializeRecurringExpensesAsync(new DateOnly(2026, 8, 20)));
+        Assert.Single(await context.Expenses.AsNoTracking().ToListAsync());
+    }
+
+    [Fact]
     public async Task ExpensesAndOtherIncome_AreFullyEditableAndDeletable()
     {
         var (tenant, _, _, _) = await SeedAsync();
