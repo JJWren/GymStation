@@ -3,6 +3,8 @@
 @layout AdminLayout
 @using GymStation.Domain.People
 @inject IDbContextFactory<GymStationDbContext> DbFactory
+@inject GymStation.Infrastructure.People.FamilyService Families
+@inject Microsoft.AspNetCore.Identity.UserManager<GymStation.Infrastructure.Identity.AppUser> Users
 
 <PageTitle>Family · GymStation</PageTitle>
 
@@ -23,6 +25,28 @@ else
     else if (FailedFlag is not null)
     {
         <p class="auth-error" role="alert">That change was rejected — check the values and try again.</p>
+    }
+
+    @foreach (var adultWard in _adultAgedWards)
+    {
+        <p class="auth-error" role="status">
+            @adultWard.FirstName.ToUpperInvariant() IS 18+ — CONSIDER GRADUATING THEM TO THEIR OWN ACCOUNT (BELOW, OR THE PRIMARY CAN FROM MY FAMILY).
+        </p>
+    }
+
+    @if (_gradResult is { } grad)
+    {
+        <div class="form-card" style="margin:0.75rem 0;border:1.5px solid var(--ok)">
+            <b>@grad.PersonName.ToUpperInvariant() IS GRADUATED.</b>
+            <p class="cap" style="margin:0.375rem 0 0">
+                LOGIN: @grad.Email.ToUpperInvariant()
+                @if (grad.TempPassword is { } pw)
+                {
+                    <br /><text>ONE-TIME PASSWORD (SHOWN ONLY NOW — HAND IT OVER AND HAVE THEM CHANGE IT): </text><b class="mono">@pw</b>
+                }
+                <br /><text>THEIR ENTIRE DIARY IS NOW PRIVATE TO THEM; A FAMILY PLAN KEEPS COVERING THEM AS AN ADULT MEMBER.</text>
+            </p>
+        </div>
     }
 
     <div class="detail-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:1.125rem;align-items:start">
@@ -94,6 +118,28 @@ else
                     <p class="cap" style="margin-top:0.375rem">NO FAMILY-SCOPE PLANS YET — CREATE ONE UNDER FINANCE ▸ MEMBERSHIP PLANS.</p>
                 }
             </div>
+
+            @if (_members.Any(m => m.Membership.IsWard))
+            {
+                <h2 class="section-h">Graduate a ward</h2>
+                <EditForm class="form-card" FormName="graduate-admin" Model="GradForm" OnValidSubmit="GraduateAsync">
+                    <label for="agw">Ward</label>
+                    <InputSelect id="agw" @bind-Value="GradForm!.PersonIdRaw">
+                        <option value="">— pick —</option>
+                        @foreach (var member in _members.Where(m => m.Membership.IsWard))
+                        {
+                            <option value="@member.Person.Id">@member.Person.DisplayName@(member.Person.UserId is not null ? " (HAS A LOGIN ALREADY)" : null)</option>
+                        }
+                    </InputSelect>
+                    <label for="age">Email for their new login (skip if they already have one)</label>
+                    <InputText id="age" @bind-Value="GradForm!.Email" type="email" />
+                    @if (_gradError is not null)
+                    {
+                        <p class="validation-message">@_gradError</p>
+                    }
+                    <p style="margin-top:0.75rem"><button class="btn btn--ghost" type="submit">GRADUATE</button></p>
+                </EditForm>
+            }
 
             <h2 class="section-h">Rename</h2>
             <form method="post" action="/admin/family-actions/rename" class="row-form">
@@ -180,6 +226,41 @@ else
     private List<(FamilyGuardian Row, string Email)> _guardians = [];
     private List<Person> _addablePersons = [];
     private List<GymStation.Domain.Money.MembershipPlan> _familyPlans = [];
+    private List<Person> _adultAgedWards = [];
+    private GymStation.Infrastructure.People.GraduationResult? _gradResult;
+    private string? _gradError;
+
+    [SupplyParameterFromForm(FormName = "graduate-admin")]
+    public GraduateForm? GradForm { get; set; }
+
+    public class GraduateForm
+    {
+        public string? PersonIdRaw { get; set; }
+        public string? Email { get; set; }
+    }
+
+    protected override void OnInitialized() => GradForm ??= new();
+
+    private async Task GraduateAsync()
+    {
+        if (!Guid.TryParse(GradForm!.PersonIdRaw, out var personId))
+        {
+            _gradError = "Pick a ward.";
+            return;
+        }
+
+        try
+        {
+            _gradResult = await Families.GraduateAsync(
+                GymStation.Infrastructure.People.FamilyActor.Staff, FamilyId, personId, GradForm.Email, Users);
+            _gradError = null;
+            await OnInitializedAsync();
+        }
+        catch (InvalidOperationException ex)
+        {
+            _gradError = ex.Message;
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -198,6 +279,13 @@ else
             .Where(m => persons.ContainsKey(m.PersonId))
             .Select(m => (m, persons[m.PersonId]))
             .OrderBy(x => x.Item2.FirstName)
+            .ToList();
+
+        // 18+ nudge (#92) — graduation stays a human decision.
+        var cutoff = DateOnly.FromDateTime(DateTime.Today).AddYears(-18);
+        _adultAgedWards = _members
+            .Where(x => x.Membership.IsWard && x.Person.DateOfBirth is { } dob && dob <= cutoff)
+            .Select(x => x.Person)
             .ToList();
 
         var guardianRows = await db.FamilyGuardians.Where(g => g.FamilyId == FamilyId)

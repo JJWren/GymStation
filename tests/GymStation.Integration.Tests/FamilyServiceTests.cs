@@ -1,8 +1,13 @@
 using GymStation.Domain.People;
 using GymStation.Domain.Tenancy;
+using GymStation.Infrastructure;
+using GymStation.Infrastructure.Identity;
 using GymStation.Infrastructure.People;
 using GymStation.Infrastructure.Tenancy;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace GymStation.Integration.Tests;
 
@@ -185,6 +190,49 @@ public class FamilyServiceTests(PostgresFixture fixture)
         Assert.Null(await diary.GetEntryAsync(cast.Grandparent, entry.Id));
 
         Assert.Single(await diary.GetMonthAsync(cast.Father, new DateOnly(2026, 8, 1), cast.Kid1));
+    }
+
+    [Fact]
+    public async Task Graduation_MakesTheWardTheirOwnAdultAccount()
+    {
+        var cast = await SeedAsync();
+
+        var services = new ServiceCollection();
+        services.AddLogging(b => b.SetMinimumLevel(LogLevel.Warning));
+        services.AddScoped<ITenantContext>(_ => cast.Tenant);
+        services.AddDbContext<GymStationDbContext>(o => o.UseNpgsql(fixture.ConnectionString));
+        services.AddIdentityCore<AppUser>().AddEntityFrameworkStores<GymStationDbContext>();
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+
+        await using var context = fixture.CreateContext(cast.Tenant);
+        var service = new FamilyService(context);
+
+        // The grandparent (not primary) can't graduate; an adult can't be graduated.
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.GraduateAsync(FamilyActor.User(cast.Grandparent), cast.FamilyId, cast.Kid1, "kid@example.test", users));
+        await service.AddMemberAsync(FamilyActor.Staff, cast.FamilyId, cast.AdultUncle, isWard: false);
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.GraduateAsync(FamilyActor.Staff, cast.FamilyId, cast.AdultUncle, "uncle@example.test", users));
+
+        // A ward without a login needs an email; graduation creates + links the account.
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.GraduateAsync(FamilyActor.User(cast.Father), cast.FamilyId, cast.Kid1, "  ", users));
+
+        var result = await service.GraduateAsync(FamilyActor.User(cast.Father), cast.FamilyId, cast.Kid1, "tom.grad@example.test", users);
+        Assert.Equal("tom.grad@example.test", result.Email);
+        Assert.NotNull(result.TempPassword);
+
+        var person = await context.Persons.AsNoTracking().SingleAsync(p => p.Id == cast.Kid1);
+        Assert.NotNull(person.UserId);
+
+        var membership = await context.FamilyMembers.AsNoTracking().SingleAsync(m => m.PersonId == cast.Kid1);
+        Assert.False(membership.IsWard); // adult member: a family plan may keep covering them
+
+        // The whole diary re-privatizes by construction: guardian authority derives
+        // from IsWard, so the father can no longer act.
+        Assert.False(await service.CanActForAsync(cast.Father, cast.Kid1));
     }
 
     [Fact]
