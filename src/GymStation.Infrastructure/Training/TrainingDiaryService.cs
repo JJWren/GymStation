@@ -68,24 +68,30 @@ public class TrainingDiaryService(GymStationDbContext db, FamilyService families
     }
 
     /// <summary>A single entry, or null when it doesn't exist or sits outside the
-    /// caller's authority (own entries, or a ward's when acting).</summary>
+    /// caller's authority (own entries, or a ward's when acting). Authority resolves
+    /// against the bare PersonId before the entry and its rolls load.</summary>
     public async Task<TrainingEntry?> GetEntryAsync(Guid requestingUserId, Guid entryId, CancellationToken ct = default)
     {
-        var entry = await db.TrainingEntries
+        var ownerPersonId = await db.TrainingEntries
             .Where(e => e.Id == entryId)
-            .Include(e => e.Rolls)
+            .Select(e => (Guid?)e.PersonId)
             .SingleOrDefaultAsync(ct);
-        if (entry is null)
+        if (ownerPersonId is not { } personId)
         {
             return null;
         }
 
-        if (await OwnPersonIdAsync(requestingUserId, ct) == entry.PersonId)
+        var authorized = await OwnPersonIdAsync(requestingUserId, ct) == personId
+            || await families.CanActForAsync(requestingUserId, personId, ct);
+        if (!authorized)
         {
-            return entry;
+            return null;
         }
 
-        return await families.CanActForAsync(requestingUserId, entry.PersonId, ct) ? entry : null;
+        return await db.TrainingEntries
+            .Where(e => e.Id == entryId)
+            .Include(e => e.Rolls)
+            .SingleOrDefaultAsync(ct);
     }
 
     private async Task ValidateAsync(TrainingEntryKind kind, int? selfReportedMinutes, Guid? sessionId, CancellationToken ct)

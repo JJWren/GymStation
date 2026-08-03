@@ -172,7 +172,7 @@
         if (me?.Id != _entry.PersonId)
         {
             _backBase = $"/diary/child/{_entry.PersonId}";
-            me = await db.Persons.SingleOrDefaultAsync(p => p.Id == _entry.PersonId);
+            me = await db.Persons.SingleOrDefaultAsync(p => p.Id == _entry.PersonId && !p.Archived);
         }
 
         if (me is not null)

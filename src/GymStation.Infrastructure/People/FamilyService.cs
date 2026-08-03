@@ -33,13 +33,16 @@ public class FamilyService(GymStationDbContext db)
     }
 
     /// <summary>True when the login is an ActForWards guardian of this Person's family
-    /// and the Person is a ward. Staff never pass this gate — admins are structure-only.</summary>
+    /// and the Person is an unarchived ward — the same shape WardsForAsync lists, so
+    /// acting authority and the switcher can never disagree. Staff never pass this
+    /// gate — admins are structure-only.</summary>
     public async Task<bool> CanActForAsync(Guid guardianUserId, Guid personId, CancellationToken ct = default)
     {
         return await db.FamilyGuardians
             .Where(g => g.GuardianUserId == guardianUserId && g.ActForWards)
             .Join(db.FamilyMembers.Where(m => m.IsWard && m.PersonId == personId),
-                g => g.FamilyId, m => m.FamilyId, (g, m) => m.Id)
+                g => g.FamilyId, m => m.FamilyId, (g, m) => m.PersonId)
+            .Join(db.Persons.Where(p => !p.Archived), pid => pid, p => p.Id, (pid, p) => p.Id)
             .AnyAsync(ct);
     }
 

@@ -141,8 +141,9 @@
 
             // Guardians RSVP for their wards right here — team hype includes the kids (#90).
             _wards = await Families.WardsForAsync(userId);
+            var wardIds = _wards.Select(w => w.Id).ToHashSet();
             _wardStatuses = rsvps
-                .Where(r => _wards.Any(w => w.Id == r.PersonId))
+                .Where(r => wardIds.Contains(r.PersonId))
                 .ToDictionary(r => r.PersonId, r => r.Status);
         }
     }
