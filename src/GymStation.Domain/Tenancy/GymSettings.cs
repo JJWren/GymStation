@@ -61,4 +61,30 @@ public class GymSettings : ITenantOwned
     public string? SocialYouTube { get; set; }
     public string? SocialTikTok { get; set; }
     public string? SocialX { get; set; }
+
+    // ---- Landing sections (#134): the public page's orderable marketing
+    // sections. Empty content auto-hides a section; ordering is admin-set. ----
+
+    /// <summary>Comma list of LandingSections keys; normalized on read, so stored
+    /// junk can only ever degrade to the default funnel.</summary>
+    public string SectionOrder { get; set; } = string.Join(',', LandingSections.Default);
+
+    /// <summary>Heading for the About section's strip anchor and header.</summary>
+    public string AboutTitle { get; set; } = "ABOUT";
+
+    /// <summary>The gym's own story (markdown); empty hides the section. Also
+    /// repeats inside the public instructor modal by decision 12.</summary>
+    public string? AboutText { get; set; }
+
+    /// <summary>Heading for the Programs section (#135 fills the list).</summary>
+    public string ProgramsTitle { get; set; } = "PROGRAMS";
+
+    /// <summary>Optional intro paragraph (markdown) above the program cards.</summary>
+    public string? ProgramsIntro { get; set; }
+
+    /// <summary>Heading for the Success Stories section (#136 fills the cards).</summary>
+    public string StoriesTitle { get; set; } = "SUCCESS STORIES";
+
+    /// <summary>File-store path of the section-level stories image (#136 uploads it).</summary>
+    public string? StoriesImagePath { get; set; }
 }

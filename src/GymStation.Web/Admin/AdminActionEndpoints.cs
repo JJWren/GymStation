@@ -18,6 +18,26 @@ public static class AdminActionEndpoints
             .RequireAuthorization("GymStaff")
             .ValidateAntiforgery();
 
+        // Landing section ordering (#134): one step at a time. Tampered requests
+        // are rejected outright — a junk key must not trigger a silent write of
+        // the normalized order.
+        group.MapPost("/landing-section-move", async ([FromForm] string key, [FromForm] int direction, GymStationDbContext db) =>
+        {
+            if (!LandingSections.Default.Contains(key?.ToLowerInvariant() ?? "") || direction is not (-1 or 1))
+            {
+                return Results.Redirect("/admin/landing?failed=1");
+            }
+
+            var settings = await db.GymSettings.SingleOrDefaultAsync();
+            if (settings is not null)
+            {
+                settings.SectionOrder = LandingSections.Move(settings.SectionOrder, key!, direction);
+                await db.SaveChangesAsync();
+            }
+
+            return Results.Redirect("/admin/landing");
+        });
+
         group.MapPost("/rename-person", async (
             [FromForm] Guid personId, [FromForm] string firstName, [FromForm] string lastName,
             GymStation.Infrastructure.People.PersonService people) =>

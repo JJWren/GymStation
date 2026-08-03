@@ -92,6 +92,13 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
             e.Property(s => s.SocialYouTube).HasMaxLength(200);
             e.Property(s => s.SocialTikTok).HasMaxLength(200);
             e.Property(s => s.SocialX).HasMaxLength(200);
+            // Landing sections (#134): titles are strip-anchor labels; texts are
+            // markdown and unbounded like every long-text field.
+            e.Property(s => s.SectionOrder).HasMaxLength(120).HasDefaultValue(string.Join(',', LandingSections.Default));
+            e.Property(s => s.AboutTitle).HasMaxLength(60).HasDefaultValue("ABOUT");
+            e.Property(s => s.ProgramsTitle).HasMaxLength(60).HasDefaultValue("PROGRAMS");
+            e.Property(s => s.StoriesTitle).HasMaxLength(60).HasDefaultValue("SUCCESS STORIES");
+            e.Property(s => s.StoriesImagePath).HasMaxLength(300);
             e.HasQueryFilter(s => CurrentGymId != null && s.GymId == CurrentGymId);
         });
 
