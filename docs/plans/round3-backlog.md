@@ -27,7 +27,7 @@ Loop process per issue: branch off pulled master → implement → rig-verify �
 - [x] #87 — Staff role + StaffProfile
 - [x] #88 — Finance view (OtherIncome, editable money records, RAISE retired)
 - [x] #89 — Family schema + admin structure management
-- [ ] #90 — Family member shell: MY FAMILY + ward switcher + ward diaries
+- [x] #90 — Family member shell: MY FAMILY + ward switcher + ward diaries
 - [ ] #91 — Family plans + primary billing
 - [ ] #92 — Ward graduation + 18 nudge
 - [ ] #93 — Landing editor (LANDING rail section)

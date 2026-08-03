@@ -157,7 +157,10 @@
 
     @if (_children.Count > 0)
     {
-        <h2 class="section-h">My people</h2>
+        <div class="head-row" style="margin:1.25rem 0 0.625rem">
+            <h2 class="section-h" style="margin:0">My people</h2>
+            <a class="btn btn--ghost btn--xs" href="/family">MANAGE FAMILY ▸</a>
+        </div>
         @foreach (var child in _children)
         {
             var rank = _childRanks.GetValueOrDefault(child.Id);

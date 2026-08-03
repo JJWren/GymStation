@@ -24,7 +24,7 @@
             <span class="chip" style="border-color:var(--ok);color:var(--ok)">🔒 ONLY YOU CAN SEE THIS</span>
         </div>
         <p style="margin:0 0 0.625rem">
-            <a class="btn btn--ghost btn--xs" href="/diary?month=@_entry.EntryDate.ToString("yyyy-MM")">← BACK TO DIARY</a>
+            <a class="btn btn--ghost btn--xs" href="@(_backBase)?month=@_entry.EntryDate.ToString("yyyy-MM")">← BACK TO DIARY</a>
             @if (Saved)
             {
                 <span class="chip chip--on" style="margin-left:0.5rem">SAVED</span>
@@ -117,6 +117,7 @@
     private List<(Guid Id, string Name)> _partners = [];
     private string? _error;
     private Guid _userId;
+    private string _backBase = "/diary";
 
     public class RollRow
     {
@@ -165,6 +166,15 @@
 
         await using var db = await DbFactory.CreateDbContextAsync();
         var me = await db.Persons.SingleOrDefaultAsync(p => p.UserId == _userId && !p.Archived);
+
+        // A ward's entry (the service already authorized it) navigates back to the
+        // ward diary, and the session/partner prefills follow the ward (#90).
+        if (me?.Id != _entry.PersonId)
+        {
+            _backBase = $"/diary/child/{_entry.PersonId}";
+            me = await db.Persons.SingleOrDefaultAsync(p => p.Id == _entry.PersonId);
+        }
+
         if (me is not null)
         {
             var cutoff = DateOnly.FromDateTime(DateTime.Today).AddDays(-7);
@@ -270,7 +280,7 @@
         try
         {
             await DiaryService.DeleteAsync(_userId, EntryId);
-            Nav.NavigateTo($"/diary?month={month}");
+            Nav.NavigateTo($"{_backBase}?month={month}");
         }
         catch (InvalidOperationException ex)
         {

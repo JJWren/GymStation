@@ -46,7 +46,7 @@ public class MemberPortalTests(PostgresFixture fixture)
         var (tenant, member, staff) = await SeedAsync();
 
         await using var context = fixture.CreateContext(tenant);
-        var diary = new TrainingDiaryService(context);
+        var diary = new TrainingDiaryService(context, new GymStation.Infrastructure.People.FamilyService(context));
 
         await diary.AddAsync(member.UserId!.Value, TrainingEntryKind.RollLog, new DateOnly(2026, 7, 30), null,
             "arm drags", null, [(staff.Id, "Owner T", "2x5 · even")]);
@@ -67,7 +67,7 @@ public class MemberPortalTests(PostgresFixture fixture)
         var (tenant, member, staff) = await SeedAsync();
 
         await using var context = fixture.CreateContext(tenant);
-        var diary = new TrainingDiaryService(context);
+        var diary = new TrainingDiaryService(context, new GymStation.Infrastructure.People.FamilyService(context));
         var entry = await diary.AddAsync(member.UserId!.Value, TrainingEntryKind.RollLog, new DateOnly(2026, 7, 30), null,
             "arm drags", null, [(staff.Id, "Owner T", "2x5 · even")]);
 
@@ -100,7 +100,7 @@ public class MemberPortalTests(PostgresFixture fixture)
         var (tenant, member, staff) = await SeedAsync();
 
         await using var context = fixture.CreateContext(tenant);
-        var diary = new TrainingDiaryService(context);
+        var diary = new TrainingDiaryService(context, new GymStation.Infrastructure.People.FamilyService(context));
         var entry = await diary.AddAsync(member.UserId!.Value, TrainingEntryKind.RollLog, new DateOnly(2026, 7, 30), null,
             null, null, [(staff.Id, "Owner T", "2x5")]);
 
@@ -117,7 +117,7 @@ public class MemberPortalTests(PostgresFixture fixture)
         var (tenant, member, _) = await SeedAsync();
 
         await using var context = fixture.CreateContext(tenant);
-        var diary = new TrainingDiaryService(context);
+        var diary = new TrainingDiaryService(context, new GymStation.Infrastructure.People.FamilyService(context));
         foreach (var date in new DateOnly[] { new(2026, 7, 31), new(2026, 8, 1), new(2026, 8, 31), new(2026, 9, 1) })
         {
             await diary.AddAsync(member.UserId!.Value, TrainingEntryKind.LessonNotes, date, null, "n", null, []);
@@ -136,7 +136,7 @@ public class MemberPortalTests(PostgresFixture fixture)
         var (tenant, member, staff) = await SeedAsync();
 
         await using var context = fixture.CreateContext(tenant);
-        var diary = new TrainingDiaryService(context);
+        var diary = new TrainingDiaryService(context, new GymStation.Infrastructure.People.FamilyService(context));
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => diary.AddAsync(
             member.UserId!.Value, TrainingEntryKind.SelfReported, new DateOnly(2026, 7, 28), null, "home drilling", null, []));
@@ -203,7 +203,7 @@ public class MemberPortalTests(PostgresFixture fixture)
 
         await using (var contextA = fixture.CreateContext(tenantA))
         {
-            await new TrainingDiaryService(contextA).AddAsync(
+            await new TrainingDiaryService(contextA, new GymStation.Infrastructure.People.FamilyService(contextA)).AddAsync(
                 memberA.UserId!.Value, TrainingEntryKind.LessonNotes, new DateOnly(2026, 7, 30), null, "notes", null, []);
         }
 

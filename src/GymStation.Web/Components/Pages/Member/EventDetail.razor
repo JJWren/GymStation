@@ -4,6 +4,7 @@
 @using System.Security.Claims
 @using GymStation.Domain.Events
 @inject IDbContextFactory<GymStationDbContext> DbFactory
+@inject GymStation.Infrastructure.People.FamilyService Families
 
 <PageTitle>@(_gymEvent?.Title ?? "Event") · GymStation</PageTitle>
 
@@ -48,6 +49,30 @@
             </form>
         </div>
 
+        @foreach (var ward in _wards)
+        {
+            var wardStatus = _wardStatuses.GetValueOrDefault(ward.Id);
+            <div class="row-form" style="margin-top:0.375rem;align-items:center">
+                <span class="cap" style="margin:0">FOR @ward.DisplayName.ToUpperInvariant():</span>
+                <form method="post" action="/member/actions/rsvp" style="margin:0">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="back" value="detail" />
+                    <input type="hidden" name="eventId" value="@_gymEvent.Id" />
+                    <input type="hidden" name="personId" value="@ward.Id" />
+                    <input type="hidden" name="status" value="going" />
+                    <button class="btn btn--xs @(wardStatus == RsvpStatus.Going ? null : "btn--ghost")" type="submit">@(wardStatus == RsvpStatus.Going ? "✓ GOING" : "GOING")</button>
+                </form>
+                <form method="post" action="/member/actions/rsvp" style="margin:0">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="back" value="detail" />
+                    <input type="hidden" name="eventId" value="@_gymEvent.Id" />
+                    <input type="hidden" name="personId" value="@ward.Id" />
+                    <input type="hidden" name="status" value="interested" />
+                    <button class="btn btn--xs @(wardStatus == RsvpStatus.Interested ? null : "btn--ghost")" type="submit">@(wardStatus == RsvpStatus.Interested ? "✓ INTERESTED" : "INTERESTED")</button>
+                </form>
+            </div>
+        }
+
         <h2 class="section-h">Going · @_going.Count</h2>
         <div class="form-card">
             @if (_going.Count == 0)
@@ -85,6 +110,8 @@
     private RsvpStatus? _mine;
     private List<string> _going = [];
     private List<string> _interested = [];
+    private List<GymStation.Domain.People.Person> _wards = [];
+    private Dictionary<Guid, RsvpStatus> _wardStatuses = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -111,6 +138,12 @@
             {
                 _mine = rsvps.SingleOrDefault(r => r.PersonId == me.Id)?.Status;
             }
+
+            // Guardians RSVP for their wards right here — team hype includes the kids (#90).
+            _wards = await Families.WardsForAsync(userId);
+            _wardStatuses = rsvps
+                .Where(r => _wards.Any(w => w.Id == r.PersonId))
+                .ToDictionary(r => r.PersonId, r => r.Status);
         }
     }
 }

@@ -160,6 +160,34 @@ public class FamilyServiceTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task WardDiaries_FollowActingAuthority()
+    {
+        var cast = await SeedAsync();
+        await using var context = fixture.CreateContext(cast.Tenant);
+        var families = new FamilyService(context);
+        var diary = new GymStation.Infrastructure.Training.TrainingDiaryService(context, families);
+
+        // The father writes in Kid1's diary; the entry belongs to the KID's Person.
+        var entry = await diary.AddAsync(
+            cast.Father, GymStation.Domain.Training.TrainingEntryKind.LessonNotes,
+            new DateOnly(2026, 8, 1), null, "armbar drilling", null, [], forPersonId: cast.Kid1);
+        Assert.Equal(cast.Kid1, entry.PersonId);
+
+        // The grandparent (ActForWards) can open it; a stranger cannot write one.
+        Assert.NotNull(await diary.GetEntryAsync(cast.Grandparent, entry.Id));
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => diary.AddAsync(Guid.NewGuid(), GymStation.Domain.Training.TrainingEntryKind.LessonNotes,
+                new DateOnly(2026, 8, 1), null, "nope", null, [], forPersonId: cast.Kid1));
+
+        // Turning the grandparent's ActForWards off closes the diary too.
+        await families.SetGuardianFlagsAsync(FamilyActor.User(cast.Father), cast.FamilyId, cast.GrandparentGuardianId,
+            actForWards: false, manageGuardians: false, manageMembers: false, viewBilling: false);
+        Assert.Null(await diary.GetEntryAsync(cast.Grandparent, entry.Id));
+
+        Assert.Single(await diary.GetMonthAsync(cast.Father, new DateOnly(2026, 8, 1), cast.Kid1));
+    }
+
+    [Fact]
     public async Task OneFamilyPerPerson_AndGuardianshipCountsAsGymMembership()
     {
         var cast = await SeedAsync();
