@@ -98,6 +98,34 @@ public static class MediaEndpoints
             return Results.Redirect($"/admin/people/{personId}");
         }).RequireAuthorization("GymStaff").ValidateAntiforgery();
 
+        // Instructor portraits are PUBLIC (#137, ADR 0003): instructors are the
+        // gym's public faces. The route carries the gym because this anonymous
+        // request has no slug for the tenant middleware — the query ignores the
+        // tenant filter and pins BOTH ids explicitly instead. Everyone else's
+        // portrait stays staff-only through the /admin route above.
+        app.MapGet("/media/instructor-portrait/{gymId:guid}/{personId:guid}", async (Guid gymId, Guid personId, HttpContext http, GymStationDbContext db, IFileStore store) =>
+        {
+            var person = await db.Persons.IgnoreQueryFilters()
+                .SingleOrDefaultAsync(p => p.Id == personId && p.GymId == gymId);
+            if (person is null
+                || !GymStation.Domain.People.InstructorPortraits.PubliclyVisible(person)
+                || !person.PortraitPath!.StartsWith($"gyms/{person.GymId}/portraits/{person.Id}", StringComparison.OrdinalIgnoreCase)
+                || !AllowedTypes.TryGetValue(Path.GetExtension(person.PortraitPath), out var portraitType))
+            {
+                return Results.NotFound();
+            }
+
+            var portraitStream = await store.OpenReadAsync(person.PortraitPath);
+            if (portraitStream is null)
+            {
+                return Results.NotFound();
+            }
+
+            // Role loss or archive must take effect immediately — never cache.
+            http.Response.Headers.CacheControl = "no-store";
+            return Results.Stream(portraitStream, portraitType);
+        }).AllowAnonymous();
+
         // Stories section image (#136): ONE shared image on GymSettings, public
         // via the /media allow-list like logo/hero.
         app.MapPost("/admin/actions/upload-stories-image", async (HttpRequest request, GymStationDbContext db, IFileStore store) =>

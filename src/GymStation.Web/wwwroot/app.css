@@ -168,6 +168,13 @@ form[data-overlay].media-crop--js .media-src-row:focus-within { position: static
 .pub-prog-hero { width: 100%; max-width: 18rem; aspect-ratio: 1; object-fit: cover; border-radius: 0.5rem; margin-top: 0.625rem; display: block; }
 .pub-intro { color: var(--ink-dim); margin-bottom: 0.625rem; }
 
+/* Public instructor cards (#137): clickable with the glow; portraits render
+   inside the standard avatar frame. */
+.pub-coach { display: block; text-decoration: none; color: inherit; transition: box-shadow .15s ease; }
+.pub-coach:hover { box-shadow: 0 0 0.75rem var(--tenant); }
+.pub-coach .avatar { width: 4.75rem; height: 4.75rem; border-radius: 0.75rem; }
+.pub-coach-photo { width: 100%; max-width: 12rem; aspect-ratio: 1; object-fit: cover; border-radius: 0.75rem; margin-top: 0.625rem; display: block; }
+
 /* Success stories (#136): one shared wide image leads the cards. */
 .pub-stories-img { display: block; width: 100%; max-width: 34rem; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 0.75rem; margin-bottom: 0.75rem; }
 .pub-stories { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 0.625rem; }

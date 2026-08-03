@@ -123,18 +123,26 @@ else
                     break;
                 case LandingSections.Instructors:
         <section class="pub-section" id="instructors">
-            <h2>INSTRUCTORS</h2>
+            <h2>@(_settings?.TaglineInstructors ?? "INSTRUCTORS")</h2>
             <div class="pub-coaches">
-                @foreach (var (person, experience) in _instructors)
+                @foreach (var coach in _instructors)
                 {
-                    <div class="patch">
-                        <div class="avatar" role="img" aria-label="Portrait placeholder"></div>
-                        <b style="display:block;margin-top:0.5rem">@person.DisplayName</b>
-                        @if (experience is not null)
+                    @* Portraits are PUBLIC for instructors (#137, ADR 0003). *@
+                    <a class="patch pub-coach" href="/@_gym.Slug?instructor=@coach.Person.Id#instructors">
+                        @if (GymStation.Domain.People.InstructorPortraits.PubliclyVisible(coach.Person))
+                        {
+                            <span class="avatar" style="display:block"><img src="/media/instructor-portrait/@_gym.Id/@coach.Person.Id" alt="Portrait of @coach.Person.DisplayName" /></span>
+                        }
+                        else
+                        {
+                            <span class="avatar" style="display:block" role="img" aria-label="Portrait placeholder"></span>
+                        }
+                        <b style="display:block;margin-top:0.5rem">@coach.Person.DisplayName</b>
+                        @if (coach.Profile?.ExperienceSummary is { } experience)
                         {
                             <i style="display:block;font:0.5625rem/1.6 var(--font-mono);color:var(--ink-faint);font-style:normal;letter-spacing:.06em">@experience.ToUpperInvariant()</i>
                         }
-                    </div>
+                    </a>
                 }
             </div>
         </section>
@@ -229,6 +237,47 @@ else
             }
         }
 
+        @if (_openInstructor is { } openCoach)
+        {
+            <div class="modal-wrap" role="dialog" aria-modal="true" aria-label="@openCoach.Person.DisplayName">
+                <a class="modal-scrim" href="/@_gym.Slug#instructors" aria-label="Close instructor card"></a>
+                <div class="modal-card">
+                    <div class="head-row">
+                        <h2 class="section-h" style="margin:0">@openCoach.Person.DisplayName.ToUpperInvariant()</h2>
+                        <a class="btn btn--ghost btn--xs" href="/@_gym.Slug#instructors">✕ CLOSE</a>
+                    </div>
+                    @if (GymStation.Domain.People.InstructorPortraits.PubliclyVisible(openCoach.Person))
+                    {
+                        <img class="pub-coach-photo" src="/media/instructor-portrait/@_gym.Id/@openCoach.Person.Id" alt="Portrait of @openCoach.Person.DisplayName" />
+                    }
+                    @if (openCoach.Rank is { } coachRank)
+                    {
+                        <div style="margin-top:0.625rem">
+                            <BeltBar Size="s" BandColorHex="@coachRank.BandColorHex" BarColorHex="@coachRank.BarColorHex"
+                                     Stripes="@openCoach.Stripes" Label="@($"{coachRank.Name}, {openCoach.Stripes} stripes")" />
+                        </div>
+                    }
+                    @if (openCoach.Profile?.ExperienceSummary is { } coachExperience)
+                    {
+                        <p class="cap" style="margin-top:0.375rem">@coachExperience.ToUpperInvariant()</p>
+                    }
+                    @if (openCoach.Profile?.Bio is { } coachBio)
+                    {
+                        <div style="margin-top:0.625rem;color:var(--ink-dim)"><MarkdownBlock Text="@coachBio" /></div>
+                    }
+                    @if (openCoach.Profile?.Hobbies is { } coachHobbies)
+                    {
+                        <p class="cap" style="margin-top:0.5rem">OFF THE MAT: @coachHobbies.ToUpperInvariant()</p>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(_settings?.AboutText))
+                    {
+                        @* The gym's About text repeats here by decision 12. *@
+                        <div style="margin-top:0.625rem;border-top:1px dashed var(--edge);padding-top:0.625rem;color:var(--ink-faint)"><MarkdownBlock Text="@_settings!.AboutText" /></div>
+                    }
+                </div>
+            </div>
+        }
+
         @if (_openProgram is { } openProgram)
         {
             @* SSR modal, ?program= — the exact ?edit= idiom the schedule uses. *@
@@ -274,7 +323,11 @@ else
     private string _accent = "#C9503B";
     private bool _dark = true;
     private List<KeyValuePair<DayOfWeek, List<ClassTemplate>>> _week = [];
-    private List<(Person Person, string? Experience)> _instructors = [];
+    private sealed record Coach(Person Person, StaffProfile? Profile, Rank? Rank, int Stripes);
+    private List<Coach> _instructors = [];
+    private Coach? _openInstructor;
+
+    [SupplyParameterFromQuery(Name = "instructor")] public string? InstructorRaw { get; set; }
 
     // Empty sections hide themselves (#134); programs and stories additionally
     // stay hidden until #135/#136 give them a data source. Visit stays — its
@@ -361,8 +414,32 @@ else
         var instructorIds = instructorPersons.Select(p => p.Id).ToList();
         var profiles = await db.StaffProfiles
             .Where(p => instructorIds.Contains(p.PersonId))
-            .ToDictionaryAsync(p => p.PersonId, p => p.ExperienceSummary);
-        _instructors = instructorPersons.Select(p => (p, profiles.GetValueOrDefault(p.Id))).ToList();
+            .ToDictionaryAsync(p => p.PersonId, p => p);
+
+        // Latest award per instructor = the belt on the public modal (#137).
+        // Rank colors come from Rank data and are never tenant-themed.
+        var awards = await db.RankAwards
+            .Include(a => a.Rank)
+            .Where(a => instructorIds.Contains(a.PersonId))
+            .ToListAsync();
+        var currentRanks = awards
+            .GroupBy(a => a.PersonId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderByDescending(a => a.AwardedOn).ThenByDescending(a => a.Stripes).First());
+
+        _instructors = instructorPersons
+            .Select(p => new Coach(
+                p,
+                profiles.GetValueOrDefault(p.Id),
+                currentRanks.GetValueOrDefault(p.Id)?.Rank,
+                currentRanks.GetValueOrDefault(p.Id)?.Stripes ?? 0))
+            .ToList();
+
+        if (Guid.TryParse(InstructorRaw, out var instructorId))
+        {
+            _openInstructor = _instructors.FirstOrDefault(c => c.Person.Id == instructorId);
+        }
 
         // Programs (#135): active only, admin order; the modal resolves from the
         // same list so an archived or foreign id simply doesn't open.
