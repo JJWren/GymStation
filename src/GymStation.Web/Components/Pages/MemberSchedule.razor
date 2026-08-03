@@ -34,12 +34,38 @@
         <p class="auth-error" role="alert">That check-in couldn't be recorded — the window may be closed.</p>
     }
 
-    @if (_sessions.Count == 0)
+    @foreach (var banner in _allDayEvents)
+    {
+        <a class="ses ses--event" style="margin-bottom:0.625rem;display:block" href="/events/@banner.Id">
+            <span class="t">★ ALL DAY</span>
+            <span class="n" style="font-size:1rem;display:block">@banner.Title</span>
+            @if (banner.TimeInfo is { } info)
+            {
+                <span class="c">@info.ToUpperInvariant()</span>
+            }
+        </a>
+    }
+
+    @if (_sessions.Count == 0 && _allDayEvents.Count == 0 && _timedEvents.Count == 0)
     {
         <p class="cap">NO SESSIONS ON THIS DAY@(Type is null ? null : " FOR THAT TAG").</p>
     }
-    @foreach (var session in _sessions)
+    @foreach (var item in _dayFlow)
     {
+        @if (item.Event is { } dayEvent)
+        {
+            <a class="ses ses--event" style="margin-bottom:0.625rem;display:block" href="/events/@dayEvent.Id">
+                <span class="t">★ @dayEvent.StartTime!.Value.ToString("HH\\:mm")@(dayEvent.DurationMinutes is { } mins ? $" · {mins} MIN" : null)</span>
+                <span class="n" style="font-size:1rem;display:block">@dayEvent.Title</span>
+                @if (dayEvent.Location is { } where)
+                {
+                    <span class="c">@where.ToUpperInvariant()</span>
+                }
+            </a>
+            continue;
+        }
+
+        var session = item.Session!;
         <div class="ses @(session.Status == SessionStatus.Cancelled ? "ses--cancelled" : null)" style="margin-bottom:0.625rem">
             <div class="head-row">
                 <span class="t">@session.StartTime.ToString("HH\\:mm")</span>
@@ -109,6 +135,9 @@
 
     private DateOnly _date;
     private List<ClassSession> _sessions = [];
+    private List<GymStation.Domain.Events.GymEvent> _allDayEvents = [];
+    private List<GymStation.Domain.Events.GymEvent> _timedEvents = [];
+    private List<(GymStation.Domain.Events.GymEvent? Event, ClassSession? Session)> _dayFlow = [];
     private List<ClassType> _types = [];
     private Dictionary<Guid, string> _names = [];
     private List<Person> _checkable = [];
@@ -131,6 +160,16 @@
         _sessions = sessions
             .Where(s => Type == null || s.ClassTypes.Any(t => t.Name == Type))
             .OrderBy(s => s.StartTime)
+            .ToList();
+
+        // Events ride the day list too (#94): timed ones interleave chronologically,
+        // untimed ones banner at the top.
+        var dayEvents = await db.GymEvents.Where(e => e.StartsOn == _date).OrderBy(e => e.StartTime).ToListAsync();
+        _allDayEvents = dayEvents.Where(e => e.StartTime is null).ToList();
+        _timedEvents = dayEvents.Where(e => e.StartTime is not null).ToList();
+        _dayFlow = _sessions.Select(s => ((GymStation.Domain.Events.GymEvent?)null, (ClassSession?)s))
+            .Concat(_timedEvents.Select(e => ((GymStation.Domain.Events.GymEvent?)e, (ClassSession?)null)))
+            .OrderBy(x => x.Item1?.StartTime ?? x.Item2!.StartTime)
             .ToList();
 
         var ids = _sessions.Where(s => s.InstructorPersonId != null).Select(s => s.InstructorPersonId!.Value).Distinct().ToList();

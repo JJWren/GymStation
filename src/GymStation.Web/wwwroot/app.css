@@ -349,3 +349,10 @@ html { font-size: clamp(106.25%, 16.25% + 1.125vw, 140%); }
 .foot .platform-foot { margin-top: 0.5rem; justify-content: flex-start; gap: 0.375rem; flex-wrap: wrap; }
 .member-body > .platform-foot { margin: 2rem 0 0.875rem; }
 .pub-foot .platform-foot { margin-top: 0; }
+
+/* ---- Events on the schedules (#94): dashed + starred, unmistakably not a class. ---- */
+.ses--event { border: 1.5px dashed var(--warn); text-decoration: none; }
+.ses--event .t, .ses--event .c { color: var(--warn); }
+.rail-event { border: 1.5px dashed var(--warn); background: transparent; color: var(--warn); width: calc(100% - 0.1875rem); }
+.rail-event b, .rail-event span { color: var(--warn); }
+.rail-allday { display: block; font: 600 0.5rem/1.3 var(--font-mono); letter-spacing: .08em; color: var(--warn); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
