@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.5.0](https://github.com/JJWren/GymStation/compare/v1.4.0...v1.5.0) (2026-08-03)
+
+
+### Features
+
+* covers live on the member schedule; swaps page is staff oversight ([#121](https://github.com/JJWren/GymStation/issues/121)) ([13ae20e](https://github.com/JJWren/GymStation/commit/13ae20e1c18dbe6e91ec90183ca6b42f6f0d3113))
+* drag-move and edge-resize occurrences on the schedule rail ([#122](https://github.com/JJWren/GymStation/issues/122)) ([a38b4c0](https://github.com/JJWren/GymStation/commit/a38b4c0eb9600141dfcc44a1a17a7cd0458eadb2))
+* family aggregate with guardian permission matrix ([#115](https://github.com/JJWren/GymStation/issues/115)) ([d187a28](https://github.com/JJWren/GymStation/commit/d187a2820928102aec7323bd452ae50a3408b5ea))
+* family plans bill the primary once, cover the members ([#117](https://github.com/JJWren/GymStation/issues/117)) ([827abd1](https://github.com/JJWren/GymStation/commit/827abd11f43d73aa2be662150664f7afcbe4a7f8))
+* FINANCE view — other income, editable money records, RAISE retired ([#114](https://github.com/JJWren/GymStation/issues/114)) ([86c35cc](https://github.com/JJWren/GymStation/commit/86c35cc5d360eed46e7e9ba386e47ddf9e67318e))
+* general Staff role and StaffProfile ([#112](https://github.com/JJWren/GymStation/issues/112)) ([9edbb90](https://github.com/JJWren/GymStation/commit/9edbb906bc4f641287fd5a701e355e28b89b1bd5))
+* graduation — a ward becomes their own adult account ([#118](https://github.com/JJWren/GymStation/issues/118)) ([a100c38](https://github.com/JJWren/GymStation/commit/a100c389bc693e6efabcdc02b673fc94246c81fe))
+* LANDING editor — anchored strip, VISIT block, media moves here ([#119](https://github.com/JJWren/GymStation/issues/119)) ([7a09f02](https://github.com/JJWren/GymStation/commit/7a09f024bb7148177b165e022c3c2949352fb1a3))
+* MY FAMILY page and ward acting context ([#116](https://github.com/JJWren/GymStation/issues/116)) ([5800345](https://github.com/JJWren/GymStation/commit/58003456dffe8b4178b0521762c8982cf047e797))
+* optional structured time positions events on both schedules ([#120](https://github.com/JJWren/GymStation/issues/120)) ([8af0366](https://github.com/JJWren/GymStation/commit/8af03665809b38ae516c3f22588f3a5f2620d8a2))
+
 ## [1.4.0](https://github.com/JJWren/GymStation/compare/v1.3.0...v1.4.0) (2026-08-02)
 
 
