@@ -33,7 +33,7 @@
         @if (!string.IsNullOrWhiteSpace(_gymEvent.Details))
         {
             <div class="form-card" style="margin-top:0.75rem">
-                <p style="color:var(--ink-dim)">@_gymEvent.Details</p>
+                <div style="color:var(--ink-dim)"><MarkdownBlock Text="@_gymEvent.Details" /></div>
             </div>
         }
 

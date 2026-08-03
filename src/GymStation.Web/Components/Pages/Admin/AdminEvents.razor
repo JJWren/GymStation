@@ -126,6 +126,7 @@
             </div>
             <label for="edet">Details</label>
             <InputTextArea id="edet" @bind-Value="Form!.Details" rows="3" />
+            <p class="cap" style="margin-top:0.25rem">MARKDOWN: **BOLD** · _ITALIC_ · ++UNDERLINE++ · - LISTS</p>
             @if (_error is not null)
             {
                 <p class="validation-message">@_error</p>

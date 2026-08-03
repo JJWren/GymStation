@@ -1,0 +1,11 @@
+@* The repo's ONLY MarkupString (#133): everything flows through
+   AppMarkdown's sanitized pipeline (raw HTML off, link schemes allow-listed).
+   Do not render user text as markup anywhere else. *@
+@if (!string.IsNullOrWhiteSpace(Text))
+{
+    <div class="md">@((MarkupString)GymStation.Web.Rendering.AppMarkdown.ToHtml(Text))</div>
+}
+
+@code {
+    [Parameter, EditorRequired] public string? Text { get; set; }
+}
