@@ -66,6 +66,14 @@
                     <label for="lsy">YouTube URL</label>
                     <InputText id="lsy" @bind-Value="Form!.SocialYouTube" />
                 </div>
+                <div>
+                    <label for="lst">TikTok URL</label>
+                    <InputText id="lst" @bind-Value="Form!.SocialTikTok" />
+                </div>
+                <div>
+                    <label for="lsx">X URL</label>
+                    <InputText id="lsx" @bind-Value="Form!.SocialX" />
+                </div>
             </div>
             @if (_error is not null)
             {
@@ -136,6 +144,8 @@
         public string? SocialInstagram { get; set; }
         public string? SocialFacebook { get; set; }
         public string? SocialYouTube { get; set; }
+        public string? SocialTikTok { get; set; }
+        public string? SocialX { get; set; }
     }
 
     protected override async Task OnInitializedAsync()
@@ -155,6 +165,8 @@
             Form.SocialInstagram = _settings.SocialInstagram;
             Form.SocialFacebook = _settings.SocialFacebook;
             Form.SocialYouTube = _settings.SocialYouTube;
+            Form.SocialTikTok = _settings.SocialTikTok;
+            Form.SocialX = _settings.SocialX;
         }
     }
 
@@ -198,7 +210,9 @@
         var (instagram, igOk) = CleanUrl(form.SocialInstagram, 200);
         var (facebook, fbOk) = CleanUrl(form.SocialFacebook, 200);
         var (youtube, ytOk) = CleanUrl(form.SocialYouTube, 200);
-        if (!igOk || !fbOk || !ytOk)
+        var (tiktok, ttOk) = CleanUrl(form.SocialTikTok, 200);
+        var (xUrl, xOk) = CleanUrl(form.SocialX, 200);
+        if (!igOk || !fbOk || !ytOk || !ttOk || !xOk)
         {
             _error = "Social links must be full http(s) URLs (https://…).";
             return;
@@ -222,6 +236,8 @@
         settings.SocialInstagram = instagram;
         settings.SocialFacebook = facebook;
         settings.SocialYouTube = youtube;
+        settings.SocialTikTok = tiktok;
+        settings.SocialX = xUrl;
         await db.SaveChangesAsync();
         Nav.NavigateTo("/admin/landing");
     }
