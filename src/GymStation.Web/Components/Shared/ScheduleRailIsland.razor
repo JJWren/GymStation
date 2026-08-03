@@ -8,6 +8,7 @@
 @inject Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider AuthState
 @inject IJSRuntime JS
 @inject NavigationManager Nav
+@implements IDisposable
 
 @* The repo's FIRST InteractiveServer island (#96): the admin rail grid with
    pointer drag (time-move, 30-min snap) and bottom-edge resize (30-min snap,
@@ -50,9 +51,19 @@
             <span>@eventCard.Event.Title</span>
         </a>
     }
+    @if (_drag is { Resizing: false } ghost && _cards.All(c => c.Session.Id != ghost.Session.Id))
+    {
+        @* The dragged card's session belongs to a week that paged away (#132) —
+           keep a ghost under the pointer so the grab visibly survives the swap. *@
+        <div class="rail-ses rail-ses--moving" aria-hidden="true"
+             style="grid-column:@ghost.PreviewColumn;grid-row:@ghost.PreviewRow / span @ghost.PreviewSpan;width:calc(100% - 0.1875rem);touch-action:none">
+            <b>@PreviewStart(ghost).ToString("HH\\:mm")</b>
+            <span>@ghost.Session.Name</span>
+        </div>
+    }
     @foreach (var card in _cards)
     {
-        var preview = _drag?.SessionId == card.Session.Id ? _drag : null;
+        var preview = _drag?.Session.Id == card.Session.Id ? _drag : null;
         @* The href exists ONLY in the prerendered static HTML (the no-JS fallback:
            before the circuit connects, cards are plain links into the SSR modal).
            Once interactive the href is DROPPED — native navigation cannot fire at
@@ -66,7 +77,7 @@
            @onpointerdown="e => StartMove(card, e)"
            @onkeydown="e => OnCardKey(card, e)"
            aria-label="Edit @card.Session.Name, @card.Session.Date.ToString("dddd dd MMMM"), @card.Session.StartTime.ToString("HH\\:mm")">
-            <b>@((preview is not null ? PreviewStart(card, preview) : card.Session.StartTime).ToString("HH\\:mm"))</b>
+            <b>@((preview is not null ? PreviewStart(preview) : card.Session.StartTime).ToString("HH\\:mm"))</b>
             <span>@card.Session.Name</span>
             <i>@(_personNames.GetValueOrDefault(card.Session.InstructorPersonId ?? Guid.Empty, "UNASSIGNED").ToUpperInvariant())</i>
             @if (card.Session.Status == SessionStatus.Cancelled)
@@ -91,16 +102,25 @@
 
     private sealed class DragState
     {
-        public Guid SessionId { get; init; }
+        // The session rides IN the drag state (#132): week paging swaps _cards
+        // out from under the gesture, so nothing may depend on lookups there.
+        public required ClassSession Session { get; init; }
         public bool Resizing { get; init; }
+        public int OriginColumn { get; init; }
+        public int OriginRow { get; init; }
+        public int OriginSpan { get; init; }
         public double StartY { get; set; }
         public double StartX { get; set; }
+        public double LastX { get; set; }
         public int DeltaSlots { get; set; }
         public int DeltaDays { get; set; }
         public bool Moved { get; set; }
         public int PreviewRow { get; set; }
         public int PreviewSpan { get; set; }
         public int PreviewColumn { get; set; }
+
+        /// <summary>Whole weeks paged under the drag; rides into the drop date.</summary>
+        public int WeeksPaged { get; set; }
     }
 
     private DateOnly _weekStart;
@@ -118,9 +138,19 @@
     private bool _interactive;
     private double _slotPx = 25;
     private double _dayPx = 120;
+    private double _gridLeft;
+    private double _gridRight;
     private string? _islandError;
     private ElementReference _gridRef;
     private IJSObjectReference? _module;
+
+    // Edge-hover week paging (#132): a real timer, because a rock-steady pointer
+    // in the zone fires no pointermove events to piggyback on.
+    private System.Threading.Timer? _edgeTimer;
+    private const int EdgeLingerMs = 600;
+    private double EdgeZonePx => Math.Clamp(_dayPx * 0.3, 24, 72);
+
+    public void Dispose() => _edgeTimer?.Dispose();
 
     protected override async Task OnInitializedAsync()
     {
@@ -272,18 +302,18 @@
 
     private static int MinutesOf(TimeOnly time) => time.Hour * 60 + time.Minute;
 
-    private TimeOnly PreviewStart(RailCard card, DragState drag)
+    private TimeOnly PreviewStart(DragState drag)
     {
         if (drag.Resizing)
         {
-            return card.Session.StartTime;
+            return drag.Session.StartTime;
         }
 
         // A session longer than the mat-hours window must not flip the clamp
         // bounds (min > max throws) — it just pins to open.
-        var maxStart = Math.Max(MinutesOf(_open), MinutesOf(_close) - card.Session.DurationMinutes);
+        var maxStart = Math.Max(MinutesOf(_open), MinutesOf(_close) - drag.Session.DurationMinutes);
         return TimeOnly.FromTimeSpan(TimeSpan.FromMinutes(Math.Clamp(
-            MinutesOf(card.Session.StartTime) + drag.DeltaSlots * 30,
+            MinutesOf(drag.Session.StartTime) + drag.DeltaSlots * 30,
             MinutesOf(_open),
             maxStart)));
     }
@@ -295,7 +325,7 @@
             return;
         }
 
-        _drag = new DragState { SessionId = card.Session.Id, StartY = e.ClientY, StartX = e.ClientX, PreviewRow = card.Row, PreviewSpan = card.Span, PreviewColumn = card.Column };
+        _drag = new DragState { Session = card.Session, OriginColumn = card.Column, OriginRow = card.Row, OriginSpan = card.Span, StartY = e.ClientY, StartX = e.ClientX, LastX = e.ClientX, PreviewRow = card.Row, PreviewSpan = card.Span, PreviewColumn = card.Column };
         _islandError = null;
         await CapturePointerAsync(e);
     }
@@ -309,19 +339,64 @@
 
         // Resizing counts as moved from the first pixel — releasing on the grip
         // must never read as a click into the modal.
-        _drag = new DragState { SessionId = card.Session.Id, Resizing = true, StartY = e.ClientY, StartX = e.ClientX, Moved = true, PreviewRow = card.Row, PreviewSpan = card.Span, PreviewColumn = card.Column };
+        _drag = new DragState { Session = card.Session, Resizing = true, OriginColumn = card.Column, OriginRow = card.Row, OriginSpan = card.Span, StartY = e.ClientY, StartX = e.ClientX, LastX = e.ClientX, Moved = true, PreviewRow = card.Row, PreviewSpan = card.Span, PreviewColumn = card.Column };
         _islandError = null;
         await CapturePointerAsync(e);
     }
 
     // The grid holds the pointer for the whole gesture — releasing outside the
-    // grid still fires OnPointerUp here, so _drag can never strand.
+    // grid still fires OnPointerUp here, so _drag can never strand. Edge zones
+    // are measured per-gesture: layout can shift between drags.
     private async Task CapturePointerAsync(PointerEventArgs e)
     {
         if (_module is not null)
         {
             await _module.InvokeVoidAsync("capture", _gridRef, e.PointerId);
+            var rect = await _module.InvokeAsync<GridRect>("gridRect", _gridRef);
+            (_gridLeft, _gridRight) = (rect.Left, rect.Right);
         }
+    }
+
+    private sealed record GridRect(double Left, double Right);
+
+    private int EdgeDirection(double x)
+        => x <= _gridLeft + EdgeZonePx ? -1 : x >= _gridRight - EdgeZonePx ? 1 : 0;
+
+    private void ArmEdgeTimer()
+    {
+        _edgeTimer?.Dispose();
+        _edgeTimer = new System.Threading.Timer(
+            _ => _ = InvokeAsync(EdgeTickAsync), null, EdgeLingerMs, System.Threading.Timeout.Infinite);
+    }
+
+    private void DisarmEdgeTimer()
+    {
+        _edgeTimer?.Dispose();
+        _edgeTimer = null;
+    }
+
+    // The linger elapsed: if the pointer is still parked in an edge zone with a
+    // live move-drag, page the week UNDER the grab and re-arm for repeats.
+    private async Task EdgeTickAsync()
+    {
+        if (_drag is not { Resizing: false } drag)
+        {
+            DisarmEdgeTimer();
+            return;
+        }
+
+        var direction = EdgeDirection(drag.LastX);
+        if (direction == 0)
+        {
+            DisarmEdgeTimer();
+            return;
+        }
+
+        _weekStart = _weekStart.AddDays(7 * direction);
+        drag.WeeksPaged += direction;
+        await LoadAsync();
+        StateHasChanged();
+        ArmEdgeTimer();
     }
 
     private void OnPointerMove(PointerEventArgs e)
@@ -331,12 +406,7 @@
             return;
         }
 
-        var card = _cards.SingleOrDefault(c => c.Session.Id == drag.SessionId);
-        if (card is null)
-        {
-            return;
-        }
-
+        drag.LastX = e.ClientX;
         drag.DeltaSlots = (int)Math.Round((e.ClientY - drag.StartY) / Math.Max(1, _slotPx));
         drag.DeltaDays = (int)Math.Round((e.ClientX - drag.StartX) / Math.Max(1, _dayPx));
         if (Math.Abs(e.ClientY - drag.StartY) > 6 || Math.Abs(e.ClientX - drag.StartX) > 6)
@@ -347,22 +417,36 @@
         if (drag.Resizing)
         {
             // Preview stays inside the grid — matching what the drop will persist.
-            var maxSpan = Math.Max(1, _slots - (card.Row - 2));
-            drag.PreviewSpan = Math.Clamp(card.Span + drag.DeltaSlots, 1, maxSpan);
-            drag.PreviewRow = card.Row;
-            drag.PreviewColumn = card.Column;
+            var maxSpan = Math.Max(1, _slots - (drag.OriginRow - 2));
+            drag.PreviewSpan = Math.Clamp(drag.OriginSpan + drag.DeltaSlots, 1, maxSpan);
+            drag.PreviewRow = drag.OriginRow;
+            drag.PreviewColumn = drag.OriginColumn;
         }
         else
         {
-            var maxStart = Math.Max(MinutesOf(_open), MinutesOf(_close) - card.Session.DurationMinutes);
+            var maxStart = Math.Max(MinutesOf(_open), MinutesOf(_close) - drag.Session.DurationMinutes);
             var startMin = Math.Clamp(
-                MinutesOf(card.Session.StartTime) + drag.DeltaSlots * 30,
+                MinutesOf(drag.Session.StartTime) + drag.DeltaSlots * 30,
                 MinutesOf(_open),
                 maxStart) - MinutesOf(_open);
             drag.PreviewRow = startMin / 30 + 2;
-            drag.PreviewSpan = card.Span;
+            drag.PreviewSpan = drag.OriginSpan;
             // Anywhere on the calendar (#131): columns 2..8 are Sun..Sat.
-            drag.PreviewColumn = Math.Clamp(card.Column + drag.DeltaDays, 2, 8);
+            drag.PreviewColumn = Math.Clamp(drag.OriginColumn + drag.DeltaDays, 2, 8);
+
+            // Edge-hover paging (#132): arm the linger timer while the pointer
+            // parks in a zone; leaving the zone disarms before it fires.
+            if (drag.Moved && EdgeDirection(e.ClientX) != 0)
+            {
+                if (_edgeTimer is null)
+                {
+                    ArmEdgeTimer();
+                }
+            }
+            else
+            {
+                DisarmEdgeTimer();
+            }
         }
     }
 
@@ -374,13 +458,9 @@
         }
 
         _drag = null;
-        var card = _cards.SingleOrDefault(c => c.Session.Id == drag.SessionId);
-        if (card is null)
-        {
-            return;
-        }
+        DisarmEdgeTimer();
 
-        var session = card.Session;
+        var session = drag.Session;
         if (!drag.Moved)
         {
             // A clean click: the interactive card has no href, so the island
@@ -390,31 +470,46 @@
             return;
         }
 
+        var persisted = false;
         try
         {
             if (drag.Resizing)
             {
                 // 30-min snap with a 15-min floor; never past close.
-                var duration = Math.Max(15, (card.Span + drag.DeltaSlots) * 30);
+                var duration = Math.Max(15, (drag.OriginSpan + drag.DeltaSlots) * 30);
                 duration = Math.Min(duration, MinutesOf(_close) - MinutesOf(session.StartTime));
                 if (duration != session.DurationMinutes && duration >= 15)
                 {
                     await Schedule.UpdateSessionAsync(session.Id, session.Name, session.Date, session.StartTime, duration, session.InstructorPersonId);
+                    persisted = true;
                 }
             }
             else
             {
-                var start = PreviewStart(card, drag);
-                var date = session.Date.AddDays(drag.PreviewColumn - card.Column);
+                var start = PreviewStart(drag);
+                // Columns are absolute within any week view, so the day delta and
+                // the weeks paged under the grab compose (#132).
+                var date = session.Date.AddDays(drag.PreviewColumn - drag.OriginColumn + 7 * drag.WeeksPaged);
                 if (start != session.StartTime || date != session.Date)
                 {
                     await Schedule.UpdateSessionAsync(session.Id, session.Name, date, start, session.DurationMinutes, session.InstructorPersonId);
+                    persisted = true;
                 }
             }
         }
         catch (InvalidOperationException ex)
         {
             _islandError = ex.Message;
+        }
+
+        // A paged drop leaves the SSR page chrome (caption, prev/next links) on
+        // the ORIGINAL week — follow the drop with a real navigation so page and
+        // island agree. Errors stay put: the banner explains, the island shows
+        // the paged week, and the next interaction re-syncs.
+        if (drag.WeeksPaged != 0 && persisted)
+        {
+            Nav.NavigateTo($"/admin/schedule?start={_weekStart:yyyy-MM-dd}", forceLoad: true);
+            return;
         }
 
         await LoadAsync();
