@@ -1,4 +1,5 @@
 using GymStation.Domain.Training;
+using GymStation.Infrastructure.People;
 using Microsoft.EntityFrameworkCore;
 
 namespace GymStation.Infrastructure.Training;
@@ -9,20 +10,34 @@ public record TwoTierHours(int VerifiedHours, int SelfReportedHours)
 }
 
 /// <summary>
-/// The ONLY read/write path for diary entries, and every method scopes to the requesting
-/// user's own Person. There is deliberately no API that takes an arbitrary person id:
-/// diaries are private to their author (Q14/H fold) and no staff surface can reach them.
+/// The ONLY read/write path for diary entries. Every method scopes to the requesting
+/// user's ACCOUNT AUTHORITY: their own Person, or — when forPersonId names a ward they
+/// hold ActForWards over — that ward (the amended doctrine, #90: diaries are private to
+/// the member's account authority; guardians for wards, self otherwise). Staff still
+/// have no path here whatsoever.
 /// </summary>
-public class TrainingDiaryService(GymStationDbContext db)
+public class TrainingDiaryService(GymStationDbContext db, FamilyService families)
 {
     private async Task<Guid?> OwnPersonIdAsync(Guid requestingUserId, CancellationToken ct)
     {
         return (await db.Persons.SingleOrDefaultAsync(p => p.UserId == requestingUserId && !p.Archived, ct))?.Id;
     }
 
-    public async Task<List<TrainingEntry>> GetMineAsync(Guid requestingUserId, int take = 30, CancellationToken ct = default)
+    /// <summary>Own Person, or an authorized ward when forPersonId is set; null = no authority.</summary>
+    private async Task<Guid?> AuthorityPersonIdAsync(Guid requestingUserId, Guid? forPersonId, CancellationToken ct)
     {
-        if (await OwnPersonIdAsync(requestingUserId, ct) is not { } personId)
+        if (forPersonId is not { } wardId)
+        {
+            return await OwnPersonIdAsync(requestingUserId, ct);
+        }
+
+        return await families.CanActForAsync(requestingUserId, wardId, ct) ? wardId : null;
+    }
+
+    public async Task<List<TrainingEntry>> GetMineAsync(
+        Guid requestingUserId, int take = 30, Guid? forPersonId = null, CancellationToken ct = default)
+    {
+        if (await AuthorityPersonIdAsync(requestingUserId, forPersonId, ct) is not { } personId)
         {
             return [];
         }
@@ -35,10 +50,11 @@ public class TrainingDiaryService(GymStationDbContext db)
             .ToListAsync(ct);
     }
 
-    /// <summary>One month of the caller's own entries, for the diary calendar view.</summary>
-    public async Task<List<TrainingEntry>> GetMonthAsync(Guid requestingUserId, DateOnly monthStart, CancellationToken ct = default)
+    /// <summary>One month of entries for the caller's authority, for the diary calendar view.</summary>
+    public async Task<List<TrainingEntry>> GetMonthAsync(
+        Guid requestingUserId, DateOnly monthStart, Guid? forPersonId = null, CancellationToken ct = default)
     {
-        if (await OwnPersonIdAsync(requestingUserId, ct) is not { } personId)
+        if (await AuthorityPersonIdAsync(requestingUserId, forPersonId, ct) is not { } personId)
         {
             return [];
         }
@@ -51,16 +67,29 @@ public class TrainingDiaryService(GymStationDbContext db)
             .ToListAsync(ct);
     }
 
-    /// <summary>A single entry, or null when it doesn't exist or belongs to someone else.</summary>
+    /// <summary>A single entry, or null when it doesn't exist or sits outside the
+    /// caller's authority (own entries, or a ward's when acting). Authority resolves
+    /// against the bare PersonId before the entry and its rolls load.</summary>
     public async Task<TrainingEntry?> GetEntryAsync(Guid requestingUserId, Guid entryId, CancellationToken ct = default)
     {
-        if (await OwnPersonIdAsync(requestingUserId, ct) is not { } personId)
+        var ownerPersonId = await db.TrainingEntries
+            .Where(e => e.Id == entryId)
+            .Select(e => (Guid?)e.PersonId)
+            .SingleOrDefaultAsync(ct);
+        if (ownerPersonId is not { } personId)
+        {
+            return null;
+        }
+
+        var authorized = await OwnPersonIdAsync(requestingUserId, ct) == personId
+            || await families.CanActForAsync(requestingUserId, personId, ct);
+        if (!authorized)
         {
             return null;
         }
 
         return await db.TrainingEntries
-            .Where(e => e.Id == entryId && e.PersonId == personId)
+            .Where(e => e.Id == entryId)
             .Include(e => e.Rolls)
             .SingleOrDefaultAsync(ct);
     }
@@ -102,10 +131,11 @@ public class TrainingDiaryService(GymStationDbContext db)
         string? notes,
         int? selfReportedMinutes,
         IReadOnlyList<(Guid? PartnerPersonId, string PartnerLabel, string? Summary)> rolls,
+        Guid? forPersonId = null,
         CancellationToken ct = default)
     {
-        var personId = await OwnPersonIdAsync(requestingUserId, ct)
-            ?? throw new InvalidOperationException("You have no roster record in the active gym.");
+        var personId = await AuthorityPersonIdAsync(requestingUserId, forPersonId, ct)
+            ?? throw new InvalidOperationException("You have no authority over this diary.");
 
         await ValidateAsync(kind, selfReportedMinutes, sessionId, ct);
 

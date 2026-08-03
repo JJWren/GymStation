@@ -76,6 +76,7 @@ app.MapAuthEndpoints();
 app.MapOpsEndpoints();
 app.MapAdminActionEndpoints();
 app.MapFamilyActionEndpoints();
+app.MapFamilyMemberEndpoints();
 app.MapInstructorActionEndpoints();
 app.MapMemberActionEndpoints();
 app.MapMediaEndpoints();

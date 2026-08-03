@@ -59,7 +59,9 @@ public static class MemberActionEndpoints
             [FromForm] string status,
             [FromForm] string? back,
             ClaimsPrincipal user,
-            GymStationDbContext db) =>
+            GymStationDbContext db,
+            GymStation.Infrastructure.People.FamilyService families,
+            [FromForm] Guid? personId = null) =>
         {
             // Allow-listed, never caller-controlled paths — no open redirect.
             var destination = back == "detail" ? $"/events/{eventId}" : "/events";
@@ -77,16 +79,39 @@ public static class MemberActionEndpoints
                 return Results.Redirect(destination);
             }
 
-            var me = await db.Persons.SingleOrDefaultAsync(p => p.UserId == userId && !p.Archived);
-            if (me is null || !await db.GymEvents.AnyAsync(e => e.Id == eventId))
+            // Whose RSVP: own Person by default; a ward's when the caller is an
+            // ActForWards guardian for them (#90).
+            Guid rsvpPersonId;
+            if (personId is { } wardId)
+            {
+                var me = await db.Persons.SingleOrDefaultAsync(p => p.UserId == userId && !p.Archived);
+                if (me?.Id != wardId && !await families.CanActForAsync(userId, wardId))
+                {
+                    return Results.Redirect(destination);
+                }
+
+                rsvpPersonId = wardId;
+            }
+            else
+            {
+                var me = await db.Persons.SingleOrDefaultAsync(p => p.UserId == userId && !p.Archived);
+                if (me is null)
+                {
+                    return Results.Redirect(destination);
+                }
+
+                rsvpPersonId = me.Id;
+            }
+
+            if (!await db.GymEvents.AnyAsync(e => e.Id == eventId))
             {
                 return Results.Redirect(destination);
             }
 
-            var existing = await db.EventRsvps.SingleOrDefaultAsync(r => r.EventId == eventId && r.PersonId == me.Id);
+            var existing = await db.EventRsvps.SingleOrDefaultAsync(r => r.EventId == eventId && r.PersonId == rsvpPersonId);
             if (existing is null)
             {
-                db.EventRsvps.Add(new EventRsvp { Id = Guid.NewGuid(), EventId = eventId, PersonId = me.Id, Status = target.Value });
+                db.EventRsvps.Add(new EventRsvp { Id = Guid.NewGuid(), EventId = eventId, PersonId = rsvpPersonId, Status = target.Value });
             }
             else if (existing.Status == target.Value)
             {
