@@ -45,6 +45,10 @@
                 <InputText id="esname" @bind-Value="SessionForm!.Name" />
                 <div class="form-grid">
                     <div>
+                        <label for="esdate">Date — moves this occurrence to another day (#131)</label>
+                        <InputDate id="esdate" @bind-Value="SessionForm!.Date" />
+                    </div>
+                    <div>
                         <label for="esstart">Start (HH:mm)</label>
                         <InputText id="esstart" @bind-Value="SessionForm!.Start" />
                     </div>
@@ -346,6 +350,7 @@
     public class EditSessionForm
     {
         public string Name { get; set; } = "";
+        public DateOnly Date { get; set; } = DateOnly.FromDateTime(DateTime.Today);
         public string Start { get; set; } = "18:00";
         public int DurationMinutes { get; set; } = 60;
         public Guid? InstructorPersonId { get; set; }
@@ -415,6 +420,7 @@
             if (_editSession is { } session && postedHandler != "edit-session")
             {
                 SessionForm!.Name = session.Name;
+                SessionForm.Date = session.Date;
                 SessionForm.Start = session.StartTime.ToString("HH\\:mm");
                 SessionForm.DurationMinutes = session.DurationMinutes;
                 SessionForm.InstructorPersonId = session.InstructorPersonId;
@@ -486,8 +492,9 @@
 
         try
         {
-            await Schedule.UpdateSessionAsync(_editSession.Id, form.Name, start, form.DurationMinutes, form.InstructorPersonId);
-            Nav.NavigateTo(WeekUrl);
+            await Schedule.UpdateSessionAsync(_editSession.Id, form.Name, form.Date, start, form.DurationMinutes, form.InstructorPersonId);
+            // Follow the session to wherever it landed — its (possibly new) week.
+            Nav.NavigateTo($"/admin/schedule?start={GymStation.Domain.Scheduling.Weeks.WeekOf(form.Date):yyyy-MM-dd}");
         }
         catch (InvalidOperationException ex)
         {
