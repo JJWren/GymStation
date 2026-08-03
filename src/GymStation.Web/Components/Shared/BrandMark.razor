@@ -1,0 +1,23 @@
+@* The GymStation belt-patch mark (Joshua-authored; spec: design/foundations/logo.html).
+   Hard rules from the spec:
+   - NEVER restripe: two stripes IS the mark, not a rank claim.
+   - NEVER tenant-color the bar or stripes - only the FIELD takes --tenant,
+     so the mark can't be confused with a real BeltBar. Ink=true flips the
+     field to --ink for the mono chrome/footer lockup.
+   - No outline stroke, no shadow, no rotation. Below 20px use the wordmark alone. *@
+<svg viewBox="0 0 64 64" style="width:@Size;height:@Size" aria-hidden="true" focusable="false">
+    <rect x="4" y="4" width="56" height="56" rx="7" fill="@(Ink ? "var(--ink)" : "var(--tenant, #C9503B)")" />
+    <rect x="4" y="26" width="56" height="13" fill="#141416" />
+    <rect x="41" y="26" width="5" height="13" fill="@StripeFill" />
+    <rect x="49" y="26" width="5" height="13" fill="@StripeFill" />
+</svg>
+
+@code {
+    /// <summary>CSS size for the square mark (e.g. "1.625rem"). Keep it at or above 20px.</summary>
+    [Parameter] public string Size { get; set; } = "2.75rem";
+
+    /// <summary>Mono/knockout variant for chrome and footers: field and stripes ride --ink.</summary>
+    [Parameter] public bool Ink { get; set; }
+
+    private string StripeFill => Ink ? "var(--ink)" : "#F2EEE3";
+}

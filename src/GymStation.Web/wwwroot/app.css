@@ -37,6 +37,12 @@ a { color: var(--ink); }
 /* ---- auth shell (login / pick gym) ---- */
 .auth-shell { max-width: 22.5rem; margin: 8vh auto; padding: 0 1.125rem; }
 .auth-shell h1 { font: 1.625rem/1.1 var(--font-display); text-align: center; }
+/* Brand lockups (#141): centered mark above the auth wordmark; STATION takes
+   the accent per the spec's primary lockup. */
+.auth-shell .auth-mark { text-align: center; margin: 0 0 0.875rem; }
+.auth-shell h1 em { font-style: normal; color: var(--tenant); }
+.legal-shell .legal-home svg { display: block; margin: 0 auto 0.5rem; }
+.pub-foot .foot-lock { display: inline-flex; align-items: center; gap: 0.4375rem; }
 .auth-shell .tagline { font: 600 0.625rem/1 var(--font-mono); letter-spacing: .22em; color: var(--ink-faint); text-align: center; margin: 0.5rem 0 1.5rem; }
 .auth-shell label { display: block; font: 600 0.625rem/1 var(--font-mono); letter-spacing: .16em; color: var(--ink-dim); margin: 0.875rem 0 0.375rem; text-transform: uppercase; }
 .auth-shell input { width: 100%; background: var(--panel); border: 1px solid var(--edge); border-radius: 0.5625rem; padding: 0.75rem 0.8125rem; font: 600 0.8125rem/1 var(--font-mono); color: var(--ink); }
