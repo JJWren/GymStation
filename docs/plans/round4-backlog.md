@@ -14,7 +14,7 @@ Loop process per issue: branch off pulled master → implement → rig-verify �
 
 ## Loop status
 
-- [ ] #123 — Icon-only buttons: green save / red delete + app-wide hover affordance
+- [x] #123 — Icon-only buttons: green save / red delete + app-wide hover affordance (Glyph.razor SVG set; .btn--icon/--save/--del + --glow hover on all buttons; 31 call sites converted per semantic rule)
 - [ ] #124 — Finance chips: semantic colors
 - [ ] #125 — Landing socials: TikTok + X, brand-color icons, run-together fix
 - [ ] #126 — Sunday-first weeks everywhere

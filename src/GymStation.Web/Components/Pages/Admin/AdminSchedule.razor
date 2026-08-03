@@ -65,7 +65,7 @@
                 {
                     <p class="validation-message">@_sessionError</p>
                 }
-                <p style="margin-top:0.75rem"><button class="btn" type="submit">SAVE THIS SESSION</button></p>
+                <p style="margin-top:0.75rem"><button class="btn btn--icon btn--save" type="submit" aria-label="Save this session" title="Save this session"><Glyph Name="save" /></button></p>
                 <p class="cap" style="margin:0.375rem 0 0">CHANGES THIS OCCURRENCE ONLY · TIME CHANGES NOTIFY STAFF AND CHECKED-IN MEMBERS</p>
             </EditForm>
 
@@ -136,7 +136,7 @@
                     {
                         <p class="validation-message">@_templateEditError</p>
                     }
-                    <p style="margin-top:0.75rem"><button class="btn" type="submit">SAVE TEMPLATE</button></p>
+                    <p style="margin-top:0.75rem"><button class="btn btn--icon btn--save" type="submit" aria-label="Save template" title="Save template"><Glyph Name="save" /></button></p>
                     <p class="cap" style="margin:0.375rem 0 0">APPLIES TO WEEKS NOT YET ON THE CALENDAR · OCCURRENCES ALREADY MATERIALIZED (INCLUDING THIS ONE) KEEP THEIR OWN VALUES</p>
                 </EditForm>
 
@@ -232,7 +232,7 @@
             {
                 <p class="validation-message">@_templateError</p>
             }
-            <p style="margin-top:0.875rem"><button class="btn" type="submit">+ CLASS TEMPLATE</button></p>
+            <p style="margin-top:0.875rem"><button class="btn btn--icon btn--save" type="submit" aria-label="Add class template" title="Add class template"><Glyph Name="save" /></button></p>
         </EditForm>
 
         @if (_pausedTemplates.Count > 0)
@@ -262,7 +262,7 @@
                     <InputText id="ctcolor" @bind-Value="TypeForm!.ColorHex" />
                 </div>
             </div>
-            <p style="margin-top:0.875rem"><button class="btn btn--ghost" type="submit">+ TAG</button></p>
+            <p style="margin-top:0.875rem"><button class="btn btn--icon btn--save" type="submit" aria-label="Add class type" title="Add class type"><Glyph Name="save" /></button></p>
         </EditForm>
     </section>
 </div>

@@ -175,7 +175,7 @@ else
                             </InputSelect>
                         </div>
                     </div>
-                    <p style="margin-top:0.875rem"><button class="btn" type="submit">SAVE PROFILE</button></p>
+                    <p style="margin-top:0.875rem"><button class="btn btn--icon btn--save" type="submit" aria-label="Save staff profile" title="Save staff profile"><Glyph Name="save" /></button></p>
                 </EditForm>
             }
 
@@ -273,7 +273,7 @@ else
                 {
                     <p class="validation-message">@_editError</p>
                 }
-                <p style="margin-top:0.75rem"><button class="btn" type="submit">SAVE PERSON</button></p>
+                <p style="margin-top:0.75rem"><button class="btn btn--icon btn--save" type="submit" aria-label="Save person" title="Save person"><Glyph Name="save" /></button></p>
             </EditForm>
 
             <h2 class="section-h">Contact</h2>
@@ -287,7 +287,7 @@ else
                 {
                     <p class="validation-message">@_contactError</p>
                 }
-                <p style="margin-top:0.75rem"><button class="btn btn--ghost btn--xs" type="submit">SAVE CONTACT</button></p>
+                <p style="margin-top:0.75rem"><button class="btn btn--icon btn--save btn--xs" type="submit" aria-label="Save contact" title="Save contact"><Glyph Name="save" /></button></p>
             </EditForm>
 
             <EditForm class="form-card" FormName="archive-person" Model="ArchiveMarker" OnValidSubmit="ToggleArchiveAsync" style="margin-top:0.625rem">
