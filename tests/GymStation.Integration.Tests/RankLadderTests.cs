@@ -70,6 +70,12 @@ public class RankLadderTests(PostgresFixture fixture)
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.RenameSystemAsync(seeded.Id, "Hijacked"));
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.SetSystemArchivedAsync(seeded.Id, true));
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.AddRankAsync(seeded.Id, "Fake", "#111111", "#222222", 1));
+
+        // Rank-level operations must hit the same wall through the rank's system.
+        var seededRank = await context.Ranks.FirstAsync(r => r.RankSystemId == seeded.Id);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.UpdateRankAsync(seededRank.Id, "Hijacked", "#111111", "#222222", 1));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.MoveRankAsync(seededRank.Id, 1));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.RemoveRankAsync(seededRank.Id));
     }
 
     [Fact]
