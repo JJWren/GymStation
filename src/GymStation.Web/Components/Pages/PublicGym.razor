@@ -79,6 +79,27 @@ else
                         <div class="patch pub-about"><MarkdownBlock Text="@_settings?.AboutText" /></div>
                     </section>
                     break;
+                case LandingSections.Programs:
+                    <section class="pub-section" id="programs">
+                        <h2>@(_settings?.ProgramsTitle ?? "PROGRAMS")</h2>
+                        @if (!string.IsNullOrWhiteSpace(_settings?.ProgramsIntro))
+                        {
+                            <div class="pub-intro"><MarkdownBlock Text="@_settings!.ProgramsIntro" /></div>
+                        }
+                        <div class="pub-programs">
+                            @foreach (var program in _programs)
+                            {
+                                <a class="pub-prog" href="/@_gym.Slug?program=@program.Id#programs">
+                                    @if (program.ImagePath is not null)
+                                    {
+                                        <img src="/media/@program.ImagePath" alt="" />
+                                    }
+                                    <b>@program.Title.ToUpperInvariant()</b>
+                                </a>
+                            }
+                        </div>
+                    </section>
+                    break;
                 case LandingSections.Schedule:
         <section class="pub-strip" id="schedule">
             <h2>THIS WEEK AT @_gym.Name.ToUpperInvariant() — LIVE</h2>
@@ -187,6 +208,25 @@ else
             }
         }
 
+        @if (_openProgram is { } openProgram)
+        {
+            @* SSR modal, ?program= — the exact ?edit= idiom the schedule uses. *@
+            <div class="modal-wrap" role="dialog" aria-modal="true" aria-label="@openProgram.Title">
+                <a class="modal-scrim" href="/@_gym.Slug#programs" aria-label="Close program"></a>
+                <div class="modal-card">
+                    <div class="head-row">
+                        <h2 class="section-h" style="margin:0">@openProgram.Title.ToUpperInvariant()</h2>
+                        <a class="btn btn--ghost btn--xs" href="/@_gym.Slug#programs">✕ CLOSE</a>
+                    </div>
+                    @if (openProgram.ImagePath is not null)
+                    {
+                        <img class="pub-prog-hero" src="/media/@openProgram.ImagePath" alt="@openProgram.Title" />
+                    }
+                    <div style="margin-top:0.625rem"><MarkdownBlock Text="@openProgram.Description" /></div>
+                </div>
+            </div>
+        }
+
         <footer class="pub-foot">
             <span>© @DateTime.Today.Year @_gym.Name.ToUpperInvariant()</span>
             <span class="foot-lock"><BrandMark Ink Size="1.25rem" /> POWERED BY GYMSTATION</span>
@@ -205,6 +245,10 @@ else
     private Gym? _gym;
     private GymSettings? _settings;
     private List<string> _visibleSections = [];
+    private List<GymStation.Domain.Marketing.GymProgram> _programs = [];
+    private GymStation.Domain.Marketing.GymProgram? _openProgram;
+
+    [SupplyParameterFromQuery(Name = "program")] public string? ProgramRaw { get; set; }
     private string _accent = "#C9503B";
     private bool _dark = true;
     private List<KeyValuePair<DayOfWeek, List<ClassTemplate>>> _week = [];
@@ -216,7 +260,7 @@ else
     private bool SectionVisible(string key) => key switch
     {
         LandingSections.About => !string.IsNullOrWhiteSpace(_settings?.AboutText),
-        LandingSections.Programs => false,
+        LandingSections.Programs => _programs.Count > 0,
         LandingSections.Stories => false,
         LandingSections.Schedule => _week.Any(day => day.Value.Count > 0),
         LandingSections.Instructors => _instructors.Count > 0,
@@ -297,6 +341,17 @@ else
             .Where(p => instructorIds.Contains(p.PersonId))
             .ToDictionaryAsync(p => p.PersonId, p => p.ExperienceSummary);
         _instructors = instructorPersons.Select(p => (p, profiles.GetValueOrDefault(p.Id))).ToList();
+
+        // Programs (#135): active only, admin order; the modal resolves from the
+        // same list so an archived or foreign id simply doesn't open.
+        _programs = await db.GymPrograms
+            .Where(p => !p.Archived)
+            .OrderBy(p => p.SortOrder).ThenBy(p => p.Title)
+            .ToListAsync();
+        if (Guid.TryParse(ProgramRaw, out var programId))
+        {
+            _openProgram = _programs.FirstOrDefault(p => p.Id == programId);
+        }
 
         // Visibility depends on the data above — compute LAST, or an empty
         // schedule/instructor list could never hide its section (review catch).

@@ -79,6 +79,7 @@ app.MapFamilyActionEndpoints();
 app.MapFamilyMemberEndpoints();
 app.MapInstructorActionEndpoints();
 app.MapMemberActionEndpoints();
+app.MapProgramEndpoints();
 app.MapMediaEndpoints();
 
 app.Run();

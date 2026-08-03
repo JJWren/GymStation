@@ -27,7 +27,7 @@ Loop process per issue: branch off pulled master → implement → rig-verify �
 - [x] #132 — Schedule drag: edge-hover week paging (600ms linger timer; session pinned in DragState + ghost card survives week swaps; day and week deltas compose on drop; URL follows a paged drop)
 - [x] #133 — Markdown everywhere (sanitized): Markdig + MarkdownBlock (AppMarkdown pipeline: raw HTML off, link-scheme allow-list, ++underline++, soft-break=break; applied to event details + diary notes; caps hints on all four textareas; 11 sanitization tests)
 - [x] #134 — Landing: About section + admin-orderable sections (AddLandingSections: SectionOrder + About/Programs/Stories titles+texts; LandingSections.Normalize/Move domain helper + tests; PublicGym renders per stored order w/ auto-hide + ordered anchors; /admin/landing About editor + ▲▼ order card)
-- [ ] #135 — Programs: entity, admin CRUD, landing section + modal
+- [x] #135 — Programs: entity, admin CRUD, landing section + modal (GymProgram entity [glossary term Program, GymEvent naming precedent] + AddPrograms; /admin/landing/programs CRUD w/ overlay image tiles + reorder + archive; public cards → SSR ?program= modal w/ markdown; /media allow-list gains programs/{guid}; tenant-isolation test)
 - [ ] #136 — Success stories: entity, admin CRUD, landing section
 - [ ] #137 — Instructors: public portraits + rich landing modal
 - [ ] #138 — Public contact form + spam wall + /admin/messages
