@@ -26,6 +26,9 @@ public class StaffProfile : ITenantOwned
     /// <summary>e.g. "20+ years on the mat", "3x Pan Ams veteran".</summary>
     public string? ExperienceSummary { get; set; }
 
+    /// <summary>Shown in the public instructor modal when filled (#137).</summary>
+    public string? Hobbies { get; set; }
+
     public decimal? PayRate { get; set; }
     public PayRateUnit PayRateUnit { get; set; } = PayRateUnit.PerClass;
 }

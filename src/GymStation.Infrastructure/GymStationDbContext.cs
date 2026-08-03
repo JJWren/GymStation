@@ -144,6 +144,7 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
             e.HasKey(p => p.PersonId);
             e.Property(p => p.Bio).HasMaxLength(2000);
             e.Property(p => p.ExperienceSummary).HasMaxLength(300);
+            e.Property(p => p.Hobbies).HasMaxLength(300);
             e.Property(p => p.PayRate).HasPrecision(10, 2);
             e.HasOne(p => p.Person).WithOne().HasForeignKey<StaffProfile>(p => p.PersonId).OnDelete(DeleteBehavior.Cascade);
             e.HasQueryFilter(p => CurrentGymId != null && p.GymId == CurrentGymId);
