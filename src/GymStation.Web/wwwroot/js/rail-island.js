@@ -21,3 +21,10 @@ export function dayPx(grid) {
 export function capture(grid, pointerId) {
     try { grid.setPointerCapture(pointerId); } catch { /* pointer already gone */ }
 }
+
+// Viewport-space grid edges for the edge-hover week paging zones (#132) —
+// measured at drag start because layout can shift between gestures.
+export function gridRect(grid) {
+    const r = grid.getBoundingClientRect();
+    return { left: r.left, right: r.right };
+}
