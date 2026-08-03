@@ -84,7 +84,7 @@ public class AttendanceService(GymStationDbContext db)
                     .AnyAsync(ct);
                 if (!linked)
                 {
-                    throw new InvalidOperationException("You are not a linked guardian for this person.");
+                    throw new InvalidOperationException("You are not an acting guardian for this person.");
                 }
                 break;
 

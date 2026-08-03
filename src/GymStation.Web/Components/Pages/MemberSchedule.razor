@@ -7,6 +7,7 @@
 @using GymStation.Domain.Tenancy
 @inject IDbContextFactory<GymStationDbContext> DbFactory
 @inject GymStation.Infrastructure.Scheduling.ScheduleService Schedule
+@inject GymStation.Infrastructure.People.FamilyService Families
 @inject ITenantContext Tenant
 
 <PageTitle>Schedule · GymStation</PageTitle>
@@ -150,11 +151,7 @@
         {
             _userId = userId;
             var mine = await db.Persons.Where(p => p.UserId == userId && !p.Archived).ToListAsync();
-            var childIds = await db.FamilyGuardians
-                .Where(g => g.GuardianUserId == userId && g.ActForWards)
-                .Join(db.FamilyMembers.Where(m => m.IsWard), g => g.FamilyId, m => m.FamilyId, (g, m) => m.PersonId)
-                .ToListAsync();
-            var children = await db.Persons.Where(p => childIds.Contains(p.Id) && !p.Archived).ToListAsync();
+            var children = await Families.WardsForAsync(userId);
             _checkable = [.. mine, .. children];
             _minePersonIds = mine.Select(p => p.Id).ToHashSet();
 

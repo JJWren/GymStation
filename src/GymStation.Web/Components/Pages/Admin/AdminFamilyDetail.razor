@@ -183,9 +183,9 @@ else
             .ToDictionaryAsync(u => u.Id, u => u.Email ?? u.UserName ?? "unknown");
         _guardians = guardianRows.Select(g => (g, emails.GetValueOrDefault(g.GuardianUserId, "unknown"))).ToList();
 
-        var takenPersonIds = await db.FamilyMembers.Select(m => m.PersonId).ToListAsync();
+        // Correlated NOT EXISTS — no materialized ID list, stays cheap on big rosters.
         _addablePersons = await db.Persons
-            .Where(p => !p.Archived && !takenPersonIds.Contains(p.Id))
+            .Where(p => !p.Archived && !db.FamilyMembers.Any(m => m.PersonId == p.Id))
             .OrderBy(p => p.FirstName).ThenBy(p => p.LastName)
             .ToListAsync();
     }

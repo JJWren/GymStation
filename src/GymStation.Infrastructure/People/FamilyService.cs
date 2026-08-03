@@ -43,11 +43,16 @@ public class FamilyService(GymStationDbContext db)
             .AnyAsync(ct);
     }
 
-    /// <summary>Guardianship alone keeps a login attached to a gym (sign-in routing,
-    /// claims factory) — mirrors the old GuardianLink membership semantics.</summary>
+    /// <summary>Guardianship keeps a login attached to a gym only while an unarchived
+    /// ward exists — the same semantics GymMembershipService and the claims factory
+    /// apply on their unfiltered paths.</summary>
     public async Task<bool> IsGuardianInGymAsync(Guid userId, CancellationToken ct = default)
     {
-        return await db.FamilyGuardians.AnyAsync(g => g.GuardianUserId == userId, ct);
+        return await db.FamilyGuardians
+            .Where(g => g.GuardianUserId == userId)
+            .Join(db.FamilyMembers.Where(m => m.IsWard), g => g.FamilyId, m => m.FamilyId, (g, m) => m.PersonId)
+            .Join(db.Persons.Where(p => !p.Archived), pid => pid, p => p.Id, (pid, p) => p.Id)
+            .AnyAsync(ct);
     }
 
     /// <summary>Families this login guards, fully loaded for the MY FAMILY surface.</summary>

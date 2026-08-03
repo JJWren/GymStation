@@ -12,6 +12,7 @@
 @inject AttendanceService Attendance
 @inject TrainingDiaryService Diary
 @inject GymStation.Infrastructure.People.PersonService People
+@inject GymStation.Infrastructure.People.FamilyService Families
 @inject NavigationManager Nav
 
 <PageTitle>Progress · GymStation</PageTitle>
@@ -234,13 +235,9 @@
         await using var db = await DbFactory.CreateDbContextAsync();
 
         // Wards render for acting guardians even when the guardian has no roster
-        // record of their own (Sarah's account is exactly this shape) (#89).
-        var childIds = await db.FamilyGuardians
-            .Where(g => g.GuardianUserId == userId && g.ActForWards)
-            .Join(db.FamilyMembers.Where(m => m.IsWard), g => g.FamilyId, m => m.FamilyId, (g, m) => m.PersonId)
-            .ToListAsync();
-        _children = await db.Persons.Where(p => childIds.Contains(p.Id) && !p.Archived)
-            .OrderBy(p => p.FirstName).ToListAsync();
+        // record of their own (Sarah's account is exactly this shape) — the matrix
+        // stays in FamilyService (#89).
+        _children = await Families.WardsForAsync(userId);
         if (_children.Count > 0)
         {
             _childRanks = await Ranks.GetPrimaryRanksAsync(_children.Select(c => c.Id).ToList());

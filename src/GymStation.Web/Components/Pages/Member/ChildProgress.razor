@@ -5,6 +5,7 @@
 @using GymStation.Infrastructure.Attendance
 @using GymStation.Infrastructure.Ranks
 @inject IDbContextFactory<GymStationDbContext> DbFactory
+@inject GymStation.Infrastructure.People.FamilyService Families
 @inject RankService Ranks
 @inject AttendanceService Attendance
 
@@ -108,12 +109,9 @@
 
         await using var db = await DbFactory.CreateDbContextAsync();
 
-        // Only wards this login may act for — anyone else gets the not-yours screen (#89).
-        _authorized = await db.FamilyGuardians
-            .Where(g => g.GuardianUserId == userId && g.ActForWards)
-            .Join(db.FamilyMembers.Where(m => m.IsWard && m.PersonId == PersonId),
-                g => g.FamilyId, m => m.FamilyId, (g, m) => m.Id)
-            .AnyAsync();
+        // Only wards this login may act for — anyone else gets the not-yours screen;
+        // the rule lives in FamilyService (#89).
+        _authorized = await Families.CanActForAsync(userId, PersonId);
         if (!_authorized)
         {
             return;
