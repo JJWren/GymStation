@@ -1,7 +1,9 @@
 using GymStation.Domain.Attendance;
 using GymStation.Domain.Events;
+using GymStation.Domain.Marketing;
 using GymStation.Domain.Money;
 using GymStation.Domain.People;
+using GymStation.Domain.Ranks;
 using GymStation.Domain.Scheduling;
 using GymStation.Domain.Tenancy;
 using GymStation.Infrastructure.Ranks;
@@ -43,7 +45,23 @@ public class DemoSeeder(GymStationDbContext db, TenantContext tenant)
         await db.SaveChangesAsync(ct);
 
         tenant.SetGym(gym.Id);
-        db.GymSettings.Add(new GymSettings { GymId = gym.Id, SubstitutionMode = SubstitutionMode.AdminGate });
+        db.GymSettings.Add(new GymSettings
+        {
+            GymId = gym.Id,
+            SubstitutionMode = SubstitutionMode.AdminGate,
+            AboutText = $"""
+                **Founded in 2014**, {name} started as six borrowed mats in a warehouse bay and grew into the Gulf Coast's home for grapplers, strikers, and anyone chasing a harder-to-kill version of themselves.
+
+                Three programs, one room, zero ego:
+
+                - **Brazilian Jiu-Jitsu** — gi and no-gi, fundamentals through black belt
+                - **Bootcamp** — strength and conditioning, no experience needed
+                - **Muay Thai** — the art of eight limbs, technique-first
+
+                First class is always free. Come watch, come train, come say hi.
+                """,
+            ProgramsIntro = "Three doors into the same room — pick your pace, switch anytime. Every adult membership includes all three.",
+        });
 
         foreach (var categoryName in new[] { "RENT", "INSURANCE", "SOFTWARE", "UTILITIES", "MARKETING" })
         {
@@ -62,12 +80,15 @@ public class DemoSeeder(GymStationDbContext db, TenantContext tenant)
         var fundamentals = Tag("fundamentals", "#C9A227");
         var competition = Tag("competition", "#B23B48");
         var openMat = Tag("open-mat", "#707886");
+        var bootcamp = Tag("bootcamp", "#B0622F");
+        var muayThai = Tag("muay-thai", "#4A6FA5");
 
         // The named cast (from the Academy Ledger design fiction).
         var torres = Cast("Jordan", "Torres", PersonRoles.Owner | PersonRoles.Admin, new DateOnly(1985, 7, 1), null, 2014);
         var silva = Cast("Rui", "Silva", PersonRoles.Instructor | PersonRoles.Member, new DateOnly(1982, 3, 4), null, 2014);
         var ana = Cast("Ana", "Duarte", PersonRoles.Instructor | PersonRoles.Member, new DateOnly(1990, 9, 12), null, 2018);
         var dana = Cast("Dana", "Okafor", PersonRoles.Instructor | PersonRoles.Member, new DateOnly(1994, 1, 25), adultPlan.Id, 2021);
+        var chai = Cast("Chai", "Rattana", PersonRoles.Instructor | PersonRoles.Member, new DateOnly(1987, 11, 8), null, 2024);
         var reyes = Cast("Ana", "Reyes", PersonRoles.Member, new DateOnly(1996, 12, 25), adultPlan.Id, 2021);
         var kim = Cast("Priya", "Kim", PersonRoles.Staff, new DateOnly(1998, 5, 30), null, 2023);
         var webb = Cast("Marcus", "Webb", PersonRoles.Member, new DateOnly(1993, 6, 2), adultPlan.Id, 2024);
@@ -130,6 +151,38 @@ public class DemoSeeder(GymStationDbContext db, TenantContext tenant)
             Award(kid, rank, kidBeltRandom.Next(Math.Min(rank.MaxStripes, 4) + 1), today.AddDays(-kidBeltRandom.Next(60, 700)));
         }
 
+        // The gym's own Muay Thai ladder (#140) — a CUSTOM system exactly as the
+        // #139 UI would create it: GymId set, not seeded, armbands don't stripe.
+        var prajioud = new RankSystem { Id = Guid.NewGuid(), GymId = gym.Id, Name = "Muay Thai Prajioud" };
+        db.RankSystems.Add(prajioud);
+        var armbands = new (string Name, string Band, string Bar)[]
+        {
+            ("White", "#E9E6DC", "#17181A"),
+            ("Yellow", "#D9A62E", "#17181A"),
+            ("Green", "#3E8E5A", "#17181A"),
+            ("Blue", "#2456A6", "#17181A"),
+            ("Red", "#A31D26", "#17181A"),
+            ("Black", "#17181A", "#A31D26"),
+        };
+        var prajioudRanks = armbands.Select((band, index) => new Rank
+        {
+            Id = Guid.NewGuid(),
+            RankSystemId = prajioud.Id,
+            Name = band.Name,
+            Order = index + 1,
+            BandColorHex = band.Band,
+            BarColorHex = band.Bar,
+            MaxStripes = 0,
+        }).ToList();
+        db.Ranks.AddRange(prajioudRanks);
+
+        // Cross-training history: dated BEFORE each member's newest BJJ award so
+        // their primary (roster) rank stays the design-fiction belt. Chai's black
+        // armband is his only rank — his bar shows the Muay Thai ladder.
+        Award(chai, prajioudRanks[5], 0, new DateOnly(2019, 4, 6), selfReported: true);
+        Award(webb, prajioudRanks[1], 0, new DateOnly(2025, 5, 10), by: chai.Id);
+        Award(omar, prajioudRanks[2], 0, new DateOnly(2022, 9, 17), by: chai.Id);
+
         // Weekly grid (the design week).
         var templates = new[]
         {
@@ -142,6 +195,20 @@ public class DemoSeeder(GymStationDbContext db, TenantContext tenant)
             Template("Fundamentals", DayOfWeek.Thursday, new TimeOnly(18, 0), 60, dana.Id, gi, fundamentals),
             Template("Open Mat", DayOfWeek.Friday, new TimeOnly(18, 0), 120, null, openMat),
             Template("Competition", DayOfWeek.Saturday, new TimeOnly(10, 0), 90, silva.Id, competition),
+        };
+
+        // Bootcamp + Muay Thai grid (#140). A SEPARATE array on purpose: the main
+        // 12-week loop below draws from the shared Random, and its draw count is
+        // part of the tuned ledger fiction — these templates get their own
+        // history loop with their own Random instead.
+        var crossTraining = new[]
+        {
+            Template("Bootcamp", DayOfWeek.Tuesday, new TimeOnly(6, 0), 45, dana.Id, bootcamp),
+            Template("Bootcamp", DayOfWeek.Thursday, new TimeOnly(6, 0), 45, dana.Id, bootcamp),
+            Template("Bootcamp Circuits", DayOfWeek.Saturday, new TimeOnly(9, 0), 45, dana.Id, bootcamp),
+            Template("Muay Thai", DayOfWeek.Monday, new TimeOnly(19, 30), 60, chai.Id, muayThai),
+            Template("Muay Thai", DayOfWeek.Wednesday, new TimeOnly(19, 30), 60, chai.Id, muayThai),
+            Template("Muay Thai Sparring", DayOfWeek.Friday, new TimeOnly(17, 0), 60, chai.Id, muayThai),
         };
         await db.SaveChangesAsync(ct);
 
@@ -175,6 +242,44 @@ public class DemoSeeder(GymStationDbContext db, TenantContext tenant)
                         SessionId = session.Id,
                         PersonId = person.Id,
                         Source = random.Next(5) == 0 ? CheckInSource.Instructor : CheckInSource.Self,
+                        Status = AttendanceStatus.Confirmed,
+                        ConfirmedUtc = DateTimeOffset.UtcNow,
+                    });
+                }
+            }
+        }
+
+        // Cross-training turnout — own Random (the Random(7) precedent): touching
+        // the shared sequence here would reshuffle the behind-set draw below and
+        // could pull Webb into it, collapsing $510 to $425.
+        var crossRandom = new Random(11);
+        for (var weeksBack = 12; weeksBack >= 1; weeksBack--)
+        {
+            var monday = today.AddDays(-7 * weeksBack - (((int)today.DayOfWeek + 6) % 7));
+            foreach (var template in crossTraining)
+            {
+                var date = monday.AddDays(((int)template.Day + 6) % 7);
+                var session = new ClassSession
+                {
+                    Id = Guid.NewGuid(),
+                    TemplateId = template.Id,
+                    Date = date,
+                    StartTime = template.StartTime,
+                    DurationMinutes = template.DurationMinutes,
+                    Name = template.Name,
+                    InstructorPersonId = template.DefaultInstructorPersonId,
+                };
+                db.ClassSessions.Add(session);
+
+                var turnout = Math.Min(adults.Count, 4 + crossRandom.Next(7));
+                foreach (var person in adults.OrderBy(_ => crossRandom.Next()).Take(turnout))
+                {
+                    db.AttendanceRecords.Add(new AttendanceRecord
+                    {
+                        Id = Guid.NewGuid(),
+                        SessionId = session.Id,
+                        PersonId = person.Id,
+                        Source = crossRandom.Next(5) == 0 ? CheckInSource.Instructor : CheckInSource.Self,
                         Status = AttendanceStatus.Confirmed,
                         ConfirmedUtc = DateTimeOffset.UtcNow,
                     });
@@ -242,8 +347,56 @@ public class DemoSeeder(GymStationDbContext db, TenantContext tenant)
         db.StaffProfiles.AddRange(
             new StaffProfile { PersonId = silva.Id, ExperienceSummary = "Head coach · 20+ yrs on the mat", Bio = "2nd degree black belt. Fundamentals-first.", PayRate = 45m, PayRateUnit = PayRateUnit.PerClass },
             new StaffProfile { PersonId = ana.Id, ExperienceSummary = "No-gi program · 1st degree black", PayRate = 40m, PayRateUnit = PayRateUnit.PerClass },
-            new StaffProfile { PersonId = dana.Id, ExperienceSummary = "Kids program · brown belt", PayRate = 35m, PayRateUnit = PayRateUnit.PerClass },
+            new StaffProfile { PersonId = dana.Id, ExperienceSummary = "Kids program & Bootcamp · brown belt", PayRate = 35m, PayRateUnit = PayRateUnit.PerClass },
+            new StaffProfile { PersonId = chai.Id, ExperienceSummary = "Muay Thai program · Kru, 60+ fights", Bio = "Came up through the camps of Khon Kaen. Technique-first: footwork and balance before power — sparring is earned, never assumed.", PayRate = 40m, PayRateUnit = PayRateUnit.PerClass },
             new StaffProfile { PersonId = kim.Id, ExperienceSummary = "Front desk & ops", PayRate = 1400m, PayRateUnit = PayRateUnit.Monthly });
+
+        // The public marketing page (#140): programs and stories reference the
+        // real seeded grid; image slots stay empty for live upload at the pitch.
+        db.GymPrograms.AddRange(
+            new GymProgram
+            {
+                Id = Guid.NewGuid(),
+                Title = "Brazilian Jiu-Jitsu",
+                SortOrder = 1,
+                Description = """
+                    Gi and no-gi grappling for every level — a **fundamentals** track that assumes nothing, advanced classes that hold nothing back, and a kids program that builds calm, confident problem-solvers.
+
+                    - Fundamentals: Monday & Thursday
+                    - Advanced gi: Monday & Wednesday
+                    - No-gi: Tuesday (lunch and evening)
+                    - Kids: Wednesday · Open mat: Friday
+                    """,
+            },
+            new GymProgram
+            {
+                Id = Guid.NewGuid(),
+                Title = "Bootcamp",
+                SortOrder = 2,
+                Description = """
+                    Forty-five minutes, zero technique barrier — kettlebells, sleds, intervals, and the occasional tire. Built to make your first BJJ or Muay Thai round feel easier, or to stand alone as the hardest workout of your week.
+
+                    - Tuesday & Thursday, 6:00 AM
+                    - Saturday circuits, 9:00 AM
+                    """,
+            },
+            new GymProgram
+            {
+                Id = Guid.NewGuid(),
+                Title = "Muay Thai",
+                SortOrder = 3,
+                Description = """
+                    The art of eight limbs, taught technique-first: footwork, balance, and clean mechanics before power. Pad rounds every class; sparring is invite-based and controlled.
+
+                    - Monday & Wednesday evenings
+                    - Friday sparring (invite)
+                    """,
+            });
+
+        db.SuccessStories.AddRange(
+            new SuccessStory { Id = Guid.NewGuid(), SortOrder = 1, AttributedTo = "Marcus W., blue belt", Body = "Walked in to lose a little weight; eighteen months later I've got a blue belt, twenty fewer pounds, and a Tuesday crew I'd run through a wall for." },
+            new SuccessStory { Id = Guid.NewGuid(), SortOrder = 2, AttributedTo = "Ana R., purple belt", Body = "I came for self-defense and stayed for the chess. Five years in, purple belt now, and still learning something every single round." },
+            new SuccessStory { Id = Guid.NewGuid(), SortOrder = 3, AttributedTo = "Sarah H., gym parent", Body = "My teenager walked in shy and walked out of his first tournament with his hand raised. The coaches here teach a lot more than armbars." });
 
         await db.SaveChangesAsync(ct);
         tenant.Clear();
@@ -307,9 +460,9 @@ public class DemoSeeder(GymStationDbContext db, TenantContext tenant)
             return person;
         }
 
-        void Award(Person person, Domain.Ranks.Rank rank, int stripes, DateOnly on, bool selfReported = false)
+        void Award(Person person, Rank rank, int stripes, DateOnly on, bool selfReported = false, Guid? by = null)
         {
-            db.RankAwards.Add(new Domain.Ranks.RankAward
+            db.RankAwards.Add(new RankAward
             {
                 Id = Guid.NewGuid(),
                 PersonId = person.Id,
@@ -317,7 +470,7 @@ public class DemoSeeder(GymStationDbContext db, TenantContext tenant)
                 Stripes = stripes,
                 AwardedOn = on,
                 SelfReported = selfReported,
-                AwardedByPersonId = selfReported ? null : silva?.Id,
+                AwardedByPersonId = selfReported ? null : by ?? silva?.Id,
             });
         }
 
