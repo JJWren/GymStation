@@ -55,7 +55,7 @@
     {
         @* The dragged card's session belongs to a week that paged away (#132) —
            keep a ghost under the pointer so the grab visibly survives the swap. *@
-        <div class="rail-ses rail-ses--moving"
+        <div class="rail-ses rail-ses--moving" aria-hidden="true"
              style="grid-column:@ghost.PreviewColumn;grid-row:@ghost.PreviewRow / span @ghost.PreviewSpan;width:calc(100% - 0.1875rem);touch-action:none">
             <b>@PreviewStart(ghost).ToString("HH\\:mm")</b>
             <span>@ghost.Session.Name</span>
