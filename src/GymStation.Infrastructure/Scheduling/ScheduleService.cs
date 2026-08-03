@@ -128,9 +128,9 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
                 .Select(a => a.PersonId)
                 .ToListAsync(ct);
             recipients.AddRange(await notifications.UserIdsForPersonsAsync(checkedInPersonIds, ct));
-            recipients.AddRange(await db.GuardianLinks
-                .Where(l => checkedInPersonIds.Contains(l.ChildPersonId))
-                .Select(l => l.GuardianUserId)
+            recipients.AddRange(await db.FamilyGuardians
+                .Join(db.FamilyMembers.Where(m => m.IsWard && checkedInPersonIds.Contains(m.PersonId)),
+                    g => g.FamilyId, m => m.FamilyId, (g, m) => g.GuardianUserId)
                 .ToListAsync(ct));
 
             notifications.Notify(
@@ -215,9 +215,9 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
             .Select(a => a.PersonId)
             .ToListAsync(ct);
         recipients.AddRange(await notifications.UserIdsForPersonsAsync(checkedInPersonIds, ct));
-        recipients.AddRange(await db.GuardianLinks
-            .Where(l => checkedInPersonIds.Contains(l.ChildPersonId))
-            .Select(l => l.GuardianUserId)
+        recipients.AddRange(await db.FamilyGuardians
+            .Join(db.FamilyMembers.Where(m => m.IsWard && checkedInPersonIds.Contains(m.PersonId)),
+                g => g.FamilyId, m => m.FamilyId, (g, m) => g.GuardianUserId)
             .ToListAsync(ct));
 
         notifications.Notify(
@@ -255,9 +255,9 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
             .Select(a => a.PersonId)
             .ToListAsync(ct);
         recipients.AddRange(await notifications.UserIdsForPersonsAsync(checkedInPersonIds, ct));
-        recipients.AddRange(await db.GuardianLinks
-            .Where(l => checkedInPersonIds.Contains(l.ChildPersonId))
-            .Select(l => l.GuardianUserId)
+        recipients.AddRange(await db.FamilyGuardians
+            .Join(db.FamilyMembers.Where(m => m.IsWard && checkedInPersonIds.Contains(m.PersonId)),
+                g => g.FamilyId, m => m.FamilyId, (g, m) => g.GuardianUserId)
             .ToListAsync(ct));
 
         notifications.Notify(

@@ -36,16 +36,18 @@ public class GymClaimsPrincipalFactory(
     // Defense against a stale column: a gym the user has since left never becomes
     // their tenant again. Query filters need a tenant to exist, so this check runs
     // unfiltered on purpose — mirroring GymMembershipService.IsUserInGymAsync,
-    // including the child join: a GuardianLink only counts while its child Person
-    // is in the same gym and not archived.
+    // including the ward join: family guardianship only counts while a ward Person
+    // is in the same gym and not archived (#89).
     private async Task<bool> IsStillInGymAsync(Guid userId, Guid gymId)
     {
         await using var db = await dbFactory.CreateDbContextAsync();
         return await db.Persons.IgnoreQueryFilters()
                    .AnyAsync(p => p.GymId == gymId && p.UserId == userId && !p.Archived)
-               || await db.GuardianLinks.IgnoreQueryFilters()
-                   .Where(l => l.GuardianUserId == userId && l.GymId == gymId)
-                   .Join(db.Persons.IgnoreQueryFilters(), l => l.ChildPersonId, p => p.Id, (_, p) => p)
+               || await db.FamilyGuardians.IgnoreQueryFilters()
+                   .Where(g => g.GuardianUserId == userId && g.GymId == gymId)
+                   .Join(db.FamilyMembers.IgnoreQueryFilters().Where(m => m.IsWard && m.GymId == gymId),
+                       g => g.FamilyId, m => m.FamilyId, (g, m) => m)
+                   .Join(db.Persons.IgnoreQueryFilters(), m => m.PersonId, p => p.Id, (_, p) => p)
                    .AnyAsync(p => p.GymId == gymId && !p.Archived);
     }
 }

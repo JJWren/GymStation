@@ -18,6 +18,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
         services.AddScoped<GymMembershipService>();
         services.AddScoped<People.PersonService>();
+        services.AddScoped<People.FamilyService>();
         services.AddScoped<RankService>();
         services.AddScoped<NotificationService>();
         services.AddScoped<ScheduleService>();

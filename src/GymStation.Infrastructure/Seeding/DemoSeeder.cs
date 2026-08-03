@@ -75,8 +75,9 @@ public class DemoSeeder(GymStationDbContext db, TenantContext tenant)
         var tom = Cast("Tom", "Hale", PersonRoles.Member, today.AddYears(-15), adultPlan.Id, 2025);
         var leo = Cast("Leo", "Park", PersonRoles.Member, today.AddYears(-8), kidsPlan.Id, 2026, hasLogin: false);
 
-        db.GuardianLinks.Add(new GuardianLink { Id = Guid.NewGuid(), GuardianUserId = NewUser("sarah.hale"), ChildPersonId = tom.Id });
-        db.GuardianLinks.Add(new GuardianLink { Id = Guid.NewGuid(), GuardianUserId = NewUser("jin.park"), ChildPersonId = leo.Id });
+        // Two single-guardian families (#89): the primary holds every flag.
+        AddFamily("HALE FAMILY", NewUser("sarah.hale"), tom);
+        AddFamily("PARK FAMILY", NewUser("jin.park"), leo);
 
         // Fill the roster to ~50: 30 generated adults + 12 generated kids.
         var generatedAdults = new List<Person>();
@@ -248,6 +249,24 @@ public class DemoSeeder(GymStationDbContext db, TenantContext tenant)
         tenant.Clear();
         _ = torres;
         return gym.Id;
+
+        void AddFamily(string familyName, Guid guardianUserId, Person ward)
+        {
+            var family = new Family { Id = Guid.NewGuid(), Name = familyName };
+            db.Families.Add(family);
+            db.FamilyMembers.Add(new FamilyMember { Id = Guid.NewGuid(), FamilyId = family.Id, PersonId = ward.Id, IsWard = true });
+            db.FamilyGuardians.Add(new FamilyGuardian
+            {
+                Id = Guid.NewGuid(),
+                FamilyId = family.Id,
+                GuardianUserId = guardianUserId,
+                IsPrimary = true,
+                ActForWards = true,
+                ManageGuardians = true,
+                ManageMembers = true,
+                ViewBilling = true,
+            });
+        }
 
         ClassType Tag(string tagName, string color)
         {

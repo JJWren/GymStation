@@ -31,7 +31,9 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
     public DbSet<Gym> Gyms => Set<Gym>();
     public DbSet<GymSettings> GymSettings => Set<GymSettings>();
     public DbSet<Person> Persons => Set<Person>();
-    public DbSet<GuardianLink> GuardianLinks => Set<GuardianLink>();
+    public DbSet<Family> Families => Set<Family>();
+    public DbSet<FamilyMember> FamilyMembers => Set<FamilyMember>();
+    public DbSet<FamilyGuardian> FamilyGuardians => Set<FamilyGuardian>();
     public DbSet<StaffProfile> StaffProfiles => Set<StaffProfile>();
     public DbSet<RankSystem> RankSystems => Set<RankSystem>();
     public DbSet<Rank> Ranks => Set<Rank>();
@@ -89,11 +91,29 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
             e.HasQueryFilter(p => CurrentGymId != null && p.GymId == CurrentGymId);
         });
 
-        builder.Entity<GuardianLink>(e =>
+        builder.Entity<Family>(e =>
         {
-            e.HasIndex(l => new { l.GuardianUserId, l.ChildPersonId }).IsUnique();
-            e.HasOne(l => l.ChildPerson).WithMany().HasForeignKey(l => l.ChildPersonId).OnDelete(DeleteBehavior.Cascade);
-            e.HasQueryFilter(l => CurrentGymId != null && l.GymId == CurrentGymId);
+            e.Property(f => f.Name).HasMaxLength(80);
+            e.HasMany(f => f.Members).WithOne().HasForeignKey(m => m.FamilyId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(f => f.Guardians).WithOne().HasForeignKey(g => g.FamilyId).OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(f => CurrentGymId != null && f.GymId == CurrentGymId);
+        });
+
+        builder.Entity<FamilyMember>(e =>
+        {
+            // One family per Person per gym — the aggregate owns the person's guardianship.
+            e.HasIndex(m => new { m.GymId, m.PersonId }).IsUnique();
+            e.HasOne(m => m.Person).WithMany().HasForeignKey(m => m.PersonId).OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(m => CurrentGymId != null && m.GymId == CurrentGymId);
+        });
+
+        builder.Entity<FamilyGuardian>(e =>
+        {
+            e.HasIndex(g => new { g.FamilyId, g.GuardianUserId }).IsUnique();
+            // Exactly one primary per family — the service enforces transfer atomicity,
+            // the filtered index backstops it.
+            e.HasIndex(g => g.FamilyId).IsUnique().HasFilter("\"IsPrimary\"");
+            e.HasQueryFilter(g => CurrentGymId != null && g.GymId == CurrentGymId);
         });
 
         builder.Entity<StaffProfile>(e =>

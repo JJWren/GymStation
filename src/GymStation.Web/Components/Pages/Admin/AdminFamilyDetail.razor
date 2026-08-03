@@ -1,0 +1,192 @@
+@page "/admin/families/{FamilyId:guid}"
+@attribute [Authorize(Policy = "GymStaff")]
+@layout AdminLayout
+@using GymStation.Domain.People
+@inject IDbContextFactory<GymStationDbContext> DbFactory
+
+<PageTitle>Family · GymStation</PageTitle>
+
+@if (_family is null)
+{
+    <h1 class="page-title">FAMILY</h1>
+    <p class="cap">NOT FOUND IN THE ACTIVE GYM. <a href="/admin/families">BACK TO FAMILIES.</a></p>
+}
+else
+{
+    <h1 class="page-title">@_family.Name</h1>
+    <p class="page-sub"><a href="/admin/families">FAMILIES</a> ▸ STRUCTURE ONLY — GUARDIANS DO THE ACTING</p>
+
+    @if (FailedFlag == 2)
+    {
+        <p class="auth-error" role="alert">No login exists for that email — have them register first.</p>
+    }
+    else if (FailedFlag is not null)
+    {
+        <p class="auth-error" role="alert">That change was rejected — check the values and try again.</p>
+    }
+
+    <div class="detail-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:1.125rem;align-items:start">
+        <section>
+            <h2 class="section-h">Members</h2>
+            @foreach (var member in _members)
+            {
+                <div class="form-card" style="margin-bottom:0.5rem">
+                    <div class="head-row">
+                        <b><a href="/admin/people/@member.Person.Id">@member.Person.DisplayName</a></b>
+                        <span class="stamp @(member.Membership.IsWard ? "stamp--warn" : "stamp--dim")">@(member.Membership.IsWard ? "WARD" : "ADULT")</span>
+                    </div>
+                    <div class="row-form" style="margin-top:0.375rem">
+                        <form method="post" action="/admin/family-actions/set-ward" style="margin:0">
+                            <AntiforgeryToken />
+                            <input type="hidden" name="familyId" value="@FamilyId" />
+                            <input type="hidden" name="personId" value="@member.Person.Id" />
+                            <input type="hidden" name="isWard" value="@((!member.Membership.IsWard).ToString())" />
+                            <button class="btn btn--ghost btn--xs" type="submit">@(member.Membership.IsWard ? "MAKE ADULT" : "MAKE WARD")</button>
+                        </form>
+                        <form method="post" action="/admin/family-actions/remove-member" style="margin:0">
+                            <AntiforgeryToken />
+                            <input type="hidden" name="familyId" value="@FamilyId" />
+                            <input type="hidden" name="personId" value="@member.Person.Id" />
+                            <button class="btn btn--ghost btn--xs" type="submit">REMOVE</button>
+                        </form>
+                    </div>
+                </div>
+            }
+            @if (_members.Count == 0)
+            {
+                <p class="cap">NO MEMBERS YET.</p>
+            }
+
+            <form method="post" action="/admin/family-actions/add-member" class="row-form" style="margin-top:0.5rem">
+                <AntiforgeryToken />
+                <input type="hidden" name="familyId" value="@FamilyId" />
+                <select name="personId" aria-label="Person">
+                    @foreach (var person in _addablePersons)
+                    {
+                        <option value="@person.Id">@person.DisplayName</option>
+                    }
+                </select>
+                <label class="cap" style="margin:0"><input type="checkbox" name="isWard" value="true" checked /> WARD</label>
+                <button class="btn btn--ghost btn--xs" type="submit">+ MEMBER</button>
+            </form>
+            <p class="cap">ONE FAMILY PER PERSON — ONLY PEOPLE WITHOUT A FAMILY ARE LISTED.</p>
+
+            <h2 class="section-h">Rename</h2>
+            <form method="post" action="/admin/family-actions/rename" class="row-form">
+                <AntiforgeryToken />
+                <input type="hidden" name="familyId" value="@FamilyId" />
+                <input type="text" name="name" value="@_family.Name" aria-label="Family name" required maxlength="80" style="min-width:10rem" />
+                <button class="btn btn--ghost btn--xs" type="submit">SAVE</button>
+            </form>
+        </section>
+
+        <section>
+            <h2 class="section-h">Guardians</h2>
+            @foreach (var guardian in _guardians)
+            {
+                <div class="form-card" style="margin-bottom:0.5rem">
+                    <div class="head-row">
+                        <b class="mono">@guardian.Email</b>
+                        @if (guardian.Row.IsPrimary)
+                        {
+                            <span class="stamp stamp--ok">PRIMARY</span>
+                        }
+                    </div>
+                    @if (guardian.Row.IsPrimary)
+                    {
+                        <p class="cap" style="margin:0.375rem 0 0">HOLDS EVERY PERMISSION — TRANSFER PRIMACY TO CHANGE HANDS.</p>
+                    }
+                    else
+                    {
+                        <form method="post" action="/admin/family-actions/set-flags" class="check-row" style="margin-top:0.375rem;flex-wrap:wrap">
+                            <AntiforgeryToken />
+                            <input type="hidden" name="familyId" value="@FamilyId" />
+                            <input type="hidden" name="guardianId" value="@guardian.Row.Id" />
+                            <label><input type="checkbox" name="actForWards" value="true" checked="@guardian.Row.ActForWards" /> ACT FOR WARDS</label>
+                            <label><input type="checkbox" name="manageGuardians" value="true" checked="@guardian.Row.ManageGuardians" /> MANAGE GUARDIANS</label>
+                            <label><input type="checkbox" name="manageMembers" value="true" checked="@guardian.Row.ManageMembers" /> MANAGE MEMBERS</label>
+                            <label><input type="checkbox" name="viewBilling" value="true" checked="@guardian.Row.ViewBilling" /> VIEW BILLING</label>
+                            <button class="btn btn--ghost btn--xs" type="submit">SAVE FLAGS</button>
+                        </form>
+                        <div class="row-form" style="margin-top:0.375rem">
+                            <form method="post" action="/admin/family-actions/transfer-primary" style="margin:0">
+                                <AntiforgeryToken />
+                                <input type="hidden" name="familyId" value="@FamilyId" />
+                                <input type="hidden" name="guardianId" value="@guardian.Row.Id" />
+                                <button class="btn btn--ghost btn--xs" type="submit">MAKE PRIMARY</button>
+                            </form>
+                            <form method="post" action="/admin/family-actions/remove-guardian" style="margin:0">
+                                <AntiforgeryToken />
+                                <input type="hidden" name="familyId" value="@FamilyId" />
+                                <input type="hidden" name="guardianId" value="@guardian.Row.Id" />
+                                <button class="btn btn--ghost btn--xs" type="submit">REMOVE</button>
+                            </form>
+                        </div>
+                    }
+                </div>
+            }
+            @if (_guardians.Count == 0)
+            {
+                <p class="cap">NO GUARDIANS — ADD THE FIRST LOGIN AND IT BECOMES PRIMARY AUTOMATICALLY.</p>
+            }
+
+            <form method="post" action="/admin/family-actions/add-guardian" style="margin-top:0.5rem" class="form-card">
+                <AntiforgeryToken />
+                <input type="hidden" name="familyId" value="@FamilyId" />
+                <label for="gemail">Guardian login email (must already exist)</label>
+                <input id="gemail" type="email" name="email" required style="width:100%" />
+                <div class="check-row" style="margin-top:0.375rem;flex-wrap:wrap">
+                    <label><input type="checkbox" name="actForWards" value="true" checked /> ACT FOR WARDS</label>
+                    <label><input type="checkbox" name="manageGuardians" value="true" /> MANAGE GUARDIANS</label>
+                    <label><input type="checkbox" name="manageMembers" value="true" /> MANAGE MEMBERS</label>
+                    <label><input type="checkbox" name="viewBilling" value="true" /> VIEW BILLING</label>
+                </div>
+                <p style="margin-top:0.625rem"><button class="btn btn--ghost btn--xs" type="submit">+ GUARDIAN</button></p>
+            </form>
+        </section>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid FamilyId { get; set; }
+    [SupplyParameterFromQuery(Name = "failed")] public int? FailedFlag { get; set; }
+
+    private Family? _family;
+    private List<(FamilyMember Membership, Person Person)> _members = [];
+    private List<(FamilyGuardian Row, string Email)> _guardians = [];
+    private List<Person> _addablePersons = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _family = await db.Families.SingleOrDefaultAsync(f => f.Id == FamilyId);
+        if (_family is null)
+        {
+            return;
+        }
+
+        var memberships = await db.FamilyMembers.Where(m => m.FamilyId == FamilyId).ToListAsync();
+        var personIds = memberships.Select(m => m.PersonId).ToList();
+        var persons = await db.Persons.Where(p => personIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id);
+        _members = memberships
+            .Where(m => persons.ContainsKey(m.PersonId))
+            .Select(m => (m, persons[m.PersonId]))
+            .OrderBy(x => x.Item2.FirstName)
+            .ToList();
+
+        var guardianRows = await db.FamilyGuardians.Where(g => g.FamilyId == FamilyId)
+            .OrderByDescending(g => g.IsPrimary)
+            .ToListAsync();
+        var userIds = guardianRows.Select(g => g.GuardianUserId).ToList();
+        var emails = await db.Users.Where(u => userIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.Email ?? u.UserName ?? "unknown");
+        _guardians = guardianRows.Select(g => (g, emails.GetValueOrDefault(g.GuardianUserId, "unknown"))).ToList();
+
+        // Correlated NOT EXISTS — no materialized ID list, stays cheap on big rosters.
+        _addablePersons = await db.Persons
+            .Where(p => !p.Archived && !db.FamilyMembers.Any(m => m.PersonId == p.Id))
+            .OrderBy(p => p.FirstName).ThenBy(p => p.LastName)
+            .ToListAsync();
+    }
+}

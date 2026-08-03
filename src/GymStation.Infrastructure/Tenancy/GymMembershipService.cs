@@ -17,14 +17,16 @@ public class GymMembershipService(GymStationDbContext db)
             .Where(p => p.UserId == userId && !p.Archived)
             .Select(p => p.GymId);
 
-        // Guardians belong wherever their linked children train — even with no
-        // roster record of their own (the Sarah-and-Tom case). The link's own GymId
-        // must agree with the child's: a malformed cross-tenant link grants nothing.
-        var viaChildren = db.GuardianLinks.IgnoreQueryFilters()
-            .Where(l => l.GuardianUserId == userId)
+        // Guardians belong wherever their wards train — even with no roster record
+        // of their own (the Sarah-and-Tom case). Every row's GymId must agree with
+        // the ward Person's: malformed cross-tenant data grants nothing (#89).
+        var viaChildren = db.FamilyGuardians.IgnoreQueryFilters()
+            .Where(g => g.GuardianUserId == userId)
+            .Join(db.FamilyMembers.IgnoreQueryFilters().Where(m => m.IsWard),
+                g => g.FamilyId, m => m.FamilyId, (g, m) => new { g.GymId, Member = m })
             .Join(db.Persons.IgnoreQueryFilters().Where(p => !p.Archived),
-                l => l.ChildPersonId, p => p.Id, (l, p) => new { l.GymId, ChildGymId = p.GymId })
-            .Where(x => x.GymId == x.ChildGymId)
+                x => x.Member.PersonId, p => p.Id, (x, p) => new { x.GymId, MemberGymId = x.Member.GymId, ChildGymId = p.GymId })
+            .Where(x => x.GymId == x.ChildGymId && x.MemberGymId == x.ChildGymId)
             .Select(x => x.ChildGymId);
 
         return await direct.Concat(viaChildren)
@@ -37,9 +39,11 @@ public class GymMembershipService(GymStationDbContext db)
     {
         return await db.Persons.IgnoreQueryFilters()
                 .AnyAsync(p => p.UserId == userId && p.GymId == gymId && !p.Archived, ct)
-            || await db.GuardianLinks.IgnoreQueryFilters()
-                .Where(l => l.GuardianUserId == userId && l.GymId == gymId)
-                .Join(db.Persons.IgnoreQueryFilters(), l => l.ChildPersonId, p => p.Id, (_, p) => p)
+            || await db.FamilyGuardians.IgnoreQueryFilters()
+                .Where(g => g.GuardianUserId == userId && g.GymId == gymId)
+                .Join(db.FamilyMembers.IgnoreQueryFilters().Where(m => m.IsWard && m.GymId == gymId),
+                    g => g.FamilyId, m => m.FamilyId, (g, m) => m)
+                .Join(db.Persons.IgnoreQueryFilters(), m => m.PersonId, p => p.Id, (_, p) => p)
                 .AnyAsync(p => p.GymId == gymId && !p.Archived, ct);
     }
 
