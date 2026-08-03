@@ -70,6 +70,15 @@ public static class AppMarkdown
             return "#";
         }
 
+        // Rooted/fragment/dot-relative paths short-circuit BEFORE Uri parsing:
+        // on Linux, Uri.TryCreate("/x", Absolute) succeeds as a file:// URI and
+        // the scheme allow-list would eat legitimate site links (CI caught this;
+        // Windows parses the same string as non-absolute).
+        if (url[0] is '/' or '#' or '?' or '.')
+        {
+            return url.Contains(':') ? "#" : url;
+        }
+
         if (Uri.TryCreate(url, UriKind.Absolute, out var absolute))
         {
             return absolute.Scheme is "http" or "https" or "mailto" or "tel" ? url : "#";
