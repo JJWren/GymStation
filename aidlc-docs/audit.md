@@ -151,3 +151,69 @@ As an instructor, when I click all substitutions, it shouldn't take me to the ad
 **Context**: Inception complete → Construction loop begins
 
 ---
+
+## Round-4 Retest Request (UI/UX fluidity + landing buildout)
+**Timestamp**: 2026-08-03T00:00:00Z
+**User Input**: "Project: https://github.com/JJWren/GymStation
+
+- We should make the overal UI/UX more fluid and less disconnected.
+- Example: For things that need to be edited, we should have a pencil icon next to it that when we click it, it turns the field editable. This means when it becomes editable, this pencil icon button should transform into two icon buttons -- green save icon (floppy disk?) and red cancel x. (When one of these is used, the action should happen, and the buttons should go back to being a pencil and the field is uneditable again -- which should look distinct from editable). One example field would be in Families. I select \"Park Family\" and it takes me to that family. At the top, I see the family name, but at the bottom there is a Rename functionality. We should do away with the rename section and use the pencil/disk/x button pattern I mentioned. Editing a person would be the same. We should discuss how that works with the other fields like DOB and the checkboxes -- though they are probably fine as is.
+- There are area where there are images. Somewhere nearby, there is a choose file button No file chosen (whether or not an image is there). We can improve this by using the existing functionality by just using the image area directly (click on the image area - no choose file section). We can instead make it obvious an image is editable (by those with the access to do so) by having a hoverable distinction happen. Example: Admin user hovers over person's image and it slighty dims out while a pencil overlay appears. If the user stops hovering, it goes away. If the user clicks, the same image selection and editing occurs as it did before. An example of close to what I mean is the fade in a box example in https://www.w3schools.com/howto/howto_css_image_overlay.asp. Instead of \"John\", a large, no background, no fill pencil would be used instead.
+- Contact number can and probably should be moved inside the edit person section.
+- The draggable and stretchable schedule pieces are good. One side effect however is that when I do use either of those and set the class/event where it needs to be, it then opens the modal when let go of my click. That shouldn't happen if I drag it or stretch/shrink it. Also, I should be able to move the class between days (I should be able to drag a class/event anywhere on the calendar. We should discuss how to move a class between weeks via dragging (if it's a significant difference, it's easier to just click and change the day, but for a single day or week difference, I would hope that I could hover the edge with the class and after a brief delay have the week move left or right respectively with me still holding/dragging the class/event). Also, I see that a schedule week is starting on Monday. As I am US-based, our weeks typically start on Sunday. Weeks in this view should lead with Sunday.
+- All buttons that say \"Save\" should be converted to a green save floppy disk. This goes for things like \"+ Income\" or \"+ Expense\" as well.
+- All buttons that say \"Delete\" should be come red delete trash cans.
+- These buttons should have hoverable effects that make it obvious the button is being hovered (besides the pointer changer). A subtle glow effect would work fine.
+- In the finance section, at the top, the collected chip is whatever theme the owner/admin of the site has set. I believe it should be green. The outstanding should be red or orange. the chip with current and behind in it should have the current section be green and the behind section either red or orange. The other income chip should remain as is when it is $0, but go green if it is positive.
+- Events should have images that display with their card - which means we need the functionality to add/edit an image with an event (just like the other images in this app). The image to be added in the publish section should be below Title field. In the event view for members, it should appear above where the chip and header for the event card (meaning the event card becomes larger). From the direct event view, it should be below the header and p.cap, but above the form-card section.
+- The visit section of the landing should use the respective colored icons for any given social platform instead of having them typed out.
+- Instructor cards on the landing should be hoverable with a glow, and when clicked, bring up a larger and more descriptive card (modal) for the instructor that has their image, name, belt and years of experience, gym description, about me (if filled out), hobbies (if filled out), and a little x at the top right that can be clicked to remove the modal card view. This should be relatively the same on a smaller device.
+- The landing page should have an About section (filled in from the admin landing settings). It should be before any other section.
+- It should also have a Programs section that has a custom title, custom description, custom program list.
+- It should also have a success stories section with a custom title, cards with story description and who it is by, an image that should be shown in this section as a whole.
+- With the Visit section, there should also be a contact section with a form: first name, last name, email, phone, message box, form submit (send message). This should be able to be configured to be sent to an email (optional) but also go to an admin message box (contact form messages - envelope icon? we should discuss). This needs to block common spam messages or places trying to sell something. Emails should be verified to be real emails. Either email or phone is required (at least but not both, but sending both is fine). Phone if used should be auto-formatted to \"(###) ###-####\" format. The user can do this on their own, but if they simply type out the number, this formatting automatically happens (user starts typing with \"2\", it automatically becomes \"(2\" and as they type the 3rd digit like \"(251\" it would automatically become \"(251) \".
+- When I put in urls for instagram and facebook (didn't test others), on the landing they smash up directly into each other and look like one word/link: \"INSTAGRAMFACEBOOK\".
+- Progams should be clickable and pull up modal that describe the particular program (Image, Title, description).
+- All descriptions (large text fields) should support markdown so things like custom bold, underlined, and italicized print; ordered and unordered lists, etc become easier to do.
+
+---
+
+As an aside, my gym is predominantly BJJ, Fitness/Conditioning (called \"Bootcamp\"), and Muy Thai focused. We should look at the gaps when it comes to this. Some things don't apply at all to the other groups and that may be just fine. I think we should look at it overall from that perspective."
+**AI Response**: Explored the codebase (3 fact sheets: admin edit/button patterns, schedule island/events/media, landing/content models/infra), then grilled 19 decisions one at a time.
+**Context**: Round-4 backlog inception (grill-with-docs session); plan approved via plan-mode approval
+
+---
+
+## Round-4 Grilling Decisions
+**Timestamp**: 2026-08-03
+**Q1 Round goal** → "Full product round (Recommended)" — rounds 1–3 rigor, no pitch shortcuts.
+**Q2 Execution shape** → "Round-4 board + waves (Recommended)" — docs/plans/round4-backlog.md, issues in waves, standard loop.
+**Q3 Button style** → **"Icon-only everywhere"** (overrode the icon+label recommendation, with the Income/Expense ambiguity explicitly shown) — bare icons + aria-label + title tooltip.
+**Q4 Icon scope** → "Semantic rule (Recommended)" — floppy = persist-a-record; trash = hard deletes only; VOID/ARCHIVE/REMOVE/etc. keep text; MyFamily RENAME → inline-pencil pattern.
+**Q5 U1 mechanism** → "Static JS enhancement (Recommended)" — inline-edit.js, instant client-side swap, normal POST, no islands.
+**Q6 U1 scope + U3** → "Name-in-header + merged form (Recommended)" — family/person names inline at h1; edit-person keeps DOB+checkboxes, absorbs contact; Contact section dies.
+**Q7 U4 drag scope** → "All three (Recommended)" — bug fix + cross-day drag + modal date field + edge-hover week paging (own issue, sequenced last).
+**Q8 Week start** → "Hardcode Sunday everywhere (Recommended)" — shared WeekOf() helper is the future seam.
+**Q9 U8 chip colors** → "Red --bad (Recommended)" — outstanding/behind red; collected/current/positive-other-income green --ok.
+**Q10 U9 event image aspect** → "Square 1:1 (Recommended)" — IG-flyer format, OutWidth 1024.
+**Q11 U11 portrait privacy** → custom answer (verbatim): "Instructors are essentially already public figures for the gym. Their photos are only attached by staff and are for internal systems and for visitors to the gym page. Instructor images should be public." — Doctrine change scoped to unarchived Instructor-role persons; ADR 0003.
+**Q12 U11 "gym description"** → "The gym's About text" — the gym-wide About blurb repeats inside every instructor's modal.
+**Q13 Programs** → "New Program entity (Recommended)" — first-class marketing offering, CONTEXT.md distinction vs ClassType.
+**Q14 Page order** → **"Admin-orderable sections"** (overrode the fixed-funnel recommendation) — SectionOrder keys + ▲▼ controls; default funnel with About first.
+**Q15 U10 socials** → "Add TikTok + X (Recommended)" — five platforms, brand-color inline SVGs.
+**Q16 U15 spam** → "Layered passive + MX check (Recommended)" — honeypot, min-time, rate limit, heuristics, strict format, best-effort MX fail-open; no CAPTCHA.
+**Q17 U15 inbox** → "New /admin/messages + badge (Recommended)" — ContactMessage entity, MESSAGES nav + unread badge + envelope glyph, in-app admin fan-out, optional forward-to email.
+**Q18 U18 markdown** → "Full sweep, hint-only (Recommended)" — all long-text fields incl. private diary via one audited MarkdownBlock (Markdig, raw HTML off, ++underline++); contact bodies excluded.
+**Q19 U19 discipline gaps** → multi-select: "Custom rank ladders UI" + "Multi-discipline demo seed" — BJJ-ism copy sweep and per-program stats stay future-board notes.
+**AI Response**: Wrote the Round-4 Backlog plan (waves A–D, issues #123–#140); Joshua approved via plan-mode approval.
+**Context**: Inception complete → Construction loop begins
+
+---
+
+## Round-4 Addendum: Platform Brand Assets
+**Timestamp**: 2026-08-03
+**User Input**: "I used Claude Design in the existing design system for GymStation to create a logo and favicon. Please also incorporate these into the issues and utilize them."
+**AI Response**: Pulled assets/logo.svg + assets/favicon.svg + foundations/logo.html from the "GymStation Design System" Claude Design project; synced all three into repo design/ (mirror); filed #141 (wave A) — favicon in app head, BrandMark component, lockups per spec rules (never restripe; bar/stripes never tenant-colored; mono lockup for chrome/footers); added to round4-backlog.md.
+**Context**: Round-4 inception addendum — brand adoption joins Wave A as #141
+
+---
