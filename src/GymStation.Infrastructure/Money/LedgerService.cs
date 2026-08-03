@@ -136,7 +136,7 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
             .ToList();
     }
 
-    public async Task<(decimal CollectedInMonth, decimal Outstanding, int MembersCurrent, int MembersBehind)> MonthSummaryAsync(
+    public async Task<(decimal CollectedInMonth, decimal Outstanding, int MembersCurrent, int MembersBehind, decimal OtherIncomeInMonth)> MonthSummaryAsync(
         DateOnly month, CancellationToken ct = default)
     {
         var monthStart = new DateOnly(month.Year, month.Month, 1);
@@ -146,10 +146,14 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
             .Where(p => p.VoidedUtc == null && p.ReceivedOn >= monthStart && p.ReceivedOn <= monthEnd)
             .SumAsync(p => (decimal?)p.Amount, ct) ?? 0m;
 
+        var otherIncome = await db.OtherIncomes
+            .Where(x => x.ReceivedOn >= monthStart && x.ReceivedOn <= monthEnd)
+            .SumAsync(x => (decimal?)x.Amount, ct) ?? 0m;
+
         var dues = await DuesAsync(ct);
         var chargedPeople = await db.Charges.Select(c => c.PersonId).Distinct().CountAsync(ct);
 
-        return (collected, dues.Sum(d => d.Balance), chargedPeople - dues.Count, dues.Count);
+        return (collected, dues.Sum(d => d.Balance), chargedPeople - dues.Count, dues.Count, otherIncome);
     }
 
     /// <summary>Voids (never deletes) a payment with an audit trail; every derived number drops it.</summary>
@@ -195,16 +199,13 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
             return 0;
         }
 
-        var ids = active.Select(r => r.Id).ToList();
-        var alreadyThisMonth = (await db.Expenses
-                .Where(x => x.RecurringExpenseId != null && ids.Contains(x.RecurringExpenseId.Value)
-                    && x.SpentOn >= monthStart && x.SpentOn < monthStart.AddMonths(1))
-                .Select(x => x.RecurringExpenseId!.Value)
-                .ToListAsync(ct))
-            .ToHashSet();
-
         var created = 0;
-        foreach (var recurring in active.Where(r => !alreadyThisMonth.Contains(r.Id)))
+        var attempted = new List<Guid>();
+
+        // The high-water mark is the idempotency, not row existence: an owner who
+        // deletes this month's materialized rent must not have it resurrected on
+        // the next worker pass (#88).
+        foreach (var recurring in active.Where(r => r.LastMaterializedMonth is null || r.LastMaterializedMonth < monthStart))
         {
             var spentOn = new DateOnly(gymToday.Year, gymToday.Month, Math.Clamp(recurring.DayOfMonth, 1, daysInMonth));
             if (spentOn > gymToday)
@@ -221,6 +222,8 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
                 Note = recurring.Note ?? "Recurring",
                 RecurringExpenseId = recurring.Id,
             });
+            recurring.LastMaterializedMonth = monthStart;
+            attempted.Add(recurring.Id);
             created++;
         }
 
@@ -232,8 +235,15 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
             }
             catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: "23505" })
             {
-                // A concurrent pass materialized the same rows; the index kept it correct.
+                // The (recurring, spentOn) row already exists — a concurrent pass, or
+                // legacy data the backfill didn't cover. The high-water mark must still
+                // advance or every future pass re-collides on the same row, so persist
+                // the marks alone, straight to the database.
                 db.ChangeTracker.Clear();
+                await db.RecurringExpenses
+                    .Where(r => attempted.Contains(r.Id)
+                        && (r.LastMaterializedMonth == null || r.LastMaterializedMonth < monthStart))
+                    .ExecuteUpdateAsync(u => u.SetProperty(r => r.LastMaterializedMonth, monthStart), ct);
                 return 0;
             }
         }
@@ -352,5 +362,104 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
             ?? throw new InvalidOperationException("Recurring expense not found in the active gym.");
         recurring.Active = active;
         await db.SaveChangesAsync(ct);
+    }
+
+    // Expenses and other income are the owner's own bookkeeping — fully editable and
+    // deletable (Joshua explicit, #88). Dues PAYMENTS stay void-only: they involve a
+    // second party and need the audit trail.
+
+    public async Task UpdateExpenseAsync(
+        Guid expenseId, Guid categoryId, decimal amount, DateOnly spentOn, string? note, CancellationToken ct = default)
+    {
+        ValidateMoney(amount, note);
+        var expense = await db.Expenses.SingleOrDefaultAsync(x => x.Id == expenseId, ct)
+            ?? throw new InvalidOperationException("Expense not found in the active gym.");
+        _ = await db.ExpenseCategories.SingleOrDefaultAsync(c => c.Id == categoryId, ct)
+            ?? throw new InvalidOperationException("Category not found in the active gym.");
+
+        expense.CategoryId = categoryId;
+        expense.Amount = amount;
+        expense.SpentOn = spentOn;
+        expense.Note = note?.Trim();
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task DeleteExpenseAsync(Guid expenseId, CancellationToken ct = default)
+    {
+        var expense = await db.Expenses.SingleOrDefaultAsync(x => x.Id == expenseId, ct)
+            ?? throw new InvalidOperationException("Expense not found in the active gym.");
+        db.Expenses.Remove(expense);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<OtherIncome> AddOtherIncomeAsync(
+        string label, decimal amount, DateOnly receivedOn, string? note, CancellationToken ct = default)
+    {
+        label = NormalizeIncomeLabel(label);
+        ValidateMoney(amount, note);
+
+        var income = new OtherIncome
+        {
+            Id = Guid.NewGuid(),
+            Label = label,
+            Amount = amount,
+            ReceivedOn = receivedOn,
+            Note = note?.Trim(),
+        };
+        db.OtherIncomes.Add(income);
+        await db.SaveChangesAsync(ct);
+        return income;
+    }
+
+    public async Task UpdateOtherIncomeAsync(
+        Guid incomeId, string label, decimal amount, DateOnly receivedOn, string? note, CancellationToken ct = default)
+    {
+        label = NormalizeIncomeLabel(label);
+        ValidateMoney(amount, note);
+        var income = await db.OtherIncomes.SingleOrDefaultAsync(x => x.Id == incomeId, ct)
+            ?? throw new InvalidOperationException("Income entry not found in the active gym.");
+
+        income.Label = label;
+        income.Amount = amount;
+        income.ReceivedOn = receivedOn;
+        income.Note = note?.Trim();
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task DeleteOtherIncomeAsync(Guid incomeId, CancellationToken ct = default)
+    {
+        var income = await db.OtherIncomes.SingleOrDefaultAsync(x => x.Id == incomeId, ct)
+            ?? throw new InvalidOperationException("Income entry not found in the active gym.");
+        db.OtherIncomes.Remove(income);
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static string NormalizeIncomeLabel(string label)
+    {
+        label = label?.Trim().ToUpperInvariant() ?? "";
+        if (label.Length == 0)
+        {
+            throw new InvalidOperationException("An income label is required.");
+        }
+
+        if (label.Length > 60)
+        {
+            throw new InvalidOperationException("Keep the income label under 60 characters.");
+        }
+
+        return label;
+    }
+
+    private static void ValidateMoney(decimal amount, string? note)
+    {
+        if (amount <= 0)
+        {
+            throw new InvalidOperationException("The amount must be positive.");
+        }
+
+        if (note is { Length: > 300 })
+        {
+            throw new InvalidOperationException("Keep the note under 300 characters.");
+        }
     }
 }

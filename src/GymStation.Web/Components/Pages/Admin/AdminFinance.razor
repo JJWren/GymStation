@@ -1,3 +1,4 @@
+@page "/admin/finance"
 @page "/admin/dues"
 @attribute [Authorize(Policy = "GymStaff")]
 @layout AdminLayout
@@ -7,17 +8,11 @@
 @inject LedgerService Ledger
 @inject NavigationManager Nav
 
-<PageTitle>Dues · GymStation</PageTitle>
+<PageTitle>Finance · GymStation</PageTitle>
 
-<div class="head-row">
-    <h1 class="page-title">DUES</h1>
-    <form method="post" action="/admin/actions/run-cycle">
-        <AntiforgeryToken />
-        <button class="btn btn--ghost" type="submit">RAISE THIS MONTH'S CHARGES</button>
-    </form>
-</div>
-<p class="page-sub">BALANCES ARE DERIVED (ΣCHARGES − ΣPAYMENTS) · GYMSTATION TRACKS MONEY, IT DOES NOT MOVE IT</p>
-<p class="cap">RAISE = CREATE THIS MONTH'S CHARGE FOR EVERYONE ON A MONTHLY PLAN. SAFE TO REPEAT — ALREADY-CHARGED MEMBERS ARE SKIPPED, AND THE CYCLE ALSO RUNS ITSELF ON THE 1ST.</p>
+<h1 class="page-title">FINANCE</h1>
+<p class="page-sub">DUES · PLANS · INCOME · EXPENSES — BALANCES ARE DERIVED (ΣCHARGES − ΣPAYMENTS) · GYMSTATION TRACKS MONEY, IT DOES NOT MOVE IT</p>
+<p class="cap">THE MONTHLY CYCLE RUNS ITSELF (EVERY 6 HOURS, IDEMPOTENT) — CHARGES AND RECURRING EXPENSES NEED NO BUTTON.</p>
 
 @if (Failed)
 {
@@ -27,21 +22,18 @@
 {
     <p class="auth-error" role="alert">
         @(FailedFlag == 2
-            ? "That plan change was rejected — the name must be unique and the price non-negative."
+            ? "That change was rejected — amounts must be positive, names/labels unique and in range, notes under 300 characters."
             : FailedFlag == 3
                 ? "That category change was rejected — the name must be unique."
                 : "That recurring expense was rejected — positive amount, day between 1 and 31.")
     </p>
-}
-@if (Raised is { } raisedCount)
-{
-    <p class="cap" role="status" style="color:var(--ok)">@(raisedCount > 0 ? $"RAISED {raisedCount} CHARGE(S) FOR {_month.ToString("MMMM").ToUpperInvariant()}." : "NOTHING TO RAISE — THIS MONTH'S CHARGES ALREADY EXIST FOR EVERY PLANNED MEMBER.")</p>
 }
 
 <div class="filters">
     <span class="chip chip--on">$@_summary.CollectedInMonth.ToString("N0") COLLECTED · @_month.ToString("MMM").ToUpperInvariant()</span>
     <span class="chip">$@_summary.Outstanding.ToString("N0") OUTSTANDING</span>
     <span class="chip">@_summary.MembersCurrent CURRENT · @_summary.MembersBehind BEHIND</span>
+    <span class="chip">$@_summary.OtherIncomeInMonth.ToString("N0") OTHER INCOME · @_month.ToString("MMM").ToUpperInvariant()</span>
 </div>
 
 <div class="detail-cols" style="display:grid;grid-template-columns:1.3fr 1fr;gap:1.125rem;align-items:start">
@@ -74,7 +66,7 @@
         }
         @if (_dues.Count > 0)
         {
-            <Pager Path="/admin/dues" Page="@_page" PageCount="@_pageCount" Size="@_size"
+            <Pager Path="/admin/finance" Page="@_page" PageCount="@_pageCount" Size="@_size"
                    Preserve="@(new Dictionary<string, string?> { ["q"] = Q })" />
         }
     </section>
@@ -132,19 +124,68 @@
             <p style="margin-top:0.75rem"><button class="btn btn--ghost" type="submit">+ PLAN</button></p>
         </EditForm>
 
+        <h2 class="section-h">Other income — @_month.ToString("MMMM").ToUpperInvariant()</h2>
+        <div class="form-card">
+            @foreach (var income in _incomes)
+            {
+                <div style="border-bottom:1px dashed #2c3440;padding:0.375rem 0">
+                    <form method="post" action="/admin/actions/update-income" class="row-form" style="margin:0">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="incomeId" value="@income.Id" />
+                        <input type="text" name="label" value="@income.Label" aria-label="Income label" required maxlength="60" style="flex:1;min-width:6.25rem" />
+                        <input type="number" name="amount" value="@income.Amount" step="0.01" min="0.01" aria-label="Amount" style="width:5.25rem" />
+                        <input type="date" name="receivedOn" value="@income.ReceivedOn.ToString("yyyy-MM-dd")" aria-label="Received on" />
+                        <input type="hidden" name="note" value="@income.Note" />
+                        <button class="btn btn--ghost btn--xs" type="submit">SAVE</button>
+                        <button class="btn btn--ghost btn--xs" type="submit" formaction="/admin/actions/delete-income" title="Delete this income entry">DELETE</button>
+                    </form>
+                </div>
+            }
+            @if (_incomes.Count == 0)
+            {
+                <p class="cap" style="margin:0 0 0.375rem">NOTHING LOGGED — SEMINARS, MERCH, AND MAT FEES BELONG HERE. DUES PAYMENTS LIVE ABOVE AND NEVER MOVE.</p>
+            }
+            <div class="head-row" style="padding:0.5rem 0 0">
+                <span class="cap">TOTAL</span>
+                <b class="mono" style="color:var(--ink)">$@_incomes.Sum(x => x.Amount).ToString("N0")</b>
+            </div>
+            <form method="post" action="/admin/actions/add-income" class="row-form" style="margin-top:0.5rem">
+                <AntiforgeryToken />
+                <input type="text" name="label" placeholder="SEMINAR, MERCH…" aria-label="Income label" required maxlength="60" style="flex:1;min-width:6.25rem" />
+                <input type="number" name="amount" step="0.01" min="0.01" placeholder="amount" aria-label="Amount" style="width:5.25rem" />
+                <input type="date" name="receivedOn" value="@DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM-dd")" aria-label="Received on" />
+                <input type="hidden" name="note" value="" />
+                <button class="btn btn--ghost btn--xs" type="submit">+ INCOME</button>
+            </form>
+        </div>
+
         <h2 class="section-h">Expenses — @_month.ToString("MMMM").ToUpperInvariant()</h2>
         <div class="form-card">
             @foreach (var expense in _expenses)
             {
-                <div class="head-row" style="border-bottom:1px dashed #2c3440;padding:0.375rem 0">
-                    <span class="mono">@expense.SpentOn.ToString("dd MMM").ToUpperInvariant() · @expense.Category.Name.ToUpperInvariant()</span>
-                    <span class="mono" style="color:var(--ink)">$@expense.Amount.ToString("N0")</span>
+                <div style="border-bottom:1px dashed #2c3440;padding:0.375rem 0">
+                    <form method="post" action="/admin/actions/update-expense" class="row-form" style="margin:0">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="expenseId" value="@expense.Id" />
+                        <select name="categoryId" aria-label="Category">
+                            @foreach (var category in _allCategories)
+                            {
+                                <option value="@category.Id" selected="@(category.Id == expense.CategoryId)">@category.Name</option>
+                            }
+                        </select>
+                        <input type="number" name="amount" value="@expense.Amount" step="0.01" min="0.01" aria-label="Amount" style="width:5.25rem" />
+                        <input type="date" name="spentOn" value="@expense.SpentOn.ToString("yyyy-MM-dd")" aria-label="Spent on" />
+                        <input type="hidden" name="note" value="@expense.Note" />
+                        <button class="btn btn--ghost btn--xs" type="submit">SAVE</button>
+                        <button class="btn btn--ghost btn--xs" type="submit" formaction="/admin/actions/delete-expense" title="Delete this expense">DELETE</button>
+                    </form>
                 </div>
             }
             <div class="head-row" style="padding:0.5rem 0 0">
                 <span class="cap">TOTAL</span>
                 <b class="mono" style="color:var(--ink)">$@_expenses.Sum(x => x.Amount).ToString("N0")</b>
             </div>
+            <p class="cap" style="margin-top:0.375rem">DELETING A MATERIALIZED RECURRING ROW WON'T RESURRECT IT — THE RECURRING'S HIGH-WATER MARK REMEMBERS THE MONTH.</p>
         </div>
         <EditForm class="form-card" FormName="add-expense" Model="ExpenseForm" OnValidSubmit="AddExpenseAsync" style="margin-top:0.625rem">
             <div class="form-grid">
@@ -237,7 +278,6 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "failed")] public int? FailedFlag { get; set; }
-    [SupplyParameterFromQuery(Name = "raised")] public int? Raised { get; set; }
     [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
     [SupplyParameterFromQuery(Name = "page")] public int? PageRaw { get; set; }
     [SupplyParameterFromQuery(Name = "size")] public int? SizeRaw { get; set; }
@@ -263,11 +303,12 @@
     }
 
     private DateOnly _month = DateOnly.FromDateTime(DateTime.Today);
-    private (decimal CollectedInMonth, decimal Outstanding, int MembersCurrent, int MembersBehind) _summary;
+    private (decimal CollectedInMonth, decimal Outstanding, int MembersCurrent, int MembersBehind, decimal OtherIncomeInMonth) _summary;
     private List<DuesRow> _dues = [];
     private List<MembershipPlan> _plans = [];
     private Dictionary<Guid, int> _planCounts = [];
     private List<Expense> _expenses = [];
+    private List<OtherIncome> _incomes = [];
     private List<ExpenseCategory> _categories = [];
     private List<ExpenseCategory> _allCategories = [];
     private List<RecurringExpense> _recurrings = [];
@@ -316,6 +357,10 @@
             .Where(x => x.SpentOn >= monthStart && x.SpentOn <= monthEnd)
             .OrderByDescending(x => x.SpentOn)
             .ToListAsync();
+        _incomes = await db.OtherIncomes
+            .Where(x => x.ReceivedOn >= monthStart && x.ReceivedOn <= monthEnd)
+            .OrderByDescending(x => x.ReceivedOn)
+            .ToListAsync();
         _allCategories = await db.ExpenseCategories.OrderBy(c => c.Archived).ThenBy(c => c.Name).ToListAsync();
         _categories = _allCategories.Where(c => !c.Archived).ToList();
         _recurrings = await db.RecurringExpenses.Include(r => r.Category)
@@ -347,7 +392,7 @@
 
         db.MembershipPlans.Add(new MembershipPlan { Id = Guid.NewGuid(), Name = name, Price = form.Price });
         await db.SaveChangesAsync();
-        Nav.NavigateTo("/admin/dues");
+        Nav.NavigateTo("/admin/finance");
     }
 
     private async Task AddExpenseAsync()
@@ -384,6 +429,6 @@
 
         db.Expenses.Add(new Expense { Id = Guid.NewGuid(), CategoryId = id, Amount = form.Amount, SpentOn = form.SpentOn });
         await db.SaveChangesAsync();
-        Nav.NavigateTo("/admin/dues");
+        Nav.NavigateTo("/admin/finance");
     }
 }

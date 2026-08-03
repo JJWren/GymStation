@@ -49,6 +49,7 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
     public DbSet<ExpenseCategory> ExpenseCategories => Set<ExpenseCategory>();
     public DbSet<Expense> Expenses => Set<Expense>();
     public DbSet<RecurringExpense> RecurringExpenses => Set<RecurringExpense>();
+    public DbSet<OtherIncome> OtherIncomes => Set<OtherIncome>();
     public DbSet<TrainingEntry> TrainingEntries => Set<TrainingEntry>();
     public DbSet<TrainingRoll> TrainingRolls => Set<TrainingRoll>();
     public DbSet<GymEvent> GymEvents => Set<GymEvent>();
@@ -246,6 +247,15 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
             e.Property(x => x.Amount).HasPrecision(10, 2);
             e.Property(x => x.Note).HasMaxLength(300);
             e.HasOne(x => x.Category).WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
+            e.HasQueryFilter(x => CurrentGymId != null && x.GymId == CurrentGymId);
+        });
+
+        builder.Entity<OtherIncome>(e =>
+        {
+            e.Property(x => x.Label).HasMaxLength(60);
+            e.Property(x => x.Amount).HasPrecision(10, 2);
+            e.Property(x => x.Note).HasMaxLength(300);
+            e.HasIndex(x => new { x.GymId, x.ReceivedOn });
             e.HasQueryFilter(x => CurrentGymId != null && x.GymId == CurrentGymId);
         });
 

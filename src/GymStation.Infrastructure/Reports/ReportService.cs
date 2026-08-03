@@ -4,7 +4,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GymStation.Infrastructure.Reports;
 
-public record MonthMoney(DateOnly Month, decimal Collected, decimal Expenses);
+public record MonthMoney(DateOnly Month, decimal Collected, decimal OtherIncome, decimal Expenses)
+{
+    public decimal TotalIn => Collected + OtherIncome;
+}
 
 public class ReportService(GymStationDbContext db)
 {
@@ -16,6 +19,7 @@ public class ReportService(GymStationDbContext db)
         var payments = await db.Payments.AsNoTracking()
             .Where(p => p.VoidedUtc == null && p.ReceivedOn >= firstMonth)
             .ToListAsync(ct);
+        var otherIncome = await db.OtherIncomes.AsNoTracking().Where(x => x.ReceivedOn >= firstMonth).ToListAsync(ct);
         var expenses = await db.Expenses.AsNoTracking().Where(x => x.SpentOn >= firstMonth).ToListAsync(ct);
 
         var series = new List<MonthMoney>(months);
@@ -26,6 +30,7 @@ public class ReportService(GymStationDbContext db)
             series.Add(new MonthMoney(
                 month,
                 payments.Where(p => p.ReceivedOn >= month && p.ReceivedOn < next).Sum(p => p.Amount),
+                otherIncome.Where(x => x.ReceivedOn >= month && x.ReceivedOn < next).Sum(x => x.Amount),
                 expenses.Where(x => x.SpentOn >= month && x.SpentOn < next).Sum(x => x.Amount)));
         }
 
