@@ -170,8 +170,7 @@
         _date = DateOnly.TryParse(DateRaw, out var parsed) ? parsed : DateOnly.FromDateTime(DateTime.Today);
         await using var db = await DbFactory.CreateDbContextAsync();
 
-        var diff = ((int)_date.DayOfWeek + 6) % 7;
-        var sessions = (await Schedule.GetWeekAsync(_date.AddDays(-diff))).Where(s => s.Date == _date);
+        var sessions = (await Schedule.GetWeekAsync(Weeks.WeekOf(_date))).Where(s => s.Date == _date);
 
         _types = await db.ClassTypes.Where(t => !t.Archived).OrderBy(t => t.Name).ToListAsync();
 

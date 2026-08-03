@@ -118,8 +118,8 @@
         _myPersonId = me.Id;
 
         var today = DateOnly.FromDateTime(DateTime.Today);
-        await Schedule.GetWeekAsync(MondayOf(today));
-        await Schedule.GetWeekAsync(MondayOf(today).AddDays(7));
+        await Schedule.GetWeekAsync(Weeks.WeekOf(today));
+        await Schedule.GetWeekAsync(Weeks.WeekOf(today).AddDays(7));
 
         _mySessions = await db.ClassSessions
             .Where(s => s.InstructorPersonId == _myPersonId && s.Status == SessionStatus.Scheduled
@@ -145,11 +145,5 @@
 
         var nameIds = open.Select(r => r.RequestedByPersonId).Distinct().ToList();
         _names = await db.Persons.Where(p => nameIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id, p => p.DisplayName);
-    }
-
-    private static DateOnly MondayOf(DateOnly date)
-    {
-        var diff = ((int)date.DayOfWeek + 6) % 7;
-        return date.AddDays(-diff);
     }
 }

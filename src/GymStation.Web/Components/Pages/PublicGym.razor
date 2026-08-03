@@ -233,7 +233,7 @@ else
 
         var templates = await db.ClassTemplates.Where(t => t.Active).OrderBy(t => t.StartTime).ToListAsync();
         _week = Enum.GetValues<DayOfWeek>()
-            .OrderBy(d => ((int)d + 6) % 7) // Monday first
+            .OrderBy(d => (int)d) // Sunday first — the product-wide week start (#126)
             .Select(d => new KeyValuePair<DayOfWeek, List<ClassTemplate>>(d, templates.Where(t => t.Day == d).ToList()))
             .ToList();
 

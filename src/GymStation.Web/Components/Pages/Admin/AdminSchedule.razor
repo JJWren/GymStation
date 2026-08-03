@@ -368,7 +368,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _weekStart = DateOnly.TryParse(StartRaw, out var parsed) ? parsed : MondayOf(DateOnly.FromDateTime(DateTime.Today));
+        _weekStart = Weeks.WeekOf(DateOnly.TryParse(StartRaw, out var parsed) ? parsed : DateOnly.FromDateTime(DateTime.Today));
         await using var db = await DbFactory.CreateDbContextAsync();
         _settings = await db.GymSettings.SingleOrDefaultAsync();
         _sessions = await Schedule.GetWeekAsync(_weekStart);
@@ -441,12 +441,6 @@
         {
             (_open, _close) = (new TimeOnly(6, 0), new TimeOnly(22, 0));
         }
-    }
-
-    private static DateOnly MondayOf(DateOnly date)
-    {
-        var diff = ((int)date.DayOfWeek + 6) % 7;
-        return date.AddDays(-diff);
     }
 
     private async Task AddTemplateAsync()
