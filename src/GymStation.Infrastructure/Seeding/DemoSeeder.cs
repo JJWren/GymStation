@@ -226,6 +226,11 @@ public class DemoSeeder(GymStationDbContext db, TenantContext tenant)
             });
         }
 
+        // Other income — the non-dues money the FINANCE page tracks (#88).
+        db.OtherIncomes.AddRange(
+            new OtherIncome { Id = Guid.NewGuid(), Label = "SEMINAR", Amount = 480m, ReceivedOn = lastMonth.AddDays(7), Note = "Guest black belt leg-lock seminar" },
+            new OtherIncome { Id = Guid.NewGuid(), Label = "MERCH", Amount = 145m, ReceivedOn = lastMonth.AddDays(12) });
+
         // Events.
         db.GymEvents.AddRange(
             new GymEvent { Id = Guid.NewGuid(), Title = "Coastline Open — Gi & No-Gi", Kind = GymEventKind.Tournament, StartsOn = today.AddDays(16), Location = "Gulfport Sportsplex", Details = "Registration closes two weeks out. Team carpool from the gym.", PublishedByPersonId = silva.Id },

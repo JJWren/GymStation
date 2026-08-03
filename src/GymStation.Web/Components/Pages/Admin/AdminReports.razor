@@ -20,21 +20,21 @@
                 @foreach (var month in _money)
                 {
                     <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;height:100%">
-                        <i title="@($"Collected {month.Collected:N0}")" style="display:block;background:var(--ok);opacity:.8;border-radius:2px 2px 0 0;height:@(BarPercent(month.Collected))%"></i>
+                        <i title="@($"In {month.TotalIn:N0} (dues {month.Collected:N0} + other {month.OtherIncome:N0})")" style="display:block;background:var(--ok);opacity:.8;border-radius:2px 2px 0 0;height:@(BarPercent(month.TotalIn))%"></i>
                         <i title="@($"Expenses {month.Expenses:N0}")" style="display:block;background:var(--bad);opacity:.7;height:@(BarPercent(month.Expenses))%"></i>
                         <b style="font:600 0.5625rem/1.6 var(--font-mono);color:var(--ink-faint);text-align:center;letter-spacing:.06em">@month.Month.ToString("MMM").ToUpperInvariant()</b>
-                        <span style="font:600 0.5625rem/1.35 var(--font-mono);text-align:center"><span style="color:var(--ok)">+@Compact(month.Collected)</span><br /><span style="color:var(--bad)">−@Compact(month.Expenses)</span></span>
+                        <span style="font:600 0.5625rem/1.35 var(--font-mono);text-align:center"><span style="color:var(--ok)">+@Compact(month.TotalIn)</span><br /><span style="color:var(--bad)">−@Compact(month.Expenses)</span></span>
                     </div>
                 }
             </div>
-            <p class="cap"><span style="color:var(--ok)">■ COLLECTED (PAYMENTS)</span> · <span style="color:var(--bad)">■ EXPENSES (LOG)</span> · BARS SHARE ONE SCALE (TALLEST = $@Compact(_moneyMax))</p>
+            <p class="cap"><span style="color:var(--ok)">■ IN (DUES + OTHER INCOME)</span> · <span style="color:var(--bad)">■ EXPENSES (LOG)</span> · BARS SHARE ONE SCALE (TALLEST = $@Compact(_moneyMax))</p>
             @if (_money.Count > 0)
             {
                 var latest = _money[^1];
                 <div class="head-row" style="border-top:1px dashed #2c3440;padding-top:0.5rem">
                     <span class="cap">@latest.Month.ToString("MMMM").ToUpperInvariant() NET · BEFORE OWNER PAY</span>
-                    <b class="mono" style="color:@(latest.Collected - latest.Expenses >= 0 ? "var(--ok)" : "var(--bad)")">
-                        @((latest.Collected - latest.Expenses) >= 0 ? "+" : "−")$@Math.Abs(latest.Collected - latest.Expenses).ToString("N0")
+                    <b class="mono" style="color:@(latest.TotalIn - latest.Expenses >= 0 ? "var(--ok)" : "var(--bad)")">
+                        @((latest.TotalIn - latest.Expenses) >= 0 ? "+" : "−")$@Math.Abs(latest.TotalIn - latest.Expenses).ToString("N0")
                     </b>
                 </div>
             }
@@ -148,7 +148,7 @@
     {
         var today = DateOnly.FromDateTime(DateTime.Today);
         _money = await Reports.MoneySeriesAsync(today);
-        _moneyMax = _money.Count == 0 ? 0 : Math.Max(_money.Max(m => m.Collected), _money.Max(m => m.Expenses));
+        _moneyMax = _money.Count == 0 ? 0 : Math.Max(_money.Max(m => m.TotalIn), _money.Max(m => m.Expenses));
         _weekly = await Reports.WeeklyCheckinsAsync(today);
         _weeklyMax = _weekly.Count == 0 ? 0 : _weekly.Max(w => w.Count);
 

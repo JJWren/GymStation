@@ -47,4 +47,25 @@ public class RecurringExpense : ITenantOwned
 
     public bool Active { get; set; } = true;
     public string? Note { get; set; }
+
+    /// <summary>First day of the last month this recurring materialized an Expense.
+    /// The high-water mark IS the idempotency: deleting the materialized expense
+    /// doesn't resurrect it next worker pass (#88).</summary>
+    public DateOnly? LastMaterializedMonth { get; set; }
+}
+
+/// <summary>
+/// Money in that isn't dues — seminars, merch, mat fees. Mirrors Expense with a
+/// freeform label instead of a category taxonomy; fully editable and deletable,
+/// unlike dues payments which are void-only audit records.
+/// </summary>
+public class OtherIncome : ITenantOwned
+{
+    public Guid Id { get; set; }
+    public Guid GymId { get; set; }
+
+    public required string Label { get; set; }
+    public decimal Amount { get; set; }
+    public DateOnly ReceivedOn { get; set; }
+    public string? Note { get; set; }
 }

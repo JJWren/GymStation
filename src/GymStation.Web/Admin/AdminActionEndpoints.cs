@@ -79,7 +79,7 @@ public static class AdminActionEndpoints
             GymStationDbContext db,
             LedgerService ledger) =>
         {
-            var destination = back == "person" ? $"/admin/people/{personId}" : "/admin/dues";
+            var destination = back == "person" ? $"/admin/people/{personId}" : "/admin/finance";
             if (amount <= 0)
             {
                 return Results.Redirect($"{destination}?failed=1");
@@ -110,19 +110,6 @@ public static class AdminActionEndpoints
             return Results.Redirect(destination);
         });
 
-        group.MapPost("/run-cycle", async (GymStationDbContext db, LedgerService ledger) =>
-        {
-            var gym = await db.Gyms.SingleAsync(g => g.Id == db.CurrentGymId);
-            var zone = TimeZoneInfo.FindSystemTimeZoneById(gym.TimeZoneId);
-            var gymToday = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, zone).DateTime);
-            var raised = await ledger.RaiseMonthlyChargesAsync(gymToday);
-
-            // The button means "run the cycle" — recurring expenses are part of it,
-            // exactly like the background worker's pass.
-            await ledger.MaterializeRecurringExpensesAsync(gymToday);
-            return Results.Redirect($"/admin/dues?raised={raised}");
-        });
-
         group.MapPost("/void-payment", async (
             [FromForm] Guid paymentId,
             [FromForm] Guid personId,
@@ -150,6 +137,82 @@ public static class AdminActionEndpoints
             return Results.Redirect($"/admin/people/{personId}");
         });
 
+        group.MapPost("/update-expense", async (
+            [FromForm] Guid expenseId, [FromForm] Guid categoryId, [FromForm] decimal amount,
+            [FromForm] DateOnly spentOn, [FromForm] string? note, LedgerService ledger) =>
+        {
+            try
+            {
+                await ledger.UpdateExpenseAsync(expenseId, categoryId, amount, spentOn, note);
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Redirect("/admin/finance?failed=2");
+            }
+
+            return Results.Redirect("/admin/finance");
+        });
+
+        group.MapPost("/delete-expense", async ([FromForm] Guid expenseId, LedgerService ledger) =>
+        {
+            try
+            {
+                await ledger.DeleteExpenseAsync(expenseId);
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Redirect("/admin/finance?failed=2");
+            }
+
+            return Results.Redirect("/admin/finance");
+        });
+
+        group.MapPost("/add-income", async (
+            [FromForm] string label, [FromForm] decimal amount, [FromForm] DateOnly receivedOn,
+            [FromForm] string? note, LedgerService ledger) =>
+        {
+            try
+            {
+                await ledger.AddOtherIncomeAsync(label, amount, receivedOn, note);
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Redirect("/admin/finance?failed=2");
+            }
+
+            return Results.Redirect("/admin/finance");
+        });
+
+        group.MapPost("/update-income", async (
+            [FromForm] Guid incomeId, [FromForm] string label, [FromForm] decimal amount,
+            [FromForm] DateOnly receivedOn, [FromForm] string? note, LedgerService ledger) =>
+        {
+            try
+            {
+                await ledger.UpdateOtherIncomeAsync(incomeId, label, amount, receivedOn, note);
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Redirect("/admin/finance?failed=2");
+            }
+
+            return Results.Redirect("/admin/finance");
+        });
+
+        group.MapPost("/delete-income", async ([FromForm] Guid incomeId, LedgerService ledger) =>
+        {
+            try
+            {
+                await ledger.DeleteOtherIncomeAsync(incomeId);
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Redirect("/admin/finance?failed=2");
+            }
+
+            return Results.Redirect("/admin/finance");
+        });
+
         group.MapPost("/update-plan", async ([FromForm] Guid planId, [FromForm] string name, [FromForm] decimal price, LedgerService ledger) =>
         {
             try
@@ -158,10 +221,10 @@ public static class AdminActionEndpoints
             }
             catch (InvalidOperationException)
             {
-                return Results.Redirect("/admin/dues?failed=2");
+                return Results.Redirect("/admin/finance?failed=2");
             }
 
-            return Results.Redirect("/admin/dues");
+            return Results.Redirect("/admin/finance");
         });
 
         group.MapPost("/plan-archived", async ([FromForm] Guid planId, [FromForm] bool archived, LedgerService ledger) =>
@@ -172,10 +235,10 @@ public static class AdminActionEndpoints
             }
             catch (InvalidOperationException)
             {
-                return Results.Redirect("/admin/dues?failed=2");
+                return Results.Redirect("/admin/finance?failed=2");
             }
 
-            return Results.Redirect("/admin/dues");
+            return Results.Redirect("/admin/finance");
         });
 
         group.MapPost("/rename-category", async ([FromForm] Guid categoryId, [FromForm] string name, LedgerService ledger) =>
@@ -186,10 +249,10 @@ public static class AdminActionEndpoints
             }
             catch (InvalidOperationException)
             {
-                return Results.Redirect("/admin/dues?failed=3");
+                return Results.Redirect("/admin/finance?failed=3");
             }
 
-            return Results.Redirect("/admin/dues");
+            return Results.Redirect("/admin/finance");
         });
 
         group.MapPost("/category-archived", async ([FromForm] Guid categoryId, [FromForm] bool archived, LedgerService ledger) =>
@@ -200,10 +263,10 @@ public static class AdminActionEndpoints
             }
             catch (InvalidOperationException)
             {
-                return Results.Redirect("/admin/dues?failed=3");
+                return Results.Redirect("/admin/finance?failed=3");
             }
 
-            return Results.Redirect("/admin/dues");
+            return Results.Redirect("/admin/finance");
         });
 
         group.MapPost("/add-recurring", async ([FromForm] Guid categoryId, [FromForm] decimal amount, [FromForm] int dayOfMonth, [FromForm] string? note, LedgerService ledger) =>
@@ -214,10 +277,10 @@ public static class AdminActionEndpoints
             }
             catch (InvalidOperationException)
             {
-                return Results.Redirect("/admin/dues?failed=4");
+                return Results.Redirect("/admin/finance?failed=4");
             }
 
-            return Results.Redirect("/admin/dues");
+            return Results.Redirect("/admin/finance");
         });
 
         group.MapPost("/recurring-active", async ([FromForm] Guid recurringId, [FromForm] bool active, LedgerService ledger) =>
@@ -228,10 +291,10 @@ public static class AdminActionEndpoints
             }
             catch (InvalidOperationException)
             {
-                return Results.Redirect("/admin/dues?failed=4");
+                return Results.Redirect("/admin/finance?failed=4");
             }
 
-            return Results.Redirect("/admin/dues");
+            return Results.Redirect("/admin/finance");
         });
 
         group.MapPost("/assign-plan", async ([FromForm] Guid personId, [FromForm] Guid? planId, GymStationDbContext db) =>
