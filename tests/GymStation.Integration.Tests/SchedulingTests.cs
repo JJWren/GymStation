@@ -87,19 +87,19 @@ public class SchedulingTests(PostgresFixture fixture)
         var schedule = new ScheduleService(context, new NotificationService(context));
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => schedule.UpdateSessionAsync(session.Id, " ", new TimeOnly(19, 0), 60, null));
+            () => schedule.UpdateSessionAsync(session.Id, " ", session.Date, new TimeOnly(19, 0), 60, null));
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => schedule.UpdateSessionAsync(session.Id, "No-Gi", new TimeOnly(19, 0), 5, null));
+            () => schedule.UpdateSessionAsync(session.Id, "No-Gi", session.Date, new TimeOnly(19, 0), 5, null));
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => schedule.UpdateSessionAsync(session.Id, "No-Gi", new TimeOnly(19, 0), 60, Guid.NewGuid()));
+            () => schedule.UpdateSessionAsync(session.Id, "No-Gi", session.Date, new TimeOnly(19, 0), 60, Guid.NewGuid()));
         await Assert.ThrowsAsync<InvalidOperationException>( // real person, but not an Instructor
-            () => schedule.UpdateSessionAsync(session.Id, "No-Gi", new TimeOnly(19, 0), 60, admin.Id));
+            () => schedule.UpdateSessionAsync(session.Id, "No-Gi", session.Date, new TimeOnly(19, 0), 60, admin.Id));
 
         // Instructor-only swap: no time change, no notification noise.
-        await schedule.UpdateSessionAsync(session.Id, "No-Gi", new TimeOnly(18, 0), 90, sub.Id);
+        await schedule.UpdateSessionAsync(session.Id, "No-Gi", session.Date, new TimeOnly(18, 0), 90, sub.Id);
         Assert.Empty(await context.Notifications.ToListAsync());
 
-        await schedule.UpdateSessionAsync(session.Id, "No-Gi Late", new TimeOnly(19, 30), 60, sub.Id);
+        await schedule.UpdateSessionAsync(session.Id, "No-Gi Late", session.Date, new TimeOnly(19, 30), 60, sub.Id);
 
         var updated = await context.ClassSessions.SingleAsync(s => s.Id == session.Id);
         Assert.Equal("No-Gi Late", updated.Name);
@@ -113,6 +113,43 @@ public class SchedulingTests(PostgresFixture fixture)
 
         Assert.Contains(await context.Notifications.ToListAsync(),
             n => n.Category == NotificationCategory.SessionChanged && n.RecipientUserId == admin.UserId);
+    }
+
+    [Fact]
+    public async Task MovingAnOccurrenceToAnotherDate_PersistsAndNotifies()
+    {
+        var (_, tenant, coach, _, admin) = await SeedGymAsync();
+        var session = await SeedWeekWithTemplateAsync(tenant, coach.Id); // Tuesday
+
+        await using var context = fixture.CreateContext(tenant);
+        var schedule = new ScheduleService(context, new NotificationService(context));
+
+        var thursday = session.Date.AddDays(2);
+        await schedule.UpdateSessionAsync(session.Id, session.Name, thursday, session.StartTime, session.DurationMinutes, coach.Id);
+
+        var moved = await context.ClassSessions.SingleAsync(s => s.Id == session.Id);
+        Assert.Equal(thursday, moved.Date);
+        Assert.Equal(session.StartTime, moved.StartTime); // same slot, new day — still notifies
+        Assert.Contains(await context.Notifications.ToListAsync(),
+            n => n.Category == NotificationCategory.SessionChanged && n.RecipientUserId == admin.UserId);
+    }
+
+    [Fact]
+    public async Task MovingATemplateOccurrence_OntoItsSiblingsDate_IsRefused()
+    {
+        var (_, tenant, coach, _, _) = await SeedGymAsync();
+        var session = await SeedWeekWithTemplateAsync(tenant, coach.Id); // Tuesday of week 1
+
+        await using var context = fixture.CreateContext(tenant);
+        var schedule = new ScheduleService(context, new NotificationService(context));
+
+        // Materialize week 2 so the template's sibling occurrence exists there.
+        var nextWeek = await schedule.GetWeekAsync(Monday.AddDays(7));
+        var sibling = nextWeek.Single(s => s.TemplateId == session.TemplateId);
+
+        var refusal = await Assert.ThrowsAsync<InvalidOperationException>(() => schedule.UpdateSessionAsync(
+            session.Id, session.Name, sibling.Date, session.StartTime, session.DurationMinutes, coach.Id));
+        Assert.Contains("already has its occurrence", refusal.Message);
     }
 
     [Fact]

@@ -95,10 +95,11 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
         }
     }
 
-    /// <summary>Edits ONE occurrence in place. Time changes notify the same audience a
-    /// cancellation would — staff, the instructor, and everyone already checked in.</summary>
+    /// <summary>Edits ONE occurrence in place — including moving it to another DATE
+    /// (#131). Time or date changes notify the same audience a cancellation would —
+    /// staff, the instructor, and everyone already checked in.</summary>
     public async Task UpdateSessionAsync(
-        Guid sessionId, string name, TimeOnly start, int durationMinutes, Guid? instructorPersonId,
+        Guid sessionId, string name, DateOnly date, TimeOnly start, int durationMinutes, Guid? instructorPersonId,
         CancellationToken ct = default)
     {
         ValidateShape(name, durationMinutes);
@@ -108,14 +109,26 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
 
         await ValidateInstructorAsync(instructorPersonId, ct);
 
+        var dateChanged = session.Date != date;
+
+        // The (GymId, TemplateId, Date) unique index would reject this anyway —
+        // catch it here with words instead of a 500. The template's own occurrence
+        // may already be materialized on the target day.
+        if (dateChanged && session.TemplateId is { } templateId
+            && await db.ClassSessions.AnyAsync(s => s.TemplateId == templateId && s.Date == date && s.Id != session.Id, ct))
+        {
+            throw new InvalidOperationException("That class already has its occurrence on that day — edit that one instead.");
+        }
+
         var timeChanged = session.StartTime != start || session.DurationMinutes != durationMinutes;
 
         session.Name = name.Trim();
+        session.Date = date;
         session.StartTime = start;
         session.DurationMinutes = durationMinutes;
         session.InstructorPersonId = instructorPersonId;
 
-        if (timeChanged)
+        if (timeChanged || dateChanged)
         {
             var recipients = await notifications.StaffUserIdsAsync(ct);
             if (instructorPersonId is { } instructor)
@@ -136,8 +149,8 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
             notifications.Notify(
                 recipients,
                 NotificationCategory.SessionChanged,
-                $"Changed: {session.Name} · {session.Date:ddd dd MMM} now {start:HH\\:mm}",
-                $"{session.Name} on {session.Date:dddd dd MMMM} now runs {start:HH\\:mm} for {durationMinutes} minutes.",
+                $"Changed: {session.Name} · now {date:ddd dd MMM} at {start:HH\\:mm}",
+                $"{session.Name} now runs {date:dddd dd MMMM} at {start:HH\\:mm} for {durationMinutes} minutes.",
                 "/schedule");
         }
 

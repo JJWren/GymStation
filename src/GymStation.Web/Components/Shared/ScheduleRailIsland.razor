@@ -7,6 +7,7 @@
 @inject GymStation.Infrastructure.Tenancy.TenantContext Tenant
 @inject Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider AuthState
 @inject IJSRuntime JS
+@inject NavigationManager Nav
 
 @* The repo's FIRST InteractiveServer island (#96): the admin rail grid with
    pointer drag (time-move, 30-min snap) and bottom-edge resize (30-min snap,
@@ -52,13 +53,18 @@
     @foreach (var card in _cards)
     {
         var preview = _drag?.SessionId == card.Session.Id ? _drag : null;
+        @* The href exists ONLY in the prerendered static HTML (the no-JS fallback:
+           before the circuit connects, cards are plain links into the SSR modal).
+           Once interactive the href is DROPPED — native navigation cannot fire at
+           all, so there is no preventDefault race to lose (#131) — and OnPointerUp
+           decides deliberately: clean click/Enter opens the modal, a drag persists. *@
         <a class="rail-ses @(card.Session.Status == SessionStatus.Cancelled ? "rail-ses--cancelled" : null) @(preview is not null ? "rail-ses--moving" : null)"
-           style="grid-column:@card.Column;grid-row:@(preview?.PreviewRow ?? card.Row) / span @(preview?.PreviewSpan ?? card.Span);width:calc(@card.WidthPercent.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)% - 0.1875rem);margin-left:@card.LeftPercent.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%;touch-action:none"
-           href="/admin/schedule?start=@_weekStart.ToString("yyyy-MM-dd")&edit=@card.Session.Id"
+           style="grid-column:@(preview?.PreviewColumn ?? card.Column);grid-row:@(preview?.PreviewRow ?? card.Row) / span @(preview?.PreviewSpan ?? card.Span);width:calc(@card.WidthPercent.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)% - 0.1875rem);margin-left:@card.LeftPercent.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%;touch-action:none"
+           href="@(_interactive ? null : EditUrl(card.Session.Id))"
+           tabindex="@(_interactive ? "0" : null)"
            draggable="false"
-           @onclick:preventDefault="_suppressClick"
-           @onclick="() => _suppressClick = false"
            @onpointerdown="e => StartMove(card, e)"
+           @onkeydown="e => OnCardKey(card, e)"
            aria-label="Edit @card.Session.Name, @card.Session.Date.ToString("dddd dd MMMM"), @card.Session.StartTime.ToString("HH\\:mm")">
             <b>@((preview is not null ? PreviewStart(card, preview) : card.Session.StartTime).ToString("HH\\:mm"))</b>
             <span>@card.Session.Name</span>
@@ -88,10 +94,13 @@
         public Guid SessionId { get; init; }
         public bool Resizing { get; init; }
         public double StartY { get; set; }
+        public double StartX { get; set; }
         public int DeltaSlots { get; set; }
+        public int DeltaDays { get; set; }
         public bool Moved { get; set; }
         public int PreviewRow { get; set; }
         public int PreviewSpan { get; set; }
+        public int PreviewColumn { get; set; }
     }
 
     private DateOnly _weekStart;
@@ -106,8 +115,9 @@
     private List<(TimeOnly Time, int Row)> _hourMarks = [];
     private Dictionary<Guid, string> _personNames = [];
     private DragState? _drag;
-    private bool _suppressClick;
+    private bool _interactive;
     private double _slotPx = 25;
+    private double _dayPx = 120;
     private string? _islandError;
     private ElementReference _gridRef;
     private IJSObjectReference? _module;
@@ -153,6 +163,23 @@
             // it must be measured, never assumed.
             _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/rail-island.js");
             _slotPx = await _module.InvokeAsync<double>("slotPx", _gridRef);
+            _dayPx = await _module.InvokeAsync<double>("dayPx", _gridRef);
+
+            // Only a live circuit reaches here — flip the cards from links to
+            // pointer-driven surfaces (see the card comment).
+            _interactive = true;
+            StateHasChanged();
+        }
+    }
+
+    private string EditUrl(Guid sessionId) => $"/admin/schedule?start={_weekStart:yyyy-MM-dd}&edit={sessionId}";
+
+    private void OnCardKey(RailCard card, KeyboardEventArgs e)
+    {
+        // The interactive card has no href — Enter/Space keep keyboard access.
+        if (e.Key is "Enter" or " ")
+        {
+            Nav.NavigateTo(EditUrl(card.Session.Id), forceLoad: true);
         }
     }
 
@@ -261,28 +288,40 @@
             maxStart)));
     }
 
-    private void StartMove(RailCard card, PointerEventArgs e)
+    private async Task StartMove(RailCard card, PointerEventArgs e)
     {
         if (card.Session.Status == SessionStatus.Cancelled)
         {
             return;
         }
 
-        _drag = new DragState { SessionId = card.Session.Id, StartY = e.ClientY, PreviewRow = card.Row, PreviewSpan = card.Span };
-        _suppressClick = false;
+        _drag = new DragState { SessionId = card.Session.Id, StartY = e.ClientY, StartX = e.ClientX, PreviewRow = card.Row, PreviewSpan = card.Span, PreviewColumn = card.Column };
         _islandError = null;
+        await CapturePointerAsync(e);
     }
 
-    private void StartResize(RailCard card, PointerEventArgs e)
+    private async Task StartResize(RailCard card, PointerEventArgs e)
     {
         if (card.Session.Status == SessionStatus.Cancelled)
         {
             return;
         }
 
-        _drag = new DragState { SessionId = card.Session.Id, Resizing = true, StartY = e.ClientY, PreviewRow = card.Row, PreviewSpan = card.Span };
-        _suppressClick = true;
+        // Resizing counts as moved from the first pixel — releasing on the grip
+        // must never read as a click into the modal.
+        _drag = new DragState { SessionId = card.Session.Id, Resizing = true, StartY = e.ClientY, StartX = e.ClientX, Moved = true, PreviewRow = card.Row, PreviewSpan = card.Span, PreviewColumn = card.Column };
         _islandError = null;
+        await CapturePointerAsync(e);
+    }
+
+    // The grid holds the pointer for the whole gesture — releasing outside the
+    // grid still fires OnPointerUp here, so _drag can never strand.
+    private async Task CapturePointerAsync(PointerEventArgs e)
+    {
+        if (_module is not null)
+        {
+            await _module.InvokeVoidAsync("capture", _gridRef, e.PointerId);
+        }
     }
 
     private void OnPointerMove(PointerEventArgs e)
@@ -299,10 +338,10 @@
         }
 
         drag.DeltaSlots = (int)Math.Round((e.ClientY - drag.StartY) / Math.Max(1, _slotPx));
-        if (Math.Abs(e.ClientY - drag.StartY) > 6)
+        drag.DeltaDays = (int)Math.Round((e.ClientX - drag.StartX) / Math.Max(1, _dayPx));
+        if (Math.Abs(e.ClientY - drag.StartY) > 6 || Math.Abs(e.ClientX - drag.StartX) > 6)
         {
             drag.Moved = true;
-            _suppressClick = true;
         }
 
         if (drag.Resizing)
@@ -311,6 +350,7 @@
             var maxSpan = Math.Max(1, _slots - (card.Row - 2));
             drag.PreviewSpan = Math.Clamp(card.Span + drag.DeltaSlots, 1, maxSpan);
             drag.PreviewRow = card.Row;
+            drag.PreviewColumn = card.Column;
         }
         else
         {
@@ -321,6 +361,8 @@
                 maxStart) - MinutesOf(_open);
             drag.PreviewRow = startMin / 30 + 2;
             drag.PreviewSpan = card.Span;
+            // Anywhere on the calendar (#131): columns 2..8 are Sun..Sat.
+            drag.PreviewColumn = Math.Clamp(card.Column + drag.DeltaDays, 2, 8);
         }
     }
 
@@ -333,12 +375,21 @@
 
         _drag = null;
         var card = _cards.SingleOrDefault(c => c.Session.Id == drag.SessionId);
-        if (card is null || !drag.Moved)
+        if (card is null)
         {
             return;
         }
 
         var session = card.Session;
+        if (!drag.Moved)
+        {
+            // A clean click: the interactive card has no href, so the island
+            // opens the SSR edit modal itself — navigation is a deliberate
+            // server-side decision, not a race (#131).
+            Nav.NavigateTo(EditUrl(session.Id), forceLoad: true);
+            return;
+        }
+
         try
         {
             if (drag.Resizing)
@@ -348,15 +399,16 @@
                 duration = Math.Min(duration, MinutesOf(_close) - MinutesOf(session.StartTime));
                 if (duration != session.DurationMinutes && duration >= 15)
                 {
-                    await Schedule.UpdateSessionAsync(session.Id, session.Name, session.StartTime, duration, session.InstructorPersonId);
+                    await Schedule.UpdateSessionAsync(session.Id, session.Name, session.Date, session.StartTime, duration, session.InstructorPersonId);
                 }
             }
             else
             {
                 var start = PreviewStart(card, drag);
-                if (start != session.StartTime)
+                var date = session.Date.AddDays(drag.PreviewColumn - card.Column);
+                if (start != session.StartTime || date != session.Date)
                 {
-                    await Schedule.UpdateSessionAsync(session.Id, session.Name, start, session.DurationMinutes, session.InstructorPersonId);
+                    await Schedule.UpdateSessionAsync(session.Id, session.Name, date, start, session.DurationMinutes, session.InstructorPersonId);
                 }
             }
         }
