@@ -1,0 +1,113 @@
+@page "/admin/ranks/ladders"
+@attribute [Authorize(Policy = "GymStaff")]
+@layout AdminLayout
+@using GymStation.Domain.Ranks
+@inject RankService Ranks
+
+<PageTitle>Rank ladders · GymStation</PageTitle>
+
+<h1 class="page-title">RANK LADDERS</h1>
+<p class="page-sub"><a href="/admin/ranks">RANKS</a> ▸ MUAY THAI ARMBANDS, IN-HOUSE LADDERS — ANY DISCIPLINE, SELF-SERVICE. BOOTCAMP MEMBERS SIMPLY STAY UNRANKED.</p>
+
+@if (FailedFlag == 1)
+{
+    <p class="auth-error" role="alert">That change was refused — seeded ladders are read-only, ranks with awards can't be removed, and colors must be #rrggbb.</p>
+}
+
+@foreach (var system in _systems)
+{
+    var editable = !system.IsSeeded && system.GymId is not null;
+    <div class="form-card" style="margin-bottom:0.625rem;max-width:46rem;@(system.Archived ? "opacity:.55" : null)">
+        <div class="head-row">
+            @if (editable)
+            {
+                <form method="post" action="/admin/actions/rename-rank-system" class="row-form" style="margin:0">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="systemId" value="@system.Id" />
+                    <input type="text" name="name" value="@system.Name" aria-label="Ladder name" required maxlength="80" style="min-width:12rem" />
+                    <button class="btn btn--icon btn--save btn--xs" type="submit" aria-label="Save ladder name" title="Save ladder name"><Glyph Name="save" /></button>
+                </form>
+                <form method="post" action="/admin/actions/rank-system-archived" style="margin:0">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="systemId" value="@system.Id" />
+                    <input type="hidden" name="archived" value="@((!system.Archived).ToString())" />
+                    <button class="btn btn--ghost btn--xs" type="submit">@(system.Archived ? "UNARCHIVE" : "ARCHIVE")</button>
+                </form>
+            }
+            else
+            {
+                <b>@system.Name</b>
+                <span class="stamp stamp--dim">SEEDED · READ-ONLY</span>
+            }
+        </div>
+
+        @foreach (var rank in system.Ranks.OrderBy(r => r.Order))
+        {
+            <div class="row-form" style="align-items:center;margin-top:0.375rem">
+                <BeltBar Size="s" BandColorHex="@rank.BandColorHex" BarColorHex="@rank.BarColorHex" Stripes="0" Label="@rank.Name" />
+                @if (editable)
+                {
+                    <form method="post" action="/admin/actions/update-rank" class="row-form" style="margin:0;flex:1">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="rankId" value="@rank.Id" />
+                        <input type="text" name="name" value="@rank.Name" aria-label="Rank name" required maxlength="60" style="flex:1;min-width:6rem" />
+                        <input type="color" name="bandColorHex" value="@rank.BandColorHex" aria-label="Band color" title="Band color" />
+                        <input type="color" name="barColorHex" value="@rank.BarColorHex" aria-label="Bar color" title="Bar color" />
+                        <input type="number" name="maxStripes" value="@rank.MaxStripes" min="0" max="10" aria-label="Max stripes" title="Max stripes" style="width:3.25rem" />
+                        <button class="btn btn--icon btn--save btn--xs" type="submit" aria-label="Save rank" title="Save rank"><Glyph Name="save" /></button>
+                    </form>
+                    <form method="post" action="/admin/actions/rank-move" style="margin:0">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="rankId" value="@rank.Id" />
+                        <input type="hidden" name="direction" value="-1" />
+                        <button class="btn btn--ghost btn--xs" type="submit" aria-label="Move @rank.Name up" title="Move up">▲</button>
+                    </form>
+                    <form method="post" action="/admin/actions/rank-move" style="margin:0">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="rankId" value="@rank.Id" />
+                        <input type="hidden" name="direction" value="1" />
+                        <button class="btn btn--ghost btn--xs" type="submit" aria-label="Move @rank.Name down" title="Move down">▼</button>
+                    </form>
+                    <form method="post" action="/admin/actions/remove-rank" style="margin:0">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="rankId" value="@rank.Id" />
+                        <button class="btn btn--icon btn--del btn--xs" type="submit" aria-label="Delete @rank.Name" title="Delete rank (refused once awards exist)"><Glyph Name="trash" /></button>
+                    </form>
+                }
+                else
+                {
+                    <span class="mono">@rank.Name.ToUpperInvariant() · @rank.MaxStripes STRIPES MAX</span>
+                }
+            </div>
+        }
+
+        @if (editable)
+        {
+            <form method="post" action="/admin/actions/add-rank" class="row-form" style="margin-top:0.625rem">
+                <AntiforgeryToken />
+                <input type="hidden" name="systemId" value="@system.Id" />
+                <input type="text" name="name" placeholder="RED ARMBAND" aria-label="New rank name" required maxlength="60" style="flex:1;min-width:7rem" />
+                <input type="color" name="bandColorHex" value="#C4554D" aria-label="Band color" title="Band color" />
+                <input type="color" name="barColorHex" value="#141416" aria-label="Bar color" title="Bar color" />
+                <input type="number" name="maxStripes" value="4" min="0" max="10" aria-label="Max stripes" title="Max stripes" style="width:3.25rem" />
+                <button class="btn btn--icon btn--save btn--xs" type="submit" aria-label="Add rank" title="Add rank"><Glyph Name="save" /></button>
+            </form>
+        }
+    </div>
+}
+
+<form method="post" action="/admin/actions/add-rank-system" class="row-form" style="margin-top:0.625rem;max-width:46rem">
+    <AntiforgeryToken />
+    <input type="text" name="name" placeholder="MUAY THAI PRAJIOUD" aria-label="New ladder name" required maxlength="80" style="flex:1;min-width:12rem" />
+    <button class="btn btn--icon btn--save btn--xs" type="submit" aria-label="Add ladder" title="Add ladder"><Glyph Name="save" /></button>
+</form>
+<p class="cap" style="max-width:46rem">RANK COLORS COME FROM THE LADDER, NEVER THE THEME · AWARD HISTORY ALWAYS SURVIVES — ARCHIVING HIDES A LADDER FROM PICKERS, IT DELETES NOTHING.</p>
+
+@code {
+    [SupplyParameterFromQuery(Name = "failed")] public int? FailedFlag { get; set; }
+
+    private List<RankSystem> _systems = [];
+
+    protected override async Task OnInitializedAsync()
+        => _systems = await Ranks.GetVisibleSystemsAsync(includeArchived: true);
+}

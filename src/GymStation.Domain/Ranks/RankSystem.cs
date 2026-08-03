@@ -16,5 +16,9 @@ public class RankSystem
 
     public bool IsSeeded { get; set; }
 
+    /// <summary>Archived ladders leave award history intact but stop appearing
+    /// in pickers and boards (#139). Seeded ladders never archive.</summary>
+    public bool Archived { get; set; }
+
     public List<Rank> Ranks { get; set; } = [];
 }
