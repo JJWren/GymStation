@@ -184,6 +184,7 @@
         }
 
         await using var db = await DbFactory.CreateDbContextAsync();
+        _families = [];
         var userIds = families.SelectMany(f => f.Guardians).Select(g => g.GuardianUserId).Distinct().ToList();
         var emails = await db.Users.Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, u => u.Email ?? u.UserName ?? "unknown");

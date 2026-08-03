@@ -25,10 +25,16 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
                 p => p.MembershipPlanId, pl => pl.Id, (p, pl) => new { Person = p, Plan = pl })
             .ToListAsync(ct);
 
-        // Members of a family on a family plan are covered — the family charge on the
-        // primary's Person replaces their individual one (#91).
+        // Members of a family on an ACTIVE family-scope plan are covered — the family
+        // charge on the primary's Person replaces their individual one (#91). The scope
+        // filter matters: a family mispointed at a per-person or archived plan must not
+        // shield its members from the individual cycle while the family pass bills
+        // nothing. (A price-0 family plan still covers: that's a comped family, the
+        // same shape as comped individual plans.)
         var familyCoveredPersonIds = (await db.FamilyMembers
-                .Join(db.Families.Where(f => f.MembershipPlanId != null), m => m.FamilyId, f => f.Id, (m, f) => m.PersonId)
+                .Join(db.Families.Where(f => f.MembershipPlanId != null), m => m.FamilyId, f => f.Id, (m, f) => new { m.PersonId, f.MembershipPlanId })
+                .Join(db.MembershipPlans.Where(pl => !pl.Archived && pl.Scope == PlanScope.Family),
+                    x => x.MembershipPlanId, pl => pl.Id, (x, pl) => x.PersonId)
                 .ToListAsync(ct))
             .ToHashSet();
 
@@ -98,7 +104,8 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
     {
         var families = await db.Families
             .Where(f => f.MembershipPlanId != null)
-            .Join(db.MembershipPlans.Where(pl => !pl.Archived && pl.Cadence == PlanCadence.Monthly && pl.Price > 0),
+            .Join(db.MembershipPlans.Where(pl =>
+                    !pl.Archived && pl.Scope == PlanScope.Family && pl.Cadence == PlanCadence.Monthly && pl.Price > 0),
                 f => f.MembershipPlanId, pl => pl.Id, (f, pl) => new { Family = f, Plan = pl })
             .ToListAsync(ct);
         if (families.Count == 0)
@@ -107,6 +114,14 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
         }
 
         var familyIds = families.Select(x => x.Family.Id).ToList();
+
+        // One round trip for this cycle's existing family keys — no per-family AnyAsync.
+        var monthPrefix = $"{cycleMonth:yyyy-MM}:family:";
+        var existingKeys = (await db.Charges
+                .Where(c => c.CycleKey != null && c.CycleKey.StartsWith(monthPrefix))
+                .Select(c => c.CycleKey!)
+                .ToListAsync(ct))
+            .ToHashSet();
         var primaries = await db.FamilyGuardians
             .Where(g => familyIds.Contains(g.FamilyId) && g.IsPrimary)
             .ToListAsync(ct);
@@ -118,8 +133,8 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
         var raised = 0;
         foreach (var row in families)
         {
-            var familyCycleKey = $"{cycleMonth:yyyy-MM}:family:{row.Family.Id}";
-            if (await db.Charges.AnyAsync(c => c.CycleKey == familyCycleKey, ct))
+            var familyCycleKey = $"{monthPrefix}{row.Family.Id}";
+            if (existingKeys.Contains(familyCycleKey))
             {
                 continue;
             }

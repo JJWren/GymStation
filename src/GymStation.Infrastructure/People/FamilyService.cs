@@ -203,9 +203,9 @@ public class FamilyService(GymStationDbContext db)
         {
             var plan = await db.MembershipPlans.SingleOrDefaultAsync(pl => pl.Id == id, ct)
                 ?? throw new InvalidOperationException("Plan not found in the active gym.");
-            if (plan.Archived || plan.Scope != Domain.Money.PlanScope.Family)
+            if (plan.Archived || plan.Scope != Domain.Money.PlanScope.Family || plan.Cadence != Domain.Money.PlanCadence.Monthly)
             {
-                throw new InvalidOperationException("Family plans must be active, family-scope plans.");
+                throw new InvalidOperationException("Family plans must be active, monthly, family-scope plans.");
             }
         }
 
