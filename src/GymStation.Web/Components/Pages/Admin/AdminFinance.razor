@@ -84,7 +84,7 @@
                     <button class="btn btn--ghost btn--xs" type="submit">SAVE</button>
                 </form>
                 <div class="head-row" style="margin-top:0.375rem">
-                    <span class="cap" style="margin:0">@plan.Cadence.ToString().ToUpperInvariant() · @_planCounts.GetValueOrDefault(plan.Id) MEMBERS · PRICE CHANGES AFFECT FUTURE CYCLES ONLY</span>
+                    <span class="cap" style="margin:0">@plan.Cadence.ToString().ToUpperInvariant()@(plan.Scope == PlanScope.Family ? $" · FAMILY-SCOPE · {_familyPlanCounts.GetValueOrDefault(plan.Id)} FAMILIES" : $" · {_planCounts.GetValueOrDefault(plan.Id)} MEMBERS") · PRICE CHANGES AFFECT FUTURE CYCLES ONLY</span>
                     <form method="post" action="/admin/actions/plan-archived" style="margin:0">
                         <AntiforgeryToken />
                         <input type="hidden" name="planId" value="@plan.Id" />
@@ -116,6 +116,9 @@
                     <label for="pprice">Monthly price (0 = comped, raises no charges)</label>
                     <InputNumber id="pprice" @bind-Value="PlanForm!.Price" />
                 </div>
+            </div>
+            <div class="check-row" style="margin-top:0.5rem">
+                <label><InputCheckbox @bind-Value="PlanForm!.IsFamilyScope" /> FAMILY PLAN — ONE CHARGE ON THE PRIMARY GUARDIAN, COVERED MEMBERS SKIPPED</label>
             </div>
             @if (_planError is not null)
             {
@@ -307,6 +310,7 @@
     private List<DuesRow> _dues = [];
     private List<MembershipPlan> _plans = [];
     private Dictionary<Guid, int> _planCounts = [];
+    private Dictionary<Guid, int> _familyPlanCounts = [];
     private List<Expense> _expenses = [];
     private List<OtherIncome> _incomes = [];
     private List<ExpenseCategory> _categories = [];
@@ -319,6 +323,7 @@
     {
         public string Name { get; set; } = "";
         public decimal Price { get; set; }
+        public bool IsFamilyScope { get; set; }
     }
 
     public class AddExpenseForm
@@ -350,6 +355,12 @@
             .Select(g => new { g.Key, Count = g.Count() })
             .ToListAsync();
         _planCounts = counts.ToDictionary(x => x.Key, x => x.Count);
+
+        var familyCounts = await db.Families.Where(f => f.MembershipPlanId != null)
+            .GroupBy(f => f.MembershipPlanId!.Value)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToListAsync();
+        _familyPlanCounts = familyCounts.ToDictionary(x => x.Key, x => x.Count);
 
         var monthStart = new DateOnly(_month.Year, _month.Month, 1);
         var monthEnd = monthStart.AddMonths(1).AddDays(-1);
@@ -390,7 +401,13 @@
             return;
         }
 
-        db.MembershipPlans.Add(new MembershipPlan { Id = Guid.NewGuid(), Name = name, Price = form.Price });
+        db.MembershipPlans.Add(new MembershipPlan
+        {
+            Id = Guid.NewGuid(),
+            Name = name,
+            Price = form.Price,
+            Scope = form.IsFamilyScope ? PlanScope.Family : PlanScope.PerPerson,
+        });
         await db.SaveChangesAsync();
         Nav.NavigateTo("/admin/finance");
     }

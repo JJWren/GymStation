@@ -74,6 +74,9 @@ public static class FamilyActionEndpoints
         group.MapPost("/remove-guardian", async ([FromForm] Guid familyId, [FromForm] Guid guardianId, FamilyService families) =>
             await RunAsync(familyId, () => families.RemoveGuardianAsync(FamilyActor.Staff, familyId, guardianId)));
 
+        group.MapPost("/set-plan", async ([FromForm] Guid familyId, FamilyService families, [FromForm] Guid? planId = null) =>
+            await RunAsync(familyId, () => families.SetFamilyPlanAsync(FamilyActor.Staff, familyId, planId)));
+
         group.MapPost("/transfer-primary", async ([FromForm] Guid familyId, [FromForm] Guid guardianId, FamilyService families) =>
             await RunAsync(familyId, () => families.TransferPrimaryAsync(FamilyActor.Staff, familyId, guardianId)));
 

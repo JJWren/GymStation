@@ -188,6 +188,31 @@ public class FamilyService(GymStationDbContext db)
         await db.SaveChangesAsync(ct);
     }
 
+    /// <summary>Assigns (or clears) the family's plan — staff-only structure, like
+    /// creation. The plan must be Family-scope and unarchived; the cycle then bills
+    /// the primary's Person once per month (#91).</summary>
+    public async Task SetFamilyPlanAsync(FamilyActor actor, Guid familyId, Guid? planId, CancellationToken ct = default)
+    {
+        if (!actor.IsStaff)
+        {
+            throw new InvalidOperationException("Only staff assign family plans.");
+        }
+
+        var family = await RequireFamilyAsync(familyId, ct);
+        if (planId is { } id)
+        {
+            var plan = await db.MembershipPlans.SingleOrDefaultAsync(pl => pl.Id == id, ct)
+                ?? throw new InvalidOperationException("Plan not found in the active gym.");
+            if (plan.Archived || plan.Scope != Domain.Money.PlanScope.Family || plan.Cadence != Domain.Money.PlanCadence.Monthly)
+            {
+                throw new InvalidOperationException("Family plans must be active, monthly, family-scope plans.");
+            }
+        }
+
+        family.MembershipPlanId = planId;
+        await db.SaveChangesAsync(ct);
+    }
+
     /// <summary>Primacy moves as one atomic step: only the current primary (or staff)
     /// may hand it over; the new primary gains every flag.</summary>
     public async Task TransferPrimaryAsync(FamilyActor actor, Guid familyId, Guid toGuardianId, CancellationToken ct = default)

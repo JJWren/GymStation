@@ -151,6 +151,87 @@ public class LedgerTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task FamilyPlans_ChargeThePrimaryOnce_AndCoverMembers()
+    {
+        var (tenant, planned, _, _) = await SeedAsync();
+
+        await using var context = fixture.CreateContext(tenant);
+
+        // The planned member joins a family on a family plan; the primary guardian
+        // has their own roster Person AND their own personal plan.
+        var familyPlan = new MembershipPlan { Id = Guid.NewGuid(), Name = "Family Unlimited", Price = 150m, Scope = PlanScope.Family };
+        context.MembershipPlans.Add(familyPlan);
+
+        var primaryUserId = Guid.NewGuid();
+        var primaryPerson = new Person
+        {
+            Id = Guid.NewGuid(),
+            FirstName = "Sarah",
+            LastName = "Hale",
+            UserId = primaryUserId,
+            MembershipPlanId = (await context.MembershipPlans.SingleAsync(p => p.Name == "Adult Unlimited")).Id,
+            JoinedOn = new DateOnly(2026, 1, 1),
+        };
+        context.Persons.Add(primaryPerson);
+
+        var family = new Family { Id = Guid.NewGuid(), Name = "HALE FAMILY", MembershipPlanId = familyPlan.Id };
+        context.Families.Add(family);
+        context.FamilyMembers.Add(new FamilyMember { Id = Guid.NewGuid(), FamilyId = family.Id, PersonId = planned.Id, IsWard = true });
+        context.FamilyGuardians.Add(new FamilyGuardian { Id = Guid.NewGuid(), FamilyId = family.Id, GuardianUserId = primaryUserId, IsPrimary = true });
+        await context.SaveChangesAsync();
+
+        var ledger = new LedgerService(context, new NotificationService(context));
+        var first = await ledger.RaiseMonthlyChargesAsync(new DateOnly(2026, 8, 1));
+        var second = await ledger.RaiseMonthlyChargesAsync(new DateOnly(2026, 8, 1));
+
+        // Primary gets their personal charge AND the family charge (distinct cycle
+        // keys); the covered member gets nothing; reruns raise nothing.
+        Assert.Equal(2, first);
+        Assert.Equal(0, second);
+        Assert.Empty(await context.Charges.Where(c => c.PersonId == planned.Id).ToListAsync());
+
+        var primaryCharges = await context.Charges.Where(c => c.PersonId == primaryPerson.Id).ToListAsync();
+        Assert.Equal(2, primaryCharges.Count);
+        Assert.Contains(primaryCharges, c => c.CycleKey == "2026-08");
+        Assert.Contains(primaryCharges, c => c.CycleKey == $"2026-08:family:{family.Id}");
+        Assert.Contains(primaryCharges, c => c.Amount == 150m && c.Description.Contains("HALE FAMILY"));
+
+        // Doctrine pin: once the primary's OWN Person joins the family (adults are
+        // billing-only members), the family plan covers them too — next cycle raises
+        // the family charge but no personal one.
+        context.FamilyMembers.Add(new FamilyMember { Id = Guid.NewGuid(), FamilyId = family.Id, PersonId = primaryPerson.Id, IsWard = false });
+        await context.SaveChangesAsync();
+
+        Assert.Equal(1, await ledger.RaiseMonthlyChargesAsync(new DateOnly(2026, 9, 1)));
+        var september = await context.Charges.Where(c => c.PersonId == primaryPerson.Id && c.RaisedOn == new DateOnly(2026, 9, 1)).ToListAsync();
+        Assert.Single(september);
+        Assert.Equal($"2026-09:family:{family.Id}", september[0].CycleKey);
+    }
+
+    [Fact]
+    public async Task FamilyPlans_SkipFamiliesWhosePrimaryHasNoRosterPerson()
+    {
+        var (tenant, planned, _, _) = await SeedAsync();
+
+        await using var context = fixture.CreateContext(tenant);
+        var familyPlan = new MembershipPlan { Id = Guid.NewGuid(), Name = "Family Unlimited", Price = 150m, Scope = PlanScope.Family };
+        context.MembershipPlans.Add(familyPlan);
+
+        var family = new Family { Id = Guid.NewGuid(), Name = "GHOST FAMILY", MembershipPlanId = familyPlan.Id };
+        context.Families.Add(family);
+        context.FamilyMembers.Add(new FamilyMember { Id = Guid.NewGuid(), FamilyId = family.Id, PersonId = planned.Id, IsWard = true });
+        context.FamilyGuardians.Add(new FamilyGuardian { Id = Guid.NewGuid(), FamilyId = family.Id, GuardianUserId = Guid.NewGuid(), IsPrimary = true });
+        await context.SaveChangesAsync();
+
+        var ledger = new LedgerService(context, new NotificationService(context));
+
+        // The guardian login has no roster Person: nothing bills, and the covered
+        // member still isn't individually charged — staff repair the family.
+        Assert.Equal(0, await ledger.RaiseMonthlyChargesAsync(new DateOnly(2026, 8, 1)));
+        Assert.Empty(await context.Charges.ToListAsync());
+    }
+
+    [Fact]
     public async Task RecurringExpenses_MaterializeOncePerMonth()
     {
         var (tenant, _, _, _) = await SeedAsync();

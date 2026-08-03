@@ -227,7 +227,8 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
         {
             e.Property(c => c.Amount).HasPrecision(10, 2);
             e.Property(c => c.Description).HasMaxLength(150);
-            e.Property(c => c.CycleKey).HasMaxLength(7);
+            // Wide enough for the family variant: "yyyy-MM:family:{guid}" (#91).
+            e.Property(c => c.CycleKey).HasMaxLength(60);
             // One cycle charge per person per month; the ledger can never double-bill a cycle.
             e.HasIndex(c => new { c.GymId, c.PersonId, c.CycleKey }).IsUnique().HasFilter("\"CycleKey\" IS NOT NULL");
             e.HasOne(c => c.Person).WithMany().HasForeignKey(c => c.PersonId).OnDelete(DeleteBehavior.Cascade);
