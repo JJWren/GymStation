@@ -1,5 +1,7 @@
 @page "/instructor/swaps"
-@attribute [Authorize(Policy = "GymInstructor")]
+@* Staff oversight only (#95): instructors accept and claim covers right on
+   /schedule now — this page audits and gate-keeps. *@
+@attribute [Authorize(Policy = "GymStaff")]
 @layout AdminLayout
 @using System.Security.Claims
 @using GymStation.Domain.Scheduling
