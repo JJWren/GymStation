@@ -230,7 +230,14 @@
                 .GroupBy(r => r.SessionId)
                 .ToDictionary(g => g.Key, g =>
                 {
-                    var request = g.OrderBy(r => r.Id).First();
+                    // Deterministic pick: a request named to ME wins, then open
+                    // requests, then newest — GUID order would hide my nomination
+                    // behind a stranger's.
+                    var request = g
+                        .OrderByDescending(r => r.ProposedSubPersonId is { } named && _minePersonIds.Contains(named))
+                        .ThenByDescending(r => r.ProposedSubPersonId is null)
+                        .ThenByDescending(r => r.RequestedUtc)
+                        .First();
                     var namedToMe = request.ProposedSubPersonId is { } named && _minePersonIds.Contains(named);
                     var canAct = namedToMe || (request.ProposedSubPersonId is null && openClaims
                         && !_minePersonIds.Contains(request.RequestedByPersonId));

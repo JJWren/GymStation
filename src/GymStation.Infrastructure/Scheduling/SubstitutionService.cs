@@ -60,8 +60,8 @@ public class SubstitutionService(GymStationDbContext db, NotificationService not
             $"Cover needed: {session.Name} · {when}",
             proposedSubPersonId is null
                 ? $"An open cover request is up for {session.Name} on {when}. First instructor to claim it teaches."
-                : $"You've been proposed to cover {session.Name} on {when}. Accept from your substitutions page.",
-            "/instructor/swaps");
+                : $"You've been proposed to cover {session.Name} on {when}. Accept right on the schedule.",
+            $"/schedule?date={session.Date:yyyy-MM-dd}");
 
         await db.SaveChangesAsync(ct);
         return request;
@@ -116,7 +116,7 @@ public class SubstitutionService(GymStationDbContext db, NotificationService not
             NotificationCategory.SwapApplied,
             $"Approved: {request.Session.Name} · {when}",
             $"The substitution for {request.Session.Name} on {when} was approved — the schedule now shows the covering instructor.",
-            "/instructor/swaps");
+            $"/schedule?date={request.Session.Date:yyyy-MM-dd}");
 
         await db.SaveChangesAsync(ct);
     }
