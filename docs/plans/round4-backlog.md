@@ -21,7 +21,7 @@ Loop process per issue: branch off pulled master → implement → rig-verify �
 - [x] #141 — Platform brand: belt-patch logo + favicon adoption (wwwroot/favicon.svg + head link; BrandMark.razor w/ Ink variant; auth lockups, rail + public crest fallbacks, footer mono lockup, legal headers)
 - [x] #127 — Inline edit pattern (pencil → save/cancel) + family rename (inline-edit.js + .ie markup pattern; AdminFamilyDetail title + member MyFamily; Rename section and RENAME row deleted; Esc/cancel reverts client-side)
 - [x] #128 — Person page: name in header; contact merges into edit form (PersonService.SetNameAsync + /admin/actions/rename-person; inline [First][Last] at the title; edit-person keeps DOB+roles and absorbs phone+SMS; Contact section deleted; inline-edit.js multi-input)
-- [ ] #129 — Image edit overlay: click image, hover pencil; hide file inputs
+- [x] #129 — Image edit overlay: click image, hover pencil; hide file inputs (MediaCropUpload Overlay param + media-edit/veil CSS; portrait + logo + hero converted; source rows sr-only under JS, plain form without)
 - [ ] #130 — Event images: 1:1 flyer end-to-end
 - [ ] #131 — Schedule drag: no modal after drag; cross-day drag; modal date field
 - [ ] #132 — Schedule drag: edge-hover week paging

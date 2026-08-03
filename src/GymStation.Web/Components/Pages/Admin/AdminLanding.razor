@@ -86,28 +86,37 @@
     <section>
         <h2 class="section-h">Logo &amp; hero image</h2>
         <div class="form-card">
+            @* The image tile IS the picker (#129) — hover dims it under a pencil. *@
             <div class="row-form" style="align-items:center">
-                @if (_settings?.LogoPath is { } logo)
-                {
-                    <img src="/media/@logo" alt="Gym logo" style="width:2.75rem;height:2.75rem;border-radius:0.5rem;object-fit:cover" />
-                }
-                else
-                {
-                    <BrandMark Size="2.75rem" />
-                }
-                <MediaCropUpload Kind="logo" Label="logo" Aspect="1" OutWidth="512"
+                <label class="media-edit@(_settings?.LogoPath is null ? " media-edit--empty" : null)" for="logo-file"
+                       title="Click to change the logo" style="@(_settings?.LogoPath is null ? "width:2.75rem;height:2.75rem" : null)">
+                    @if (_settings?.LogoPath is { } logo)
+                    {
+                        <img src="/media/@logo" alt="Gym logo" style="width:2.75rem;height:2.75rem;border-radius:0.5rem;object-fit:cover" />
+                    }
+                    else
+                    {
+                        <BrandMark Size="2rem" />
+                    }
+                    <span class="media-edit-veil" aria-hidden="true"><Glyph Name="pencil" /></span>
+                </label>
+                <MediaCropUpload Kind="logo" Label="logo" Aspect="1" OutWidth="512" InputId="logo-file" Overlay="true"
                                  Hint="SQUARE — RENDERS AT ~44PX ON THE RAIL AND TOP BAR" />
             </div>
             <div class="row-form" style="align-items:center;margin-top:0.875rem">
-                @if (_settings?.HeroPath is { } hero)
-                {
-                    <img src="/media/@hero" alt="Public page hero" style="width:6rem;height:2.75rem;border-radius:0.5rem;object-fit:cover" />
-                }
-                else
-                {
-                    <span class="cap" style="margin:0">HERO: MAT-TEXTURE GRADIENT (NO IMAGE YET)</span>
-                }
-                <MediaCropUpload Kind="hero" Label="hero" Aspect="@(8 / 3.0)" OutWidth="1600"
+                <label class="media-edit@(_settings?.HeroPath is null ? " media-edit--empty" : null)" for="hero-file"
+                       title="Click to change the hero image" style="@(_settings?.HeroPath is null ? "width:6rem;height:2.75rem" : null)">
+                    @if (_settings?.HeroPath is { } hero)
+                    {
+                        <img src="/media/@hero" alt="Public page hero" style="width:6rem;height:2.75rem;border-radius:0.5rem;object-fit:cover" />
+                    }
+                    else
+                    {
+                        <span class="cap" style="margin:0;line-height:1.2">HERO</span>
+                    }
+                    <span class="media-edit-veil" aria-hidden="true"><Glyph Name="pencil" /></span>
+                </label>
+                <MediaCropUpload Kind="hero" Label="hero" Aspect="@(8 / 3.0)" OutWidth="1600" InputId="hero-file" Overlay="true"
                                  Hint="WIDE STRIP — DARKENED BEHIND THE PUBLIC-PAGE TEXT" />
             </div>
             <p class="cap">

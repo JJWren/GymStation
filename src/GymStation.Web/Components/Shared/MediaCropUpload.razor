@@ -4,12 +4,16 @@
    (wwwroot/js/media-crop.js) picking a file opens a drag/zoom crop preview and
    APPLY posts the cropped image to the same endpoint. *@
 <form method="post" action="@Action" enctype="multipart/form-data"
-      class="media-crop" data-media-crop data-kind="@Kind"
+      class="media-crop" data-media-crop data-kind="@Kind" data-overlay="@(Overlay ? "1" : null)"
       data-aspect="@Aspect.ToString(CultureInfo.InvariantCulture)" data-out-width="@OutWidth">
     <AntiforgeryToken />
     <input type="hidden" name="kind" value="@Kind" />
     @ChildContent
-    <div class="row-form" style="margin:0">
+    @* In overlay mode (#129) the JS-active page hides this source row visually
+       (sr-only, still keyboard-focusable) — the image itself is the picker via
+       an external <label for=InputId> with the hover pencil veil. No JS = the
+       plain row stays, exactly as before. *@
+    <div class="row-form media-src-row" style="margin:0">
         <input type="file" id="@InputId" name="file" accept=".png,.jpg,.jpeg,.webp" aria-label="@Label file" />
         <button class="btn btn--ghost btn--xs plain-submit" type="submit">UPLOAD @Label.ToUpperInvariant()</button>
     </div>
@@ -45,6 +49,10 @@
 
     /// <summary>Optional id for the file input so external labels can open the picker.</summary>
     [Parameter] public string? InputId { get; set; }
+
+    /// <summary>Overlay mode (#129): with JS active the visible file row hides and the
+    /// page's image (a label for <see cref="InputId"/>) becomes the picker. Requires InputId.</summary>
+    [Parameter] public bool Overlay { get; set; }
 
     /// <summary>Extra hidden fields posted with the file (e.g. personId). The crop JS
     /// builds FormData from the whole form, so these ride along on both paths.</summary>

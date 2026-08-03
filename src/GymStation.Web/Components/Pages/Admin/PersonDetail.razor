@@ -24,7 +24,7 @@ else
     }
 
     <header class="patch" style="display:flex;gap:1.125rem;align-items:center">
-        <label for="portrait-file" style="cursor:pointer;position:relative;z-index:1" title="Click to upload a new portrait">
+        <label for="portrait-file" class="media-edit" style="position:relative;z-index:1" title="Click to upload a new portrait">
             <span class="avatar avatar--l" style="display:block" role="img"
                   aria-label="@(_person.PortraitPath is null ? "Portrait placeholder — click to upload" : $"Portrait of {_person.DisplayName} — click to replace")">
                 @if (_person.PortraitPath is not null)
@@ -32,6 +32,7 @@ else
                     <img src="/admin/media/portrait/@_person.Id" alt="" />
                 }
             </span>
+            <span class="media-edit-veil" aria-hidden="true"><Glyph Name="pencil" /></span>
         </label>
         <div style="flex:1;position:relative;z-index:1">
             @* Name edits inline at the title (#128) — first/last left the edit-person form. *@
@@ -80,7 +81,7 @@ else
 
     <div style="margin:0.625rem 0 0.25rem">
         <MediaCropUpload Kind="portrait" Label="portrait" Aspect="1" OutWidth="512"
-                         Action="/admin/actions/upload-portrait" InputId="portrait-file"
+                         Action="/admin/actions/upload-portrait" InputId="portrait-file" Overlay="true"
                          Hint="SQUARE · 512×512 OR LARGER · STAFF-ONLY, NEVER PUBLIC">
             <input type="hidden" name="personId" value="@_person.Id" />
         </MediaCropUpload>
