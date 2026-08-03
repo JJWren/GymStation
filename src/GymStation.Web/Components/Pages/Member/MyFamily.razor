@@ -6,6 +6,7 @@
 @inject IDbContextFactory<GymStationDbContext> DbFactory
 @inject GymStation.Infrastructure.People.FamilyService Families
 @inject GymStation.Infrastructure.Money.LedgerService Ledger
+@inject Microsoft.AspNetCore.Identity.UserManager<GymStation.Infrastructure.Identity.AppUser> Users
 
 <PageTitle>My family · GymStation</PageTitle>
 
@@ -24,6 +25,21 @@
     @if (_families.Count == 0)
     {
         <p class="cap" style="margin-top:0.625rem">YOU'RE NOT A GUARDIAN OF ANY FAMILY HERE. YOUR GYM'S STAFF SET FAMILIES UP.</p>
+    }
+
+    @if (_gradResult is { } grad)
+    {
+        <div class="form-card" style="margin-top:0.75rem;border:1.5px solid var(--ok)">
+            <b>@grad.PersonName.ToUpperInvariant() IS GRADUATED.</b>
+            <p class="cap" style="margin:0.375rem 0 0">
+                LOGIN: @grad.Email.ToUpperInvariant()
+                @if (grad.TempPassword is { } pw)
+                {
+                    <br /><text>ONE-TIME PASSWORD (SHOWN ONLY NOW — HAND IT OVER AND HAVE THEM CHANGE IT): </text><b class="mono">@pw</b>
+                }
+                <br /><text>THEIR ENTIRE DIARY IS NOW PRIVATE TO THEM; IF THE FAMILY HAS A FAMILY PLAN, IT KEEPS COVERING THEM AS AN ADULT MEMBER.</text>
+            </p>
+        </div>
     }
 
     @foreach (var view in _families)
@@ -45,6 +61,13 @@
                     <input type="text" name="name" value="@view.Family.Name" aria-label="Family name" required maxlength="80" style="min-width:9rem" />
                     <button class="btn btn--ghost btn--xs" type="submit">RENAME</button>
                 </form>
+            }
+
+            @foreach (var adultWard in view.AdultAgedWards)
+            {
+                <p class="auth-error" role="status" style="margin-top:0.5rem">
+                    @adultWard.FirstName.ToUpperInvariant() IS 18+ — CONSIDER GRADUATING THEM TO THEIR OWN ACCOUNT BELOW.
+                </p>
             }
 
             <h2 class="section-h">Members</h2>
@@ -152,6 +175,31 @@
             }
         </div>
     }
+    @if (_graduatable.Count > 0)
+    {
+        <h2 class="section-h">Graduate a ward</h2>
+        <EditForm class="form-card" FormName="graduate" Model="GradForm" OnValidSubmit="GraduateAsync">
+            <p class="cap" style="margin:0 0 0.5rem">
+                GRADUATION MAKES A WARD THEIR OWN ADULT ACCOUNT: THEIR WHOLE DIARY GOES PRIVATE TO THEM,
+                AND THE FAMILY PLAN CAN KEEP COVERING THEM. ONLY THE PRIMARY CAN DO THIS.
+            </p>
+            <label for="gw">Ward</label>
+            <InputSelect id="gw" @bind-Value="GradForm!.Key">
+                <option value="">— pick —</option>
+                @foreach (var (key, label, hasLogin) in _graduatable)
+                {
+                    <option value="@key">@label@(hasLogin ? " (HAS A LOGIN ALREADY)" : null)</option>
+                }
+            </InputSelect>
+            <label for="ge">Email for their new login (skip if they already have one)</label>
+            <InputText id="ge" @bind-Value="GradForm!.Email" type="email" />
+            @if (_gradError is not null)
+            {
+                <p class="validation-message">@_gradError</p>
+            }
+            <p style="margin-top:0.75rem"><button class="btn" type="submit">GRADUATE</button></p>
+        </EditForm>
+    }
 </main>
 
 @code {
@@ -165,9 +213,48 @@
         FamilyGuardian MyGuardian,
         List<(FamilyMember Membership, Person Person)> Members,
         List<(FamilyGuardian Row, string Email)> Guardians,
-        BillingView? Billing);
+        BillingView? Billing,
+        List<Person> AdultAgedWards);
 
     private List<FamilyView> _families = [];
+    private List<(string Key, string Label, bool HasLogin)> _graduatable = [];
+    private GymStation.Infrastructure.People.GraduationResult? _gradResult;
+    private string? _gradError;
+    private Guid _meUserId;
+
+    [SupplyParameterFromForm(FormName = "graduate")]
+    public GraduateForm? GradForm { get; set; }
+
+    public class GraduateForm
+    {
+        public string? Key { get; set; }
+        public string? Email { get; set; }
+    }
+
+    protected override void OnInitialized() => GradForm ??= new();
+
+    private async Task GraduateAsync()
+    {
+        var key = GradForm!.Key;
+        if (string.IsNullOrWhiteSpace(key) || key.Split(':') is not [var familyRaw, var personRaw]
+            || !Guid.TryParse(familyRaw, out var familyId) || !Guid.TryParse(personRaw, out var personId))
+        {
+            _gradError = "Pick a ward.";
+            return;
+        }
+
+        try
+        {
+            _gradResult = await Families.GraduateAsync(
+                GymStation.Infrastructure.People.FamilyActor.User(_meUserId), familyId, personId, GradForm.Email, Users);
+            _gradError = null;
+            await OnInitializedAsync();
+        }
+        catch (InvalidOperationException ex)
+        {
+            _gradError = ex.Message;
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -177,6 +264,8 @@
             return;
         }
 
+        _meUserId = userId;
+
         var families = await Families.FamiliesForGuardianAsync(userId);
         if (families.Count == 0)
         {
@@ -185,6 +274,7 @@
 
         await using var db = await DbFactory.CreateDbContextAsync();
         _families = [];
+        _graduatable = [];
         var userIds = families.SelectMany(f => f.Guardians).Select(g => g.GuardianUserId).Distinct().ToList();
         var emails = await db.Users.Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, u => u.Email ?? u.UserName ?? "unknown");
@@ -209,19 +299,33 @@
                 }
             }
 
-            _families.Add(new FamilyView(
-                f,
-                mine,
-                f.Members
-                    .Where(m => m.Person is { Archived: false })
-                    .OrderByDescending(m => m.IsWard).ThenBy(m => m.Person.FirstName)
-                    .Select(m => (m, m.Person))
-                    .ToList(),
+            var members = f.Members
+                .Where(m => m.Person is { Archived: false })
+                .OrderByDescending(m => m.IsWard).ThenBy(m => m.Person.FirstName)
+                .Select(m => (m, m.Person))
+                .ToList();
+
+            // 18+ nudge (#92) — computed from what's loaded; graduation stays manual.
+            var cutoff = DateOnly.FromDateTime(DateTime.Today).AddYears(-18);
+            var adultAged = members
+                .Where(x => x.m.IsWard && x.Person.DateOfBirth is { } dob && dob <= cutoff)
+                .Select(x => x.Person)
+                .ToList();
+
+            if (mine.IsPrimary)
+            {
+                _graduatable.AddRange(members
+                    .Where(x => x.m.IsWard)
+                    .Select(x => ($"{f.Id}:{x.Person.Id}", $"{x.Person.DisplayName} — {f.Name}", x.Person.UserId is not null)));
+            }
+
+            _families.Add(new FamilyView(f, mine, members,
                 f.Guardians
                     .OrderByDescending(g => g.IsPrimary)
                     .Select(g => (g, emails.GetValueOrDefault(g.GuardianUserId, "unknown")))
                     .ToList(),
-                billing));
+                billing,
+                adultAged));
         }
     }
 }

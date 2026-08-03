@@ -3,6 +3,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GymStation.Infrastructure.People;
 
+/// <summary>What graduation hands back for the one-time reveal (#92).</summary>
+public sealed record GraduationResult(string PersonName, string Email, string? TempPassword);
+
 /// <summary>Who is asking: a guardian login, or staff using the admin surface.
 /// Staff are STRUCTURE-ONLY (decision 6): they pass every structural gate here but
 /// never the acting gate — CanActForAsync ignores staff entirely.</summary>
@@ -211,6 +214,89 @@ public class FamilyService(GymStationDbContext db)
 
         family.MembershipPlanId = planId;
         await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// Graduation (#92): a ward becomes their own adult account, by the PRIMARY or
+    /// staff. IsWard clears — which by itself re-privatizes the ENTIRE diary history
+    /// to the new adult (guardian authority is derived from IsWard, so nothing to
+    /// migrate) — and family membership continues as an adult, so a family plan may
+    /// keep covering them. A ward without a login gets one created on the given email
+    /// with a one-time password the caller shows them once; a ward who already has a
+    /// login keeps it.
+    /// </summary>
+    public async Task<GraduationResult> GraduateAsync(
+        FamilyActor actor, Guid familyId, Guid personId, string? email,
+        Microsoft.AspNetCore.Identity.UserManager<Identity.AppUser> users, CancellationToken ct = default)
+    {
+        var current = await db.FamilyGuardians.SingleOrDefaultAsync(g => g.FamilyId == familyId && g.IsPrimary, ct);
+        if (!actor.IsStaff && (current is null || actor.UserId != current.GuardianUserId))
+        {
+            throw new InvalidOperationException("Only the primary guardian (or staff) can graduate a ward.");
+        }
+
+        var member = await db.FamilyMembers.SingleOrDefaultAsync(m => m.FamilyId == familyId && m.PersonId == personId, ct)
+            ?? throw new InvalidOperationException("That person isn't in this family.");
+        if (!member.IsWard)
+        {
+            throw new InvalidOperationException("That person is already an adult member.");
+        }
+
+        var person = await db.Persons.SingleOrDefaultAsync(p => p.Id == personId && !p.Archived, ct)
+            ?? throw new InvalidOperationException("Person not found in the active gym.");
+
+        string? tempPassword = null;
+        string loginEmail;
+        if (person.UserId is null)
+        {
+            loginEmail = email?.Trim() ?? "";
+            if (loginEmail.Length == 0)
+            {
+                throw new InvalidOperationException("Graduation needs an email for the new login.");
+            }
+
+            var existing = await users.FindByEmailAsync(loginEmail);
+            if (existing is not null)
+            {
+                // (GymId, UserId) is unique — and a typo'd email must never attach the
+                // ward to somebody else's roster identity.
+                if (await db.Persons.AnyAsync(p => p.UserId == existing.Id, ct))
+                {
+                    throw new InvalidOperationException(
+                        "That email already belongs to another member of this gym — use a different one.");
+                }
+
+                person.UserId = existing.Id;
+            }
+            else
+            {
+                // One-time password, shown once by the caller — the gym hands it over,
+                // the same way every login starts here.
+                tempPassword = $"{Guid.NewGuid():N}"[..10] + "Aa1!";
+                var user = new Identity.AppUser
+                {
+                    Id = Guid.NewGuid(),
+                    UserName = loginEmail,
+                    Email = loginEmail,
+                };
+                var created = await users.CreateAsync(user, tempPassword);
+                if (!created.Succeeded)
+                {
+                    throw new InvalidOperationException(
+                        $"Couldn't create the login: {string.Join("; ", created.Errors.Select(e => e.Description))}");
+                }
+
+                person.UserId = user.Id;
+            }
+        }
+        else
+        {
+            loginEmail = (await users.FindByIdAsync(person.UserId.Value.ToString()))?.Email ?? "their existing login";
+        }
+
+        member.IsWard = false;
+        await db.SaveChangesAsync(ct);
+        return new GraduationResult(person.DisplayName, loginEmail, tempPassword);
     }
 
     /// <summary>Primacy moves as one atomic step: only the current primary (or staff)
