@@ -20,16 +20,18 @@ namespace GymStation.Infrastructure.Migrations
             // Backfill from already-materialized rows: without this, a live gym's
             // recurrings would all re-materialize this month if the owner deletes a
             // row right after upgrading (the exact bug the high-water mark prevents).
+            // Gym-scoped join: RecurringExpenseId carries no FK constraint, so a
+            // corrupt/imported row must never bleed a mark across tenants.
             migrationBuilder.Sql("""
                 UPDATE "RecurringExpenses" AS r
                 SET "LastMaterializedMonth" = s.m
                 FROM (
-                    SELECT "RecurringExpenseId" AS id, date_trunc('month', MAX("SpentOn"))::date AS m
+                    SELECT "RecurringExpenseId" AS id, "GymId" AS gym, date_trunc('month', MAX("SpentOn"))::date AS m
                     FROM "Expenses"
                     WHERE "RecurringExpenseId" IS NOT NULL
-                    GROUP BY "RecurringExpenseId"
+                    GROUP BY "RecurringExpenseId", "GymId"
                 ) AS s
-                WHERE s.id = r."Id";
+                WHERE s.id = r."Id" AND s.gym = r."GymId";
                 """);
 
             migrationBuilder.CreateTable(
