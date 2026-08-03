@@ -88,6 +88,54 @@ public class PersonServiceTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task SetName_TrimsValidatesAndLeavesEverythingElseAlone()
+    {
+        var (tenant, _, member) = await SeedAsync();
+
+        await using var context = fixture.CreateContext(tenant);
+        var service = new PersonService(context);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.SetNameAsync(member.Id, " ", "Nair"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.SetNameAsync(member.Id, new string('a', 81), "Nair"));
+
+        await service.SetNameAsync(member.Id, "  Dara ", " Nair-Smith ");
+        var stored = await context.Persons.SingleAsync(p => p.Id == member.Id);
+        Assert.Equal("Dara", stored.FirstName);
+        Assert.Equal("Nair-Smith", stored.LastName);
+        Assert.Equal(PersonRoles.Member, stored.Roles); // untouched — names only (#128)
+    }
+
+    [Fact]
+    public async Task UpdateWithContact_IsAtomic_ARejectedPhoneRollsRolesBack()
+    {
+        var (tenant, _, member) = await SeedAsync();
+
+        await using var context = fixture.CreateContext(tenant);
+        var service = new PersonService(context);
+
+        // The 31-char phone is rejected AFTER the roles write inside the same
+        // transaction — nothing may stick.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.UpdateWithContactAsync(
+            member.Id, new DateOnly(2000, 1, 1), PersonRoles.Member | PersonRoles.Instructor,
+            visitor: false, phoneNumber: new string('9', 31), smsAllowed: true));
+
+        await using var fresh = fixture.CreateContext(tenant);
+        var stored = await fresh.Persons.SingleAsync(p => p.Id == member.Id);
+        Assert.Equal(PersonRoles.Member, stored.Roles);
+        Assert.Null(stored.DateOfBirth);
+        Assert.Null(stored.PhoneNumber);
+
+        // And the happy path lands both halves together.
+        await service.UpdateWithContactAsync(
+            member.Id, new DateOnly(2000, 1, 1), PersonRoles.Member | PersonRoles.Instructor,
+            visitor: false, phoneNumber: "555 010 0100", smsAllowed: true);
+        stored = await fresh.Persons.AsNoTracking().SingleAsync(p => p.Id == member.Id);
+        Assert.Equal(PersonRoles.Member | PersonRoles.Instructor, stored.Roles);
+        Assert.Equal("555 010 0100", stored.PhoneNumber);
+        Assert.True(stored.SmsAllowed);
+    }
+
+    [Fact]
     public async Task Contact_SetsTrimsAndClears_WithConsentTiedToTheNumber()
     {
         var (tenant, _, member) = await SeedAsync();

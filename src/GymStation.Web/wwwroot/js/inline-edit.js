@@ -11,19 +11,19 @@
         var fields = form.querySelector('.ie-fields');
         var cancel = form.querySelector('.ie-cancel');
         var edit = form.querySelector('.ie-edit');
-        var input = fields ? fields.querySelector('input:not([type=hidden])') : null;
-        if (!view || !fields || !edit || !input) { return; }
+        var inputs = fields ? Array.prototype.slice.call(fields.querySelectorAll('input:not([type=hidden])')) : [];
+        if (!view || !fields || !edit || inputs.length === 0) { return; }
 
         function show(editing) {
             view.hidden = editing;
             fields.hidden = !editing;
-            if (editing) { input.focus(); input.select(); }
+            if (editing) { inputs[0].focus(); inputs[0].select(); }
         }
 
         // Reverting must hand keyboard focus back to the pencil — hiding the
         // focused input would otherwise drop focus to <body>.
         function revert() {
-            input.value = input.defaultValue;
+            inputs.forEach(function (input) { input.value = input.defaultValue; });
             show(false);
             edit.focus();
         }
@@ -33,8 +33,10 @@
             cancel.addEventListener('click', revert);
         }
         edit.addEventListener('click', function () { show(true); });
-        input.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') { e.preventDefault(); revert(); }
+        inputs.forEach(function (input) {
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') { e.preventDefault(); revert(); }
+            });
         });
         show(false);
     }

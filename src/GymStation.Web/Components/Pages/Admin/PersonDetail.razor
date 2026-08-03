@@ -34,7 +34,21 @@ else
             </span>
         </label>
         <div style="flex:1;position:relative;z-index:1">
-            <h1 class="page-title">@_person.DisplayName.ToUpperInvariant()</h1>
+            @* Name edits inline at the title (#128) — first/last left the edit-person form. *@
+            <form method="post" action="/admin/actions/rename-person" class="ie" data-inline-edit style="margin:0">
+                <AntiforgeryToken />
+                <input type="hidden" name="personId" value="@_person.Id" />
+                <div class="ie-view" hidden>
+                    <h1 class="page-title" style="margin:0">@_person.DisplayName.ToUpperInvariant()</h1>
+                    <button type="button" class="btn btn--ghost btn--icon btn--xs ie-edit" aria-label="Edit name" title="Edit name"><Glyph Name="pencil" /></button>
+                </div>
+                <div class="ie-fields">
+                    <input type="text" name="firstName" value="@_person.FirstName" aria-label="First name" required maxlength="80" class="ie-input--title" style="min-width:8rem" />
+                    <input type="text" name="lastName" value="@_person.LastName" aria-label="Last name" required maxlength="80" class="ie-input--title" style="min-width:8rem" />
+                    <button class="btn btn--icon btn--save btn--xs" type="submit" aria-label="Save name" title="Save name"><Glyph Name="save" /></button>
+                    <button type="button" class="btn btn--icon btn--del btn--xs ie-cancel" aria-label="Cancel editing" title="Cancel editing" hidden><Glyph Name="x" /></button>
+                </div>
+            </form>
             <p class="cap" style="margin:0.25rem 0 0.625rem">
                 @_person.Roles.ToString().ToUpperInvariant()
                 @if (_ageGroup is not null)
@@ -247,20 +261,8 @@ else
 
             <h2 class="section-h">Edit person</h2>
             <EditForm class="form-card" FormName="edit-person" Model="PersonForm" OnValidSubmit="SavePersonAsync">
-                <div class="form-grid">
-                    <div>
-                        <label for="epfirst">First name</label>
-                        <InputText id="epfirst" @bind-Value="PersonForm!.FirstName" />
-                    </div>
-                    <div>
-                        <label for="eplast">Last name</label>
-                        <InputText id="eplast" @bind-Value="PersonForm!.LastName" />
-                    </div>
-                    <div>
-                        <label for="epdob">Date of birth — drives the derived IBJJF/Masters category above</label>
-                        <InputDate id="epdob" @bind-Value="PersonForm!.DateOfBirth" />
-                    </div>
-                </div>
+                <label for="epdob">Date of birth — drives the derived IBJJF/Masters category above (names edit at the title)</label>
+                <InputDate id="epdob" @bind-Value="PersonForm!.DateOfBirth" />
                 <div class="check-row" style="margin-top:0.625rem">
                     <label><InputCheckbox @bind-Value="PersonForm!.IsMember" /> MEMBER</label>
                     <label><InputCheckbox @bind-Value="PersonForm!.IsInstructor" /> INSTRUCTOR</label>
@@ -269,25 +271,17 @@ else
                     <label><InputCheckbox @bind-Value="PersonForm!.IsStaff" /> STAFF (FRONT DESK/OPS — NO PORTAL ACCESS)</label>
                     <label><InputCheckbox @bind-Value="PersonForm!.IsVisitor" /> VISITOR — UNTICK & ASSIGN A PLAN TO CONVERT</label>
                 </div>
+                @* Contact lives inside the person edit now (#128) — the separate section is gone. *@
+                <label for="ctphone">Phone number (leave empty to remove)</label>
+                <InputText id="ctphone" @bind-Value="PersonForm!.PhoneNumber" maxlength="30" />
+                <div class="check-row" style="margin-top:0.625rem">
+                    <label><InputCheckbox @bind-Value="PersonForm!.SmsAllowed" /> TEXTING ALLOWED (STAFF-ENTERED NUMBERS DEFAULT TO NO)</label>
+                </div>
                 @if (_editError is not null)
                 {
                     <p class="validation-message">@_editError</p>
                 }
                 <p style="margin-top:0.75rem"><button class="btn btn--icon btn--save" type="submit" aria-label="Save person" title="Save person"><Glyph Name="save" /></button></p>
-            </EditForm>
-
-            <h2 class="section-h">Contact</h2>
-            <EditForm class="form-card" FormName="contact-person" Model="ContactForm" OnValidSubmit="SaveContactAsync">
-                <label for="ctphone">Phone number (leave empty to remove)</label>
-                <InputText id="ctphone" @bind-Value="ContactForm!.PhoneNumber" maxlength="30" />
-                <div class="check-row" style="margin-top:0.625rem">
-                    <label><InputCheckbox @bind-Value="ContactForm!.SmsAllowed" /> TEXTING ALLOWED (STAFF-ENTERED NUMBERS DEFAULT TO NO)</label>
-                </div>
-                @if (_contactError is not null)
-                {
-                    <p class="validation-message">@_contactError</p>
-                }
-                <p style="margin-top:0.75rem"><button class="btn btn--icon btn--save btn--xs" type="submit" aria-label="Save contact" title="Save contact"><Glyph Name="save" /></button></p>
             </EditForm>
 
             <EditForm class="form-card" FormName="archive-person" Model="ArchiveMarker" OnValidSubmit="ToggleArchiveAsync" style="margin-top:0.625rem">
@@ -330,18 +324,7 @@ else
     [SupplyParameterFromForm(FormName = "archive-person")]
     public ArchiveModel? ArchiveMarker { get; set; }
 
-    [SupplyParameterFromForm(FormName = "contact-person")]
-    public ContactFormModel? ContactForm { get; set; }
-
     public class ArchiveModel;
-
-    public class ContactFormModel
-    {
-        public string? PhoneNumber { get; set; }
-        public bool SmsAllowed { get; set; }
-    }
-
-    private string? _contactError;
 
     protected override void OnInitialized()
     {
@@ -349,7 +332,6 @@ else
         ProfileForm ??= new();
         PersonForm ??= new();
         ArchiveMarker ??= new();
-        ContactForm ??= new();
     }
 
     private Person? _person;
@@ -393,8 +375,6 @@ else
 
     public class EditPersonForm
     {
-        public string FirstName { get; set; } = "";
-        public string LastName { get; set; } = "";
         public DateOnly? DateOfBirth { get; set; }
         public bool IsMember { get; set; }
         public bool IsInstructor { get; set; }
@@ -402,6 +382,8 @@ else
         public bool IsOwner { get; set; }
         public bool IsStaff { get; set; }
         public bool IsVisitor { get; set; }
+        public string? PhoneNumber { get; set; }
+        public bool SmsAllowed { get; set; }
     }
 
     protected override async Task OnInitializedAsync()
@@ -476,34 +458,15 @@ else
             : null;
         if (postedHandler != "edit-person")
         {
-            PersonForm!.FirstName = _person.FirstName;
-            PersonForm.LastName = _person.LastName;
-            PersonForm.DateOfBirth = _person.DateOfBirth;
+            PersonForm!.DateOfBirth = _person.DateOfBirth;
             PersonForm.IsMember = _person.Roles.HasFlag(PersonRoles.Member);
             PersonForm.IsInstructor = _person.Roles.HasFlag(PersonRoles.Instructor);
             PersonForm.IsAdmin = _person.Roles.HasFlag(PersonRoles.Admin);
             PersonForm.IsOwner = _person.Roles.HasFlag(PersonRoles.Owner);
             PersonForm.IsStaff = _person.Roles.HasFlag(PersonRoles.Staff);
             PersonForm.IsVisitor = _person.Visitor;
-        }
-
-        if (postedHandler != "contact-person")
-        {
-            ContactForm!.PhoneNumber = _person.PhoneNumber;
-            ContactForm.SmsAllowed = _person.SmsAllowed;
-        }
-    }
-
-    private async Task SaveContactAsync()
-    {
-        try
-        {
-            await People.SetContactAsync(PersonId, ContactForm!.PhoneNumber, ContactForm.SmsAllowed);
-            Nav.NavigateTo($"/admin/people/{PersonId}");
-        }
-        catch (InvalidOperationException ex)
-        {
-            _contactError = ex.Message;
+            PersonForm.PhoneNumber = _person.PhoneNumber;
+            PersonForm.SmsAllowed = _person.SmsAllowed;
         }
     }
 
@@ -519,7 +482,9 @@ else
 
         try
         {
-            await People.UpdateAsync(PersonId, form.FirstName, form.LastName, form.DateOfBirth, roles, form.IsVisitor);
+            // Names moved to the inline title edit (#128) — this form updates
+            // everything else, contact included, atomically in one submit.
+            await People.UpdateWithContactAsync(PersonId, form.DateOfBirth, roles, form.IsVisitor, form.PhoneNumber, form.SmsAllowed);
             Nav.NavigateTo($"/admin/people/{PersonId}");
         }
         catch (InvalidOperationException ex)

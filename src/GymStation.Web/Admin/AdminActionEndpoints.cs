@@ -18,6 +18,21 @@ public static class AdminActionEndpoints
             .RequireAuthorization("GymStaff")
             .ValidateAntiforgery();
 
+        group.MapPost("/rename-person", async (
+            [FromForm] Guid personId, [FromForm] string firstName, [FromForm] string lastName,
+            GymStation.Infrastructure.People.PersonService people) =>
+        {
+            try
+            {
+                await people.SetNameAsync(personId, firstName, lastName);
+                return Results.Redirect($"/admin/people/{personId}");
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Redirect($"/admin/people/{personId}?failed=1");
+            }
+        });
+
         group.MapPost("/cancel-session", async ([FromForm] Guid sessionId, [FromForm] string reason, ScheduleService schedule) =>
         {
             await schedule.CancelSessionAsync(sessionId, string.IsNullOrWhiteSpace(reason) ? "No reason given" : reason);
