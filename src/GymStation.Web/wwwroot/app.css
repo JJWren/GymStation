@@ -131,8 +131,19 @@ a { color: var(--ink); }
 .mono { font: 600 0.75rem/1.3 var(--font-mono); color: var(--ink-dim); }
 
 /* ---- forms & buttons ---- */
-.btn { font: 700 0.6875rem/1 var(--font-mono); letter-spacing: .1em; background: var(--tenant); color: var(--tenant-ink); border: none; border-radius: 0.5rem; padding: 0.6875rem 1rem; cursor: pointer; }
+.btn { font: 700 0.6875rem/1 var(--font-mono); letter-spacing: .1em; background: var(--tenant); color: var(--tenant-ink); border: none; border-radius: 0.5rem; padding: 0.6875rem 1rem; cursor: pointer; --glow: var(--tenant); }
 .btn--ghost { background: transparent; border: 1.5px solid var(--tenant); color: var(--tenant); }
+/* Hover affordance for every button (#123); glow color follows the variant. */
+.btn:hover, input[type=file]::file-selector-button:hover { box-shadow: 0 0 0.55rem var(--glow, var(--tenant)); }
+.btn:focus-visible { outline: 2px solid var(--glow, var(--tenant)); outline-offset: 2px; }
+/* Icon-only actions (#123): save = persist-a-record, del = hard delete.
+   Icon buttons MUST carry aria-label + title — the glyph alone names nothing. */
+.btn--icon { display: inline-flex; align-items: center; justify-content: center; padding: 0.5625rem; line-height: 0; }
+.btn--icon svg { width: 0.875rem; height: 0.875rem; display: block; }
+.btn--icon.btn--xs { padding: 0.4375rem; }
+.btn--icon.btn--xs svg { width: 0.75rem; height: 0.75rem; }
+.btn--save { background: transparent; border: 1.5px solid var(--ok); color: var(--ok); --glow: var(--ok); }
+.btn--del { background: transparent; border: 1.5px solid var(--bad); color: var(--bad); --glow: var(--bad); }
 .form-card { background: var(--surface); border-radius: 0.75rem; padding: 1rem; }
 .form-card label { display: block; font: 600 0.5625rem/1 var(--font-mono); letter-spacing: .14em; color: var(--ink-dim); margin: 0.75rem 0 0.3125rem; text-transform: uppercase; }
 /* :not() form so the typeless <input> Blazor's InputText renders is covered too

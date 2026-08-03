@@ -80,14 +80,14 @@ else
                         <option value="@id">@name</option>
                     }
                 </select>
-                <button class="btn btn--ghost btn--xs" type="submit">+ ADD (NO PHONE)</button>
+                <button class="btn btn--icon btn--save btn--xs" type="submit" aria-label="Add to roll (no phone)" title="Add to roll (no phone)"><Glyph Name="save" /></button>
             </form>
             <form method="post" action="/instructor/actions/add-visitor" class="row-form">
                 <AntiforgeryToken />
                 <input type="hidden" name="sessionId" value="@SessionId" />
                 <input type="text" name="firstName" placeholder="first" required maxlength="60" aria-label="Drop-in first name" />
                 <input type="text" name="lastName" placeholder="last" required maxlength="60" aria-label="Drop-in last name" />
-                <button class="btn btn--ghost btn--xs" type="submit">+ DROP-IN</button>
+                <button class="btn btn--icon btn--save btn--xs" type="submit" aria-label="Add drop-in" title="Add drop-in"><Glyph Name="save" /></button>
             </form>
             @if (_records.Any(r => r.Status == AttendanceStatus.Pending))
             {

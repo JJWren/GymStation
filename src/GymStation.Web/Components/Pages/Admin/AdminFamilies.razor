@@ -36,7 +36,7 @@
 <form method="post" action="/admin/family-actions/create" class="row-form">
     <AntiforgeryToken />
     <input type="text" name="name" placeholder="HALE FAMILY" aria-label="Family name" required maxlength="80" style="min-width:12.5rem" />
-    <button class="btn btn--ghost btn--xs" type="submit">+ FAMILY</button>
+    <button class="btn btn--icon btn--save btn--xs" type="submit" aria-label="Add family" title="Add family"><Glyph Name="save" /></button>
 </form>
 
 @code {

@@ -1,0 +1,35 @@
+@* Round-4 icon set (#123): hand-drawn strokes, no icon font, no emoji.
+   Rendered inside .btn--icon buttons, which MUST carry aria-label + title —
+   the svg itself is always decorative (aria-hidden). *@
+<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+     stroke-linecap="square" aria-hidden="true" focusable="false">
+    @switch (Name)
+    {
+        case "save":
+            <path d="M2.75 2.75h8l2.5 2.5v8h-10.5z" />
+            <path d="M5.25 2.75v3.5h4.5v-3.5" />
+            <path d="M5.25 13.25v-3.75h5.5v3.75" />
+            break;
+        case "trash":
+            <path d="M2.75 4.25h10.5" />
+            <path d="M6 4.25v-1.5h4v1.5" />
+            <path d="M4.25 4.25l.65 9h6.2l.65-9" />
+            <path d="M6.75 7v3.75M9.25 7v3.75" />
+            break;
+        case "pencil":
+            <path d="M3 13l.9-3.4 7.35-7.35 2.5 2.5-7.35 7.35z" />
+            <path d="M9.9 3.6l2.5 2.5" />
+            break;
+        case "x":
+            <path d="M4 4l8 8M12 4l-8 8" />
+            break;
+        case "envelope":
+            <rect x="2" y="3.5" width="12" height="9" rx="1" />
+            <path d="M2.75 4.75L8 9l5.25-4.25" />
+            break;
+    }
+</svg>
+
+@code {
+    [Parameter, EditorRequired] public string Name { get; set; } = "";
+}

@@ -52,7 +52,7 @@
             {
                 <p class="validation-message">@_error</p>
             }
-            <p style="margin-top:0.75rem"><button class="btn" type="submit">SAVE SETTINGS</button></p>
+            <p style="margin-top:0.75rem"><button class="btn btn--icon btn--save" type="submit" aria-label="Save settings" title="Save settings"><Glyph Name="save" /></button></p>
             <p class="cap">BELT COLORS ARE NOT THEMEABLE — RANK RENDERING IS IDENTICAL IN EVERY GYM.</p>
         </EditForm>
 
@@ -93,7 +93,7 @@
                         <option value="@option" selected="@(_idleMinutes == option)">AFTER @option MIN</option>
                     }
                 </select>
-                <button type="submit" class="btn btn--ghost btn--xs">SAVE</button>
+                <button type="submit" class="btn btn--icon btn--save btn--xs" aria-label="Save idle sign-out" title="Save idle sign-out"><Glyph Name="save" /></button>
             </form>
         </div>
     </section>

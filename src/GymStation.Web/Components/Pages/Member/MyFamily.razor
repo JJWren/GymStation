@@ -136,7 +136,7 @@
                                 <label><input type="checkbox" name="manageGuardians" value="true" checked="@guardian.Row.ManageGuardians" /> MANAGE GUARDIANS</label>
                                 <label><input type="checkbox" name="manageMembers" value="true" checked="@guardian.Row.ManageMembers" /> MANAGE MEMBERS</label>
                                 <label><input type="checkbox" name="viewBilling" value="true" checked="@guardian.Row.ViewBilling" /> VIEW BILLING</label>
-                                <button class="btn btn--ghost btn--xs" type="submit">SAVE</button>
+                                <button class="btn btn--icon btn--save btn--xs" type="submit" aria-label="Save guardian flags" title="Save guardian flags"><Glyph Name="save" /></button>
                             </form>
                             <div class="row-form" style="margin-top:0.25rem">
                                 @if (view.MyGuardian.IsPrimary)
@@ -169,7 +169,7 @@
                     <div class="row-form">
                         <input id="ag-@view.Family.Id" type="email" name="email" required style="flex:1;min-width:9rem" />
                         <label class="cap" style="margin:0"><input type="checkbox" name="actForWards" value="true" checked /> ACTS FOR WARDS</label>
-                        <button class="btn btn--ghost btn--xs" type="submit">+ GUARDIAN</button>
+                        <button class="btn btn--icon btn--save btn--xs" type="submit" aria-label="Add guardian" title="Add guardian"><Glyph Name="save" /></button>
                     </div>
                 </form>
             }
