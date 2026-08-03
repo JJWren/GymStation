@@ -25,6 +25,13 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
                 p => p.MembershipPlanId, pl => pl.Id, (p, pl) => new { Person = p, Plan = pl })
             .ToListAsync(ct);
 
+        // Members of a family on a family plan are covered — the family charge on the
+        // primary's Person replaces their individual one (#91).
+        var familyCoveredPersonIds = (await db.FamilyMembers
+                .Join(db.Families.Where(f => f.MembershipPlanId != null), m => m.FamilyId, f => f.Id, (m, f) => m.PersonId)
+                .ToListAsync(ct))
+            .ToHashSet();
+
         var alreadyCharged = (await db.Charges
                 .Where(c => c.CycleKey == cycleKey)
                 .Select(c => c.PersonId)
@@ -34,7 +41,8 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
         var raised = 0;
 
         // Zero-price plans are comped (instructors, staff) — no charges, no notifications.
-        foreach (var row in planned.Where(x => !alreadyCharged.Contains(x.Person.Id) && x.Plan.Price > 0))
+        foreach (var row in planned.Where(x => !alreadyCharged.Contains(x.Person.Id)
+            && !familyCoveredPersonIds.Contains(x.Person.Id) && x.Plan.Price > 0))
         {
             db.Charges.Add(new Charge
             {
@@ -60,6 +68,8 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
             raised++;
         }
 
+        raised += await RaiseFamilyChargesAsync(cycleMonth, raisedOn, ct);
+
         if (raised > 0)
         {
             try
@@ -74,6 +84,73 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
                 db.ChangeTracker.Clear();
                 return 0;
             }
+        }
+
+        return raised;
+    }
+
+    /// <summary>
+    /// One charge per family plan per month, on the PRIMARY guardian's own roster
+    /// Person (#91). The cycle key carries the family id so a primary who also has a
+    /// personal plan never collides on the (person, cycle) unique index.
+    /// </summary>
+    private async Task<int> RaiseFamilyChargesAsync(DateOnly cycleMonth, DateOnly raisedOn, CancellationToken ct)
+    {
+        var families = await db.Families
+            .Where(f => f.MembershipPlanId != null)
+            .Join(db.MembershipPlans.Where(pl => !pl.Archived && pl.Cadence == PlanCadence.Monthly && pl.Price > 0),
+                f => f.MembershipPlanId, pl => pl.Id, (f, pl) => new { Family = f, Plan = pl })
+            .ToListAsync(ct);
+        if (families.Count == 0)
+        {
+            return 0;
+        }
+
+        var familyIds = families.Select(x => x.Family.Id).ToList();
+        var primaries = await db.FamilyGuardians
+            .Where(g => familyIds.Contains(g.FamilyId) && g.IsPrimary)
+            .ToListAsync(ct);
+        var primaryUserIds = primaries.Select(p => p.GuardianUserId).Distinct().ToList();
+        var primaryPersons = await db.Persons
+            .Where(p => !p.Archived && p.UserId != null && primaryUserIds.Contains(p.UserId.Value))
+            .ToDictionaryAsync(p => p.UserId!.Value, ct);
+
+        var raised = 0;
+        foreach (var row in families)
+        {
+            var familyCycleKey = $"{cycleMonth:yyyy-MM}:family:{row.Family.Id}";
+            if (await db.Charges.AnyAsync(c => c.CycleKey == familyCycleKey, ct))
+            {
+                continue;
+            }
+
+            // "Primary must have a roster Person" — a family without one just skips;
+            // staff see the gap on the family page and repair it.
+            var primary = primaries.SingleOrDefault(p => p.FamilyId == row.Family.Id);
+            if (primary is null || !primaryPersons.TryGetValue(primary.GuardianUserId, out var person))
+            {
+                continue;
+            }
+
+            db.Charges.Add(new Charge
+            {
+                Id = Guid.NewGuid(),
+                PersonId = person.Id,
+                Amount = row.Plan.Price,
+                Description = $"{row.Plan.Name} · {row.Family.Name} · {cycleMonth:yyyy-MM}",
+                RaisedOn = raisedOn,
+                CycleKey = familyCycleKey,
+            });
+
+            notifications.Notify(
+                [primary.GuardianUserId],
+                NotificationCategory.ChargeRaised,
+                $"Family dues raised: {row.Plan.Name} · {cycleMonth:yyyy-MM}",
+                $"{row.Family.Name}'s {row.Plan.Name} dues of {row.Plan.Price:C} for {cycleMonth:MMMM yyyy} were raised on your account. Pay however your gym collects — the ledger updates when staff record it.",
+                "/family",
+                email: false);
+
+            raised++;
         }
 
         return raised;

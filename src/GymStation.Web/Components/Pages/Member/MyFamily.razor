@@ -5,6 +5,7 @@
 @using GymStation.Domain.People
 @inject IDbContextFactory<GymStationDbContext> DbFactory
 @inject GymStation.Infrastructure.People.FamilyService Families
+@inject GymStation.Infrastructure.Money.LedgerService Ledger
 
 <PageTitle>My family · GymStation</PageTitle>
 
@@ -63,6 +64,22 @@
                             <a class="btn btn--ghost btn--xs" href="/diary/child/@member.Person.Id">DIARY</a>
                             <a class="btn btn--ghost btn--xs" href="/progress/child/@member.Person.Id">PROGRESS</a>
                         </span>
+                    }
+                </div>
+            }
+
+            @if ((view.MyGuardian.IsPrimary || view.MyGuardian.ViewBilling) && view.Billing is { } billing)
+            {
+                <h2 class="section-h">Billing</h2>
+                <div class="head-row" style="padding:0.25rem 0">
+                    <span class="mono">@billing.PlanName · $@billing.Price.ToString("N0")/MO ON @billing.PrimaryName.ToUpperInvariant()</span>
+                    @if (billing.Balance > 0)
+                    {
+                        <span class="stamp stamp--bad">DUE $@billing.Balance.ToString("N0")</span>
+                    }
+                    else
+                    {
+                        <span class="stamp stamp--ok">PAID UP</span>
                     }
                 </div>
             }
@@ -141,11 +158,14 @@
     [CascadingParameter] public HttpContext? HttpContext { get; set; }
     [SupplyParameterFromQuery(Name = "failed")] public int? FailedFlag { get; set; }
 
+    private sealed record BillingView(string PlanName, decimal Price, string PrimaryName, decimal Balance);
+
     private sealed record FamilyView(
         Family Family,
         FamilyGuardian MyGuardian,
         List<(FamilyMember Membership, Person Person)> Members,
-        List<(FamilyGuardian Row, string Email)> Guardians);
+        List<(FamilyGuardian Row, string Email)> Guardians,
+        BillingView? Billing);
 
     private List<FamilyView> _families = [];
 
@@ -168,18 +188,39 @@
         var emails = await db.Users.Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, u => u.Email ?? u.UserName ?? "unknown");
 
-        _families = families.Select(f => new FamilyView(
-            f,
-            f.Guardians.Single(g => g.GuardianUserId == userId),
-            f.Members
-                .Where(m => m.Person is { Archived: false })
-                .OrderByDescending(m => m.IsWard).ThenBy(m => m.Person.FirstName)
-                .Select(m => (m, m.Person))
-                .ToList(),
-            f.Guardians
-                .OrderByDescending(g => g.IsPrimary)
-                .Select(g => (g, emails.GetValueOrDefault(g.GuardianUserId, "unknown")))
-                .ToList()))
-            .ToList();
+        foreach (var f in families)
+        {
+            var mine = f.Guardians.Single(g => g.GuardianUserId == userId);
+
+            // The billing card loads only for eyes the matrix allows (#91).
+            BillingView? billing = null;
+            if ((mine.IsPrimary || mine.ViewBilling) && f.MembershipPlanId is { } planId)
+            {
+                var plan = await db.MembershipPlans.SingleOrDefaultAsync(pl => pl.Id == planId);
+                var primary = f.Guardians.SingleOrDefault(g => g.IsPrimary);
+                var primaryPerson = primary is null
+                    ? null
+                    : await db.Persons.SingleOrDefaultAsync(p => p.UserId == primary.GuardianUserId && !p.Archived);
+                if (plan is not null && primaryPerson is not null)
+                {
+                    var arrears = await Ledger.ArrearsForAsync(primaryPerson.Id);
+                    billing = new BillingView(plan.Name, plan.Price, primaryPerson.DisplayName, arrears.Balance);
+                }
+            }
+
+            _families.Add(new FamilyView(
+                f,
+                mine,
+                f.Members
+                    .Where(m => m.Person is { Archived: false })
+                    .OrderByDescending(m => m.IsWard).ThenBy(m => m.Person.FirstName)
+                    .Select(m => (m, m.Person))
+                    .ToList(),
+                f.Guardians
+                    .OrderByDescending(g => g.IsPrimary)
+                    .Select(g => (g, emails.GetValueOrDefault(g.GuardianUserId, "unknown")))
+                    .ToList(),
+                billing));
+        }
     }
 }
