@@ -73,6 +73,7 @@
         </InputSelect>
         <label for="dnotes">Notes</label>
         <InputTextArea id="dnotes" @bind-Value="Form!.Notes" rows="3" />
+        <p class="cap" style="margin-top:0.25rem">MARKDOWN: **BOLD** · _ITALIC_ · ++UNDERLINE++ · - LISTS</p>
         <label for="dmin">Minutes (self-reported entries only — counts toward your self-reported tier)</label>
         <InputNumber id="dmin" @bind-Value="Form!.SelfReportedMinutes" />
 
@@ -159,7 +160,7 @@
             </div>
             @if (!string.IsNullOrWhiteSpace(entry.Notes))
             {
-                <p style="margin:0.375rem 0;color:var(--ink-dim)">@entry.Notes</p>
+                <div style="margin:0.375rem 0;color:var(--ink-dim)"><MarkdownBlock Text="@entry.Notes" /></div>
             }
             @foreach (var roll in entry.Rolls)
             {

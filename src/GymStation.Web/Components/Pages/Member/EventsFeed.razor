@@ -30,7 +30,7 @@
             </p>
             @if (!string.IsNullOrWhiteSpace(gymEvent.Details))
             {
-                <p style="margin:0.375rem 0;color:var(--ink-dim)">@gymEvent.Details</p>
+                <div style="margin:0.375rem 0;color:var(--ink-dim)"><MarkdownBlock Text="@gymEvent.Details" /></div>
             }
             <div class="row-form">
                 <form method="post" action="/member/actions/rsvp">

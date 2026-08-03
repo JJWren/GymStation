@@ -25,7 +25,7 @@ Loop process per issue: branch off pulled master → implement → rig-verify �
 - [x] #130 — Event images: 1:1 flyer end-to-end (AddEventImage; upload-event-image + authed /media/event/{id}; admin card overlay tile — publish form points there since forms can't nest; feed card leads with the flyer; detail between cap and details)
 - [x] #131 — Schedule drag: no modal after drag; cross-day drag; modal date field (interactive cards drop href — navigation is a pointerup decision, race dead by construction; 2D drag w/ dayPx measure; UpdateSessionAsync(date) + sibling-occurrence guard; modal Date field follows the session to its new week; Enter/Space keyboard path)
 - [x] #132 — Schedule drag: edge-hover week paging (600ms linger timer; session pinned in DragState + ghost card survives week swaps; day and week deltas compose on drop; URL follows a paged drop)
-- [ ] #133 — Markdown everywhere (sanitized): Markdig + MarkdownBlock
+- [x] #133 — Markdown everywhere (sanitized): Markdig + MarkdownBlock (AppMarkdown pipeline: raw HTML off, link-scheme allow-list, ++underline++, soft-break=break; applied to event details + diary notes; caps hints on all four textareas; 11 sanitization tests)
 - [ ] #134 — Landing: About section + admin-orderable sections
 - [ ] #135 — Programs: entity, admin CRUD, landing section + modal
 - [ ] #136 — Success stories: entity, admin CRUD, landing section
