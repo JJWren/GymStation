@@ -217,3 +217,11 @@ As an aside, my gym is predominantly BJJ, Fitness/Conditioning (called \"Bootcam
 **Context**: Round-4 inception addendum — brand adoption joins Wave A as #141
 
 ---
+
+## Round-4 Construction + Operations Complete
+**Timestamp**: 2026-08-03T23:09:24Z
+**User Input**: (none — autonomous execution of the approved round-4 plan)
+**AI Response**: All 19 board issues (#123–#141) shipped through the standard loop (branch → PR → Copilot gate with per-comment remediation/rebuttal → squash merge), each rig-verified on `gymstation-rig-db` with Playwright screenshots. Waves released and lab-deployed in sequence: A → v1.6.0, B → v1.7.0, C → v1.8.0, D → v1.9.0. Wave D closed with #139 (custom rank ladders UI) and #140 (tri-discipline demo seed: Bootcamp + Muay Thai types/templates under Dana Okafor/new coach Chai Rattana, per-gym Muay Thai Prajioud ladder, three Programs, About text, three success stories — $510 ledger fiction preserved via separate Random(11); fresh-slug note recorded). v1.9.0 release: six wave-D migrations (AddLandingSections, AddPrograms, AddSuccessStories, AddStaffHobbies, AddContactMessages, AddRankSystemArchived) grep-verified in staged migrate-v1.9.0.sql and applied to the live lab DB before the image bump; compose 1.8.0 → 1.9.0; container healthy; /ironworks-bjj, /login, /favicon.svg all 200. Incident on #130 (direct push to master via `git push origin HEAD` fallback) was remediated per Joshua's choice — revert PR #153 + re-land PR #154 — and the no-fallback/branch-check rules are now standing policy.
+**Context**: Round-4 complete — landing CMS, contact pipeline, icon system, inline edit, schedule drag, markdown, custom ladders, tri-discipline demo all live at v1.9.0
+
+---
