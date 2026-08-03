@@ -58,6 +58,7 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
     public DbSet<EventRsvp> EventRsvps => Set<EventRsvp>();
     public DbSet<GymStation.Domain.Marketing.GymProgram> GymPrograms => Set<GymStation.Domain.Marketing.GymProgram>();
     public DbSet<GymStation.Domain.Marketing.SuccessStory> SuccessStories => Set<GymStation.Domain.Marketing.SuccessStory>();
+    public DbSet<GymStation.Domain.Contact.ContactMessage> ContactMessages => Set<GymStation.Domain.Contact.ContactMessage>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -101,6 +102,7 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
             e.Property(s => s.ProgramsTitle).HasMaxLength(60).HasDefaultValue("PROGRAMS");
             e.Property(s => s.StoriesTitle).HasMaxLength(60).HasDefaultValue("SUCCESS STORIES");
             e.Property(s => s.StoriesImagePath).HasMaxLength(300);
+            e.Property(s => s.ContactForwardEmail).HasMaxLength(200);
             e.HasQueryFilter(s => CurrentGymId != null && s.GymId == CurrentGymId);
         });
 
@@ -331,6 +333,17 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
         {
             e.Property(x => x.AttributedTo).HasMaxLength(80);
             e.HasIndex(x => new { x.GymId, x.SortOrder });
+            e.HasQueryFilter(x => CurrentGymId != null && x.GymId == CurrentGymId);
+        });
+
+        builder.Entity<GymStation.Domain.Contact.ContactMessage>(e =>
+        {
+            e.Property(x => x.FirstName).HasMaxLength(80);
+            e.Property(x => x.LastName).HasMaxLength(80);
+            e.Property(x => x.Email).HasMaxLength(200);
+            e.Property(x => x.Phone).HasMaxLength(30);
+            e.Property(x => x.Body).HasMaxLength(2000);
+            e.HasIndex(x => new { x.GymId, x.CreatedUtc });
             e.HasQueryFilter(x => CurrentGymId != null && x.GymId == CurrentGymId);
         });
 

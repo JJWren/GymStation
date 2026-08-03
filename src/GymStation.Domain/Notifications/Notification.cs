@@ -12,6 +12,10 @@ public enum NotificationCategory
     SwapEscalated = 5,
     RankAwarded = 6,
     ChargeRaised = 7,
+
+    /// <summary>A visitor's ContactMessage arrived (#138) — the notification
+    /// points at /admin/messages; the message itself is not a Notification.</summary>
+    ContactMessageReceived = 8,
 }
 
 public enum DeliveryChannel

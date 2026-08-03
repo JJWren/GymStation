@@ -1,0 +1,80 @@
+@page "/admin/messages"
+@attribute [Authorize(Policy = "GymStaff")]
+@layout AdminLayout
+@using GymStation.Domain.Contact
+@using GymStation.Infrastructure.Contact
+@inject IDbContextFactory<GymStationDbContext> DbFactory
+
+<PageTitle>Messages · GymStation</PageTitle>
+
+<h1 class="page-title">MESSAGES</h1>
+<p class="page-sub">CONTACT-FORM INQUIRIES FROM YOUR PUBLIC PAGE — NOT NOTIFICATIONS, HUMANS</p>
+
+@if (_messages.Count == 0)
+{
+    <p class="cap">NO MESSAGES YET — YOUR PUBLIC PAGE'S CONTACT FORM LANDS HERE.</p>
+}
+
+@foreach (var message in _messages)
+{
+    <div class="form-card msg @(message.ReadUtc is null ? "msg--unread" : null)" style="margin-bottom:0.625rem;max-width:46rem">
+        <div class="head-row">
+            <b>@message.FirstName @message.LastName</b>
+            <span class="cap" style="margin:0">@message.CreatedUtc.ToLocalTime().ToString("ddd dd MMM HH\\:mm").ToUpperInvariant()</span>
+        </div>
+        <p class="mono" style="margin:0.25rem 0 0.375rem">
+            @if (message.Email is { } email)
+            {
+                <a href="mailto:@Uri.EscapeDataString(email)">@email</a>
+            }
+            @if (message.Email is not null && message.Phone is not null)
+            {
+                <text> · </text>
+            }
+            @if (message.Phone is { } phone)
+            {
+                <a href="tel:@phone">@ContactService.FormatPhone(phone)</a>
+            }
+        </p>
+        @* Plain text by design — markdown is never rendered for anonymous input. *@
+        <p style="white-space:pre-wrap;color:var(--ink-dim);margin:0">@message.Body</p>
+        <div class="row-form" style="margin-top:0.5rem">
+            <form method="post" action="/admin/actions/message-read" style="margin:0">
+                <AntiforgeryToken />
+                <input type="hidden" name="messageId" value="@message.Id" />
+                <input type="hidden" name="read" value="@((message.ReadUtc is null).ToString())" />
+                <button class="btn btn--ghost btn--xs" type="submit">@(message.ReadUtc is null ? "MARK READ" : "MARK UNREAD")</button>
+            </form>
+        </div>
+    </div>
+}
+
+@if (_pageCount > 1)
+{
+    <Pager Path="/admin/messages" Page="@_page" PageCount="@_pageCount" Size="@_size" />
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "page")] public int? PageRaw { get; set; }
+    [SupplyParameterFromQuery(Name = "size")] public int? SizeRaw { get; set; }
+
+    private List<ContactMessage> _messages = [];
+    private int _page = 1;
+    private int _pageCount = 1;
+    private int _size = 10;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _page = Math.Max(1, PageRaw ?? 1);
+        _size = Math.Clamp(SizeRaw ?? 10, 5, 100);
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var total = await db.ContactMessages.CountAsync();
+        _pageCount = Math.Max(1, (total + _size - 1) / _size);
+        _page = Math.Min(_page, _pageCount);
+        _messages = await db.ContactMessages
+            .OrderByDescending(m => m.CreatedUtc)
+            .Skip((_page - 1) * _size).Take(_size)
+            .ToListAsync();
+    }
+}

@@ -74,6 +74,10 @@
                     <label for="lsx">X URL</label>
                     <InputText id="lsx" @bind-Value="Form!.SocialX" />
                 </div>
+                <div>
+                    <label for="lfw">Contact form forwards to (optional email)</label>
+                    <InputText id="lfw" @bind-Value="Form!.ContactForwardEmail" type="email" />
+                </div>
             </div>
             @if (_error is not null)
             {
@@ -220,6 +224,7 @@
         public string? SocialYouTube { get; set; }
         public string? SocialTikTok { get; set; }
         public string? SocialX { get; set; }
+        public string? ContactForwardEmail { get; set; }
     }
 
     protected override async Task OnInitializedAsync()
@@ -255,6 +260,7 @@
             Form.SocialYouTube = _settings.SocialYouTube;
             Form.SocialTikTok = _settings.SocialTikTok;
             Form.SocialX = _settings.SocialX;
+            Form.ContactForwardEmail = _settings.ContactForwardEmail;
         }
     }
 
@@ -326,6 +332,14 @@
         settings.SocialYouTube = youtube;
         settings.SocialTikTok = tiktok;
         settings.SocialX = xUrl;
+        var forward = Clean(form.ContactForwardEmail, 200);
+        if (forward is not null && !System.Net.Mail.MailAddress.TryCreate(forward, out _))
+        {
+            _error = "The contact forward address must be a valid email.";
+            return;
+        }
+
+        settings.ContactForwardEmail = forward;
         await db.SaveChangesAsync();
         Nav.NavigateTo("/admin/landing");
     }

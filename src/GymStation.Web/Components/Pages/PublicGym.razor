@@ -2,10 +2,12 @@
 @attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
 @using System.Security.Claims
 @using GymStation.Domain.People
+@using Microsoft.AspNetCore.DataProtection
 @using GymStation.Domain.Scheduling
 @using GymStation.Domain.Tenancy
 @using GymStation.Infrastructure.Tenancy
 @inject IDbContextFactory<GymStationDbContext> DbFactory
+@inject Microsoft.AspNetCore.DataProtection.IDataProtectionProvider DataProtection
 @inject GymMembershipService Memberships
 @inject TenantContext Tenant
 
@@ -232,6 +234,48 @@ else
             {
                 <p class="cap" style="margin:0">DROP IN — FIRST CLASS IS ON THE MAT. ASK ANY COACH.</p>
             }
+
+            @* Contact rides with Visit (#138). The trap field is invisible to
+               humans; the protected ts dates the render for the min-time check. *@
+            <h3 class="pub-contact-h">GET IN TOUCH</h3>
+            @if (Sent == 1)
+            {
+                <p class="auth-ok" role="status">MESSAGE SENT — WE'LL GET BACK TO YOU.</p>
+            }
+            else if (ContactErr is not null)
+            {
+                <p class="auth-error" role="alert">THAT DIDN'T GO THROUGH — CHECK THE FIELDS (EMAIL OR PHONE, AT LEAST ONE) AND TRY AGAIN.</p>
+            }
+            <form method="post" action="/public-actions/contact" class="patch pub-contact">
+                <AntiforgeryToken />
+                <input type="hidden" name="gymId" value="@_gym.Id" />
+                <input type="hidden" name="ts" value="@_contactTs" />
+                <div class="pub-contact-trap" aria-hidden="true">
+                    <label>Website <input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
+                </div>
+                <div class="form-grid">
+                    <div>
+                        <label for="cfn">First name</label>
+                        <input id="cfn" type="text" name="firstName" required maxlength="80" autocomplete="given-name" />
+                    </div>
+                    <div>
+                        <label for="cln">Last name</label>
+                        <input id="cln" type="text" name="lastName" required maxlength="80" autocomplete="family-name" />
+                    </div>
+                    <div>
+                        <label for="cem">Email</label>
+                        <input id="cem" type="email" name="email" maxlength="200" autocomplete="email" />
+                    </div>
+                    <div>
+                        <label for="cph">Phone</label>
+                        <input id="cph" type="tel" name="phone" maxlength="20" autocomplete="tel" data-phone-mask />
+                    </div>
+                </div>
+                <label for="cmsg">Message</label>
+                <textarea id="cmsg" name="message" rows="4" required minlength="10" maxlength="2000"></textarea>
+                <p class="cap" style="margin-top:0.25rem">EMAIL OR PHONE — AT LEAST ONE.</p>
+                <p style="margin-top:0.625rem"><button class="btn" type="submit">SEND MESSAGE</button></p>
+            </form>
         </section>
                     break;
             }
@@ -328,6 +372,9 @@ else
     private Coach? _openInstructor;
 
     [SupplyParameterFromQuery(Name = "instructor")] public string? InstructorRaw { get; set; }
+    [SupplyParameterFromQuery(Name = "sent")] public int? Sent { get; set; }
+    [SupplyParameterFromQuery(Name = "contact")] public string? ContactErr { get; set; }
+    private string _contactTs = "";
 
     // Empty sections hide themselves (#134); programs and stories additionally
     // stay hidden until #135/#136 give them a data source. Visit stays — its
@@ -389,6 +436,8 @@ else
         }
 
         _settings = await db.GymSettings.SingleOrDefaultAsync();
+        _contactTs = DataProtection.CreateProtector(GymStation.Web.PublicActions.ContactEndpoints.TsPurpose)
+            .Protect(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString());
         if (_settings is not null)
         {
             if (ThemeMath.TryParseHexColor(_settings.AccentColorHex, out _))

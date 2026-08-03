@@ -6,8 +6,10 @@ using GymStation.Web.Components;
 using GymStation.Web.Instructor;
 using GymStation.Web.Member;
 using GymStation.Web.Ops;
+using GymStation.Web.PublicActions;
 using GymStation.Web.Tenancy;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +27,22 @@ builder.Services.AddGymStationEmail(new GymStation.Infrastructure.Notifications.
     builder.Configuration["Email:Password"],
     builder.Configuration["Email:From"] ?? "gymstation@localhost"));
 builder.Services.AddGymStationWorkers();
+
+// Contact-form rate limit (#138): 3 submissions per IP per hour. Rejections
+// return 429 with no body — bots get nothing to learn from.
+builder.Services.AddRateLimiter(o =>
+{
+    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    o.AddPolicy("contact", httpContext =>
+        System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 3,
+                Window = TimeSpan.FromHours(1),
+                QueueLimit = 0,
+            }));
+});
 
 builder.Services.AddIdentityCore<AppUser>(o =>
     {
@@ -66,6 +84,7 @@ app.UseAuthentication();
 // Tenant hydration must precede authorization: the GymStaff policy reads the active gym.
 app.UseMiddleware<ActiveGymMiddleware>();
 app.UseAuthorization();
+app.UseRateLimiter();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
@@ -81,6 +100,7 @@ app.MapInstructorActionEndpoints();
 app.MapMemberActionEndpoints();
 app.MapProgramEndpoints();
 app.MapStoryEndpoints();
+app.MapContactEndpoints();
 app.MapMediaEndpoints();
 
 app.Run();

@@ -30,7 +30,7 @@ Loop process per issue: branch off pulled master → implement → rig-verify �
 - [x] #135 — Programs: entity, admin CRUD, landing section + modal (GymProgram entity [glossary term Program, GymEvent naming precedent] + AddPrograms; /admin/landing/programs CRUD w/ overlay image tiles + reorder + archive; public cards → SSR ?program= modal w/ markdown; /media allow-list gains programs/{guid}; tenant-isolation test)
 - [x] #136 — Success stories: entity, admin CRUD, landing section (SuccessStory + AddSuccessStories; /admin/landing/stories w/ shared 16:9 section image via upload-stories-image; public cards render markdown + attribution; /media allow-list gains stories; tenant-isolation test)
 - [x] #137 — Instructors: public portraits + rich landing modal (ADR 0003 + InstructorPortraits.PubliclyVisible matrix [tested]; anonymous /media/instructor-portrait/{gym}/{person} no-store; Hobbies + AddStaffHobbies; conditional upload hint; glowing cards → ?instructor= modal w/ photo, belt, experience, bio, hobbies, About; curl matrix 200/404/404/200)
-- [ ] #138 — Public contact form + spam wall + /admin/messages
+- [x] #138 — Public contact form + spam wall + /admin/messages (ContactMessage + AddContactMessages; honeypot/min-time[DataProtection ts]/per-IP rate limit/heuristics/strict email/MX fail-open via injectable IMxLookup; phone mask per spec; MESSAGES nav + unread badge + envelope; in-app fan-out + optional forward email; 9 service tests + live rig pass)
 - [ ] #139 — Custom rank ladders: admin UI for RankSystems + Ranks
 - [ ] #140 — Multi-discipline demo seed: BJJ + Bootcamp + Muay Thai
 

@@ -87,4 +87,8 @@ public class GymSettings : ITenantOwned
 
     /// <summary>File-store path of the section-level stories image (#136 uploads it).</summary>
     public string? StoriesImagePath { get; set; }
+
+    /// <summary>Optional forward-to address for contact-form messages (#138);
+    /// they always land in /admin/messages regardless.</summary>
+    public string? ContactForwardEmail { get; set; }
 }
