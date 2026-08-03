@@ -31,7 +31,7 @@ Loop process per issue: branch off pulled master → implement → rig-verify �
 - [x] #136 — Success stories: entity, admin CRUD, landing section (SuccessStory + AddSuccessStories; /admin/landing/stories w/ shared 16:9 section image via upload-stories-image; public cards render markdown + attribution; /media allow-list gains stories; tenant-isolation test)
 - [x] #137 — Instructors: public portraits + rich landing modal (ADR 0003 + InstructorPortraits.PubliclyVisible matrix [tested]; anonymous /media/instructor-portrait/{gym}/{person} no-store; Hobbies + AddStaffHobbies; conditional upload hint; glowing cards → ?instructor= modal w/ photo, belt, experience, bio, hobbies, About; curl matrix 200/404/404/200)
 - [x] #138 — Public contact form + spam wall + /admin/messages (ContactMessage + AddContactMessages; honeypot/min-time[DataProtection ts]/per-IP rate limit/heuristics/strict email/MX fail-open via injectable IMxLookup; phone mask per spec; MESSAGES nav + unread badge + envelope; in-app fan-out + optional forward email; 9 service tests + live rig pass)
-- [ ] #139 — Custom rank ladders: admin UI for RankSystems + Ranks
+- [x] #139 — Custom rank ladders: admin UI for RankSystems + Ranks (RankService write ops w/ seeded-immutable guard + unique-index-safe two-phase reorder; RankSystem.Archived; /admin/ranks/ladders w/ color pickers + BeltBar previews; award-with-history refuses removal; picker gains the ladder optgroup automatically; 3 integration tests)
 - [ ] #140 — Multi-discipline demo seed: BJJ + Bootcamp + Muay Thai
 
 ## Per-issue notes

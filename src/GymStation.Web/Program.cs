@@ -102,6 +102,7 @@ app.MapInstructorActionEndpoints();
 app.MapMemberActionEndpoints();
 app.MapProgramEndpoints();
 app.MapStoryEndpoints();
+app.MapRankSystemEndpoints();
 app.MapContactEndpoints();
 app.MapMediaEndpoints();
 
