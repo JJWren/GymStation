@@ -98,6 +98,41 @@ public static class MediaEndpoints
             return Results.Redirect($"/admin/people/{personId}");
         }).RequireAuthorization("GymStaff").ValidateAntiforgery();
 
+        // Stories section image (#136): ONE shared image on GymSettings, public
+        // via the /media allow-list like logo/hero.
+        app.MapPost("/admin/actions/upload-stories-image", async (HttpRequest request, GymStationDbContext db, IFileStore store) =>
+        {
+            var form = await request.ReadFormAsync();
+            var file = form.Files.GetFile("file");
+
+            if (file is null || file.Length == 0 || file.Length > MaxUploadBytes)
+            {
+                return Results.Redirect("/admin/landing/stories?failed=1");
+            }
+
+            var extension = Path.GetExtension(file.FileName);
+            if (!AllowedTypes.ContainsKey(extension))
+            {
+                return Results.Redirect("/admin/landing/stories?failed=1");
+            }
+
+            var settings = await db.GymSettings.SingleOrDefaultAsync();
+            if (settings is null)
+            {
+                return Results.Redirect("/admin/landing/stories");
+            }
+
+            var path = $"gyms/{settings.GymId}/stories{extension.ToLowerInvariant()}";
+            await using (var content = file.OpenReadStream())
+            {
+                await store.SaveAsync(content, path);
+            }
+
+            settings.StoriesImagePath = path;
+            await db.SaveChangesAsync();
+            return Results.Redirect("/admin/landing/stories");
+        }).RequireAuthorization("GymStaff").ValidateAntiforgery();
+
         // Program images (#135): staff upload; PUBLIC serving via the /media
         // allow-list below — programs are marketing content by definition.
         app.MapPost("/admin/actions/upload-program-image", async (HttpRequest request, GymStationDbContext db, IFileStore store) =>
@@ -230,7 +265,7 @@ public static class MediaEndpoints
         app.MapGet("/media/{**path}", async (string path, IFileStore store) =>
         {
             var match = System.Text.RegularExpressions.Regex.Match(
-                path, @"^gyms/[0-9a-fA-F-]{36}/(logo|hero|programs/[0-9a-fA-F-]{36})(\.[A-Za-z]+)$");
+                path, @"^gyms/[0-9a-fA-F-]{36}/(logo|hero|stories|programs/[0-9a-fA-F-]{36})(\.[A-Za-z]+)$");
             if (!match.Success || !AllowedTypes.TryGetValue(match.Groups[2].Value, out var contentType))
             {
                 return Results.NotFound();

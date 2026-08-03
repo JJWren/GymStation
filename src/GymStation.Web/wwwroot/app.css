@@ -168,6 +168,11 @@ form[data-overlay].media-crop--js .media-src-row:focus-within { position: static
 .pub-prog-hero { width: 100%; max-width: 18rem; aspect-ratio: 1; object-fit: cover; border-radius: 0.5rem; margin-top: 0.625rem; display: block; }
 .pub-intro { color: var(--ink-dim); margin-bottom: 0.625rem; }
 
+/* Success stories (#136): one shared wide image leads the cards. */
+.pub-stories-img { display: block; width: 100%; max-width: 34rem; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 0.75rem; margin-bottom: 0.75rem; }
+.pub-stories { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 0.625rem; }
+.pub-story { background: var(--surface); border-radius: 0.75rem; padding: 0.875rem; color: var(--ink-dim); }
+
 /* Markdown output (#133): rendered ONLY by MarkdownBlock. Colors inherit from
    the surrounding context so details/bios/notes keep their existing tone. */
 .md p { margin: 0 0 0.5rem; }
