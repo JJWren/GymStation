@@ -179,6 +179,31 @@
             return string.IsNullOrEmpty(trimmed) ? null : trimmed[..Math.Min(trimmed.Length, max)];
         }
 
+        // Socials render as clickable hrefs on the PUBLIC page — only absolute
+        // http(s) may persist, or a javascript: value becomes stored XSS.
+        static (string? Url, bool Ok) CleanUrl(string? raw, int max)
+        {
+            var cleaned = Clean(raw, max);
+            if (cleaned is null)
+            {
+                return (null, true);
+            }
+
+            return Uri.TryCreate(cleaned, UriKind.Absolute, out var uri)
+                && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
+                ? (cleaned, true)
+                : (null, false);
+        }
+
+        var (instagram, igOk) = CleanUrl(form.SocialInstagram, 200);
+        var (facebook, fbOk) = CleanUrl(form.SocialFacebook, 200);
+        var (youtube, ytOk) = CleanUrl(form.SocialYouTube, 200);
+        if (!igOk || !fbOk || !ytOk)
+        {
+            _error = "Social links must be full http(s) URLs (https://…).";
+            return;
+        }
+
         // Handlers reload in their own context (the v1.0.1 convention).
         await using var db = await DbFactory.CreateDbContextAsync();
         var settings = await db.GymSettings.SingleOrDefaultAsync();
@@ -194,9 +219,9 @@
         settings.VisitAddress = Clean(form.VisitAddress, 300);
         settings.VisitPhone = Clean(form.VisitPhone, 30);
         settings.VisitEmail = Clean(form.VisitEmail, 200);
-        settings.SocialInstagram = Clean(form.SocialInstagram, 200);
-        settings.SocialFacebook = Clean(form.SocialFacebook, 200);
-        settings.SocialYouTube = Clean(form.SocialYouTube, 200);
+        settings.SocialInstagram = instagram;
+        settings.SocialFacebook = facebook;
+        settings.SocialYouTube = youtube;
         await db.SaveChangesAsync();
         Nav.NavigateTo("/admin/landing");
     }

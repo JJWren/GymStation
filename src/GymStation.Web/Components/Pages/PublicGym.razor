@@ -109,24 +109,25 @@ else
                     }
                     @if (vs.VisitPhone is { } phone)
                     {
-                        <p class="mono" style="margin:0 0 0.375rem"><a href="tel:@phone">@phone</a></p>
+                        <p class="mono" style="margin:0 0 0.375rem"><a href="tel:@Uri.EscapeDataString(phone)">@phone</a></p>
                     }
                     @if (vs.VisitEmail is { } visitEmail)
                     {
-                        <p class="mono" style="margin:0 0 0.375rem"><a href="mailto:@visitEmail">@visitEmail.ToUpperInvariant()</a></p>
+                        <p class="mono" style="margin:0 0 0.375rem"><a href="mailto:@Uri.EscapeDataString(visitEmail)">@visitEmail.ToUpperInvariant()</a></p>
                     }
                     <p class="mono" style="margin:0">
-                        @if (vs.SocialInstagram is { } ig)
+                        @* Render-side guard too: pre-existing bad data must never link. *@
+                        @if (SafeHttpUrl(vs.SocialInstagram) is { } ig)
                         {
-                            <a href="@ig" rel="noopener" target="_blank">INSTAGRAM</a>
+                            <a href="@ig" rel="noopener noreferrer" target="_blank">INSTAGRAM</a>
                         }
-                        @if (vs.SocialFacebook is { } fb)
+                        @if (SafeHttpUrl(vs.SocialFacebook) is { } fb)
                         {
-                            <text> </text><a href="@fb" rel="noopener" target="_blank">FACEBOOK</a>
+                            <text> </text><a href="@fb" rel="noopener noreferrer" target="_blank">FACEBOOK</a>
                         }
-                        @if (vs.SocialYouTube is { } yt)
+                        @if (SafeHttpUrl(vs.SocialYouTube) is { } yt)
                         {
-                            <text> </text><a href="@yt" rel="noopener" target="_blank">YOUTUBE</a>
+                            <text> </text><a href="@yt" rel="noopener noreferrer" target="_blank">YOUTUBE</a>
                         }
                     </p>
                 </div>
@@ -158,6 +159,12 @@ else
     private bool _dark = true;
     private List<KeyValuePair<DayOfWeek, List<ClassTemplate>>> _week = [];
     private List<(Person Person, string? Experience)> _instructors = [];
+
+    private static string? SafeHttpUrl(string? raw)
+        => Uri.TryCreate(raw, UriKind.Absolute, out var uri)
+            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
+            ? raw
+            : null;
 
     protected override async Task OnInitializedAsync()
     {
