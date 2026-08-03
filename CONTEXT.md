@@ -29,7 +29,7 @@ A Person working for the Gym without portal privileges — front desk, cleaning.
 _Avoid_: employee, worker
 
 **StaffProfile**:
-Pay rate/unit plus bio and experience for any staff-ish Person. Pay is stored and displayed only — payroll computation stays deferred. Supersedes InstructorProfile.
+Pay rate/unit plus bio, experience, and hobbies for any staff-ish Person. Pay is stored and displayed only — payroll computation stays deferred. Supersedes InstructorProfile.
 _Avoid_: instructor profile (historical name)
 
 **Family**:
@@ -56,7 +56,7 @@ A Person with the Member role — someone who trains at the Gym.
 _Avoid_: student, athlete, client
 
 **Instructor**:
-A Person with the Instructor role — someone who teaches ClassSessions.
+A Person with the Instructor role — someone who teaches ClassSessions. Instructors are the Gym's public faces: their portrait and profile appear on the Gym's public page.
 _Avoid_: coach, professor, trainer (these may return later as per-Gym display labels)
 
 ### Scheduling
@@ -71,7 +71,7 @@ _Avoid_: class, event, occurrence
 
 **ClassType**:
 A filterable tag on templates/sessions: gi, no-gi, kids, fundamentals, competition, open-mat, plus per-Gym custom tags.
-_Avoid_: category, program
+_Avoid_: category; program (a Program is the public marketing offering — a ClassType is a schedule filter tag)
 
 **Substitution**:
 A temporary Instructor replacement on one ClassSession. Lifecycle: Requested (named or open) → Accepted/Claimed → PendingApproval (only in admin-gated Gyms) → Applied. Never mutates the ClassTemplate.
@@ -141,8 +141,22 @@ _Avoid_: training hours (ambiguous about tier)
 An admin-published happening: tournament, seminar, grading. Members mark going/interested (visible within the Gym).
 _Avoid_: class (Events are not ClassSessions)
 
+### Public presence
+
+**Program**:
+A Gym's public marketing offering — BJJ, Bootcamp, Muay Thai — with title, description, and image, listed on the public page. What a prospective member joins for, not how the schedule is tagged.
+_Avoid_: class type (a ClassType is a schedule filter tag), discipline, offering
+
+**SuccessStory**:
+A testimonial the Gym publishes on its public page: a story and who it's by.
+_Avoid_: review, testimonial (the entity is a SuccessStory)
+
 ### Communication
 
 **Notification**:
 An outbox record fanned out through channel adapters (in-app, email; push later) per User preference. Categories include session cancelled/changed, substitution lifecycle, rank awarded, charge raised, admin escalations.
-_Avoid_: alert, message (Messaging is a deferred, separate concept)
+_Avoid_: alert, message (a ContactMessage is a visitor inquiry; broader member messaging stays deferred)
+
+**ContactMessage**:
+A visitor's inquiry submitted through the public page's contact form: name, a way to reach them (email or phone), and their message. Read by staff in the Gym's Messages box; never a Notification, though its arrival raises one.
+_Avoid_: notification, lead, inquiry record
