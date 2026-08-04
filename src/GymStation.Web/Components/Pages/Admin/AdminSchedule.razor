@@ -28,6 +28,11 @@
     <p class="auth-error" role="alert">Delete refused — that class already has check-in or cover history, and history stays. Cancel the session instead.</p>
 }
 
+@if (DuplicateFailed == 1)
+{
+    <p class="auth-error" role="alert">Duplicate refused — the start time must be HH:mm and the source class must still exist.</p>
+}
+
 <ScheduleRailIsland WeekStartIso="@_weekStart.ToString("yyyy-MM-dd")" @rendermode="InteractiveServer" />
 <p class="cap" style="margin-top:0.375rem">
     MAT HOURS @_open.ToString("HH\\:mm")–@_close.ToString("HH\\:mm") (SET IN SETTINGS) ·
@@ -103,7 +108,7 @@
             <form id="delete-session-form" method="post" action="/admin/actions/delete-session" style="display:none">
                 <AntiforgeryToken />
                 <input type="hidden" name="sessionId" value="@editing.Id" />
-                <input type="hidden" name="start" value="@_weekStart.ToString("yyyy-MM-dd")" />
+                <input type="hidden" name="week" value="@_weekStart.ToString("yyyy-MM-dd")" />
             </form>
 
             <div class="form-card" style="margin-top:0.625rem">
@@ -125,6 +130,17 @@
                         <button type="submit" class="btn btn--ghost btn--xs">CANCEL SESSION</button>
                     </form>
                 }
+
+                @* #171: copy this class to another day/time — the finance-row idiom. *@
+                <form method="post" action="/admin/actions/duplicate-session" class="row-form" style="margin-top:0.625rem">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="sessionId" value="@editing.Id" />
+                    <span class="cap">DUPLICATE TO</span>
+                    <input type="date" name="date" value="@editing.Date.ToString("yyyy-MM-dd")" aria-label="Duplicate to date" required />
+                    <input type="text" name="start" value="@editing.StartTime.ToString("HH\\:mm")" aria-label="Duplicate to start time (HH:mm)" style="width:4.5rem" required />
+                    <button class="btn btn--icon btn--save btn--xs" type="submit" aria-label="Duplicate this class to the chosen day and time" title="Duplicate this class — the copy is a one-off"><Glyph Name="save" /></button>
+                </form>
+                <p class="cap" style="margin:0.375rem 0 0">THE COPY IS A ONE-OFF — IT NEVER FOLLOWS THE WEEKLY TEMPLATE.</p>
             </div>
 
             @if (_editTemplate is { } template)
@@ -308,6 +324,7 @@
     [SupplyParameterFromQuery(Name = "start")] public string? StartRaw { get; set; }
     [SupplyParameterFromQuery(Name = "edit")] public string? EditRaw { get; set; }
     [SupplyParameterFromQuery(Name = "delfailed")] public int? DeleteFailed { get; set; }
+    [SupplyParameterFromQuery(Name = "dupfailed")] public int? DuplicateFailed { get; set; }
 
     [CascadingParameter] public HttpContext? HttpContext { get; set; }
 

@@ -285,6 +285,62 @@ public class MaterializationTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task Duplicate_CreatesAOneOffCopy_TypesAndAll_AlwaysScheduled()
+    {
+        var tenant = await SeedGymAsync();
+        await using var context = fixture.CreateContext(tenant);
+        var schedule = new ScheduleService(context, new NotificationService(context));
+
+        var tag = new ClassType { Id = Guid.NewGuid(), Name = "gi", ColorHex = "#C9503B" };
+        context.ClassTypes.Add(tag);
+        var template = new ClassTemplate
+        {
+            Id = Guid.NewGuid(),
+            Name = "Fundamentals",
+            Day = DayOfWeek.Monday,
+            StartTime = new TimeOnly(18, 0),
+            DurationMinutes = 60,
+            ClassTypes = [tag],
+        };
+        context.ClassTemplates.Add(template);
+        await context.SaveChangesAsync();
+
+        var source = (await schedule.GetWeekAsync(Sunday)).Single(s => s.TemplateId == template.Id);
+        await schedule.CancelSessionAsync(source.Id, "Testing");
+
+        // Duplicate the CANCELLED source to Tuesday noon — the copy is a live one-off.
+        var copyId = await schedule.DuplicateSessionAsync(source.Id, Monday.AddDays(1), new TimeOnly(12, 0));
+
+        var copy = await context.ClassSessions.AsNoTracking().Include(s => s.ClassTypes).SingleAsync(s => s.Id == copyId);
+        Assert.Null(copy.TemplateId);
+        Assert.Equal((Monday.AddDays(1), new TimeOnly(12, 0), 60, "Fundamentals"), (copy.Date, copy.StartTime, copy.DurationMinutes, copy.Name));
+        Assert.Equal(SessionStatus.Scheduled, copy.Status);
+        Assert.Equal([tag.Id], copy.ClassTypes.Select(t => t.Id).ToList());
+    }
+
+    [Fact]
+    public async Task Duplicate_CoexistsWithTheTemplatesOwnFutureMint()
+    {
+        var tenant = await SeedGymAsync();
+        await using var context = fixture.CreateContext(tenant);
+        var schedule = new ScheduleService(context, new NotificationService(context));
+        var template = await AddTemplateAsync(context, "Comp Class", DayOfWeek.Monday);
+
+        var source = (await schedule.GetWeekAsync(Sunday)).Single(s => s.TemplateId == template.Id);
+
+        // Copy onto the template's OWN day next week, before that week is viewed.
+        var nextMonday = Monday.AddDays(7);
+        await schedule.DuplicateSessionAsync(source.Id, nextMonday, source.StartTime);
+
+        // First view of next week: the one-off must NOT absorb the template's
+        // mint — the weekly class appears beside the extra copy.
+        var day = (await schedule.GetWeekAsync(Sunday.AddDays(7))).Where(s => s.Date == nextMonday).ToList();
+        Assert.Equal(2, day.Count);
+        Assert.Single(day.Where(s => s.TemplateId == template.Id));
+        Assert.Single(day.Where(s => s.TemplateId == null));
+    }
+
+    [Fact]
     public async Task Delete_NeverTouchesAnotherGymsSession()
     {
         var tenant = await SeedGymAsync();
