@@ -33,6 +33,11 @@
     <p class="auth-error" role="alert">Duplicate refused — the start time must be HH:mm and the source class must still exist.</p>
 }
 
+@if (TemplateDuplicateFailed == 1)
+{
+    <p class="auth-error" role="alert">Template duplicate refused — the start time must be HH:mm and the source template must still exist.</p>
+}
+
 <ScheduleRailIsland WeekStartIso="@_weekStart.ToString("yyyy-MM-dd")" @rendermode="InteractiveServer" />
 <p class="cap" style="margin-top:0.375rem">
     MAT HOURS @_open.ToString("HH\\:mm")–@_close.ToString("HH\\:mm") (SET IN SETTINGS) ·
@@ -197,6 +202,23 @@
                     <button class="btn btn--ghost btn--xs" type="submit" style="color:var(--bad)"
                             onclick="return confirm('Pause this weekly class? It stops appearing on future weeks; existing occurrences stay.')">PAUSE WEEKLY TEMPLATE</button>
                 </EditForm>
+
+                @* #179: copy this weekly template to another day/time — the #171 row idiom. *@
+                <form method="post" action="/admin/actions/duplicate-template" class="row-form" style="margin-top:0.625rem">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="templateId" value="@template.Id" />
+                    <input type="hidden" name="week" value="@_weekStart.ToString("yyyy-MM-dd")" />
+                    <span class="cap">DUPLICATE TO</span>
+                    <select name="day" aria-label="Duplicate this weekly template to weekday">
+                        @foreach (var day in Enum.GetValues<DayOfWeek>())
+                        {
+                            <option value="@day" selected="@(day == template.Day)">@day</option>
+                        }
+                    </select>
+                    <input type="text" name="start" value="@template.StartTime.ToString("HH\\:mm")" aria-label="Duplicate this weekly template start time (HH:mm)" style="width:4.5rem" required />
+                    <button class="btn btn--icon btn--copy btn--xs" type="submit" aria-label="Duplicate this weekly template to the chosen day and time" title="Duplicate this weekly template — the copy is its own weekly class"><Glyph Name="copy" /></button>
+                </form>
+                <p class="cap" style="margin:0.375rem 0 0">THE COPY IS ITS OWN WEEKLY CLASS — IT STARTS THIS WEEK AND NEVER FILLS EARLIER WEEKS.</p>
             }
         </div>
     </div>
@@ -325,6 +347,7 @@
     [SupplyParameterFromQuery(Name = "edit")] public string? EditRaw { get; set; }
     [SupplyParameterFromQuery(Name = "delfailed")] public int? DeleteFailed { get; set; }
     [SupplyParameterFromQuery(Name = "dupfailed")] public int? DuplicateFailed { get; set; }
+    [SupplyParameterFromQuery(Name = "tdupfailed")] public int? TemplateDuplicateFailed { get; set; }
 
     [CascadingParameter] public HttpContext? HttpContext { get; set; }
 
@@ -512,19 +535,19 @@
             return;
         }
 
-        await using var db = await DbFactory.CreateDbContextAsync();
-        var types = await db.ClassTypes.Where(t => form.TypeIds.Contains(t.Id)).ToListAsync();
-        db.ClassTemplates.Add(new ClassTemplate
+        // #179: creation goes through the service — same shape/instructor/type
+        // validation as template edits, and StartDate lands so the new pattern
+        // never retro-fills past weeks (ADR 0004).
+        try
         {
-            Id = Guid.NewGuid(),
-            Name = form.Name.Trim(),
-            Day = form.Day,
-            StartTime = start,
-            DurationMinutes = form.DurationMinutes,
-            DefaultInstructorPersonId = form.InstructorPersonId,
-            ClassTypes = types,
-        });
-        await db.SaveChangesAsync();
+            await Schedule.CreateTemplateAsync(form.Name, form.Day, start, form.DurationMinutes, form.InstructorPersonId, form.TypeIds);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _templateError = ex.Message;
+            return;
+        }
+
         Nav.NavigateTo($"/admin/schedule?start={_weekStart:yyyy-MM-dd}");
     }
 

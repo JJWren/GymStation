@@ -377,4 +377,153 @@ public class MaterializationTests(PostgresFixture fixture)
         Assert.Single(sessions.Where(s => s.TemplateId == first.Id));
         Assert.Single(sessions.Where(s => s.TemplateId == second.Id));
     }
+
+    [Fact]
+    public async Task DuplicateTemplate_MintsItsFirstOccurrenceOnce_AndCopiesVerbatim()
+    {
+        var tenant = await SeedGymAsync();
+        await using var context = fixture.CreateContext(tenant);
+        var schedule = new ScheduleService(context, new NotificationService(context));
+
+        var gi = new ClassType { Id = Guid.NewGuid(), Name = "gi" };
+        context.ClassTypes.Add(gi);
+        var source = new ClassTemplate
+        {
+            Id = Guid.NewGuid(),
+            Name = "Adv Gi",
+            Day = DayOfWeek.Monday,
+            StartTime = new TimeOnly(18, 0),
+            DurationMinutes = 90,
+            ClassTypes = [gi],
+        };
+        context.ClassTemplates.Add(source);
+        await context.SaveChangesAsync();
+        await schedule.GetWeekAsync(Sunday);
+
+        var firstOccurrenceId = await schedule.DuplicateTemplateAsync(source.Id, DayOfWeek.Thursday, new TimeOnly(19, 30), Sunday);
+
+        var occurrence = await context.ClassSessions.Include(s => s.ClassTypes).SingleAsync(s => s.Id == firstOccurrenceId);
+        Assert.Equal(Sunday.AddDays(4), occurrence.Date);
+        Assert.Equal(new TimeOnly(19, 30), occurrence.StartTime);
+        Assert.Equal("Adv Gi", occurrence.Name);
+        Assert.Equal(90, occurrence.DurationMinutes);
+        Assert.NotEqual(source.Id, occurrence.TemplateId);
+        Assert.Single(occurrence.ClassTypes, t => t.Id == gi.Id);
+
+        var copy = await context.ClassTemplates.SingleAsync(t => t.Id == occurrence.TemplateId);
+        Assert.True(copy.Active);
+        Assert.Equal(Sunday.AddDays(4), copy.StartDate);
+
+        // The claim written at duplicate time absorbs the week — one occurrence
+        // each, ever, for both the copy and the untouched source.
+        var week = await schedule.GetWeekAsync(Sunday);
+        Assert.Single(week, s => s.TemplateId == copy.Id);
+        Assert.Single(week, s => s.TemplateId == source.Id);
+    }
+
+    [Fact]
+    public async Task DuplicateTemplate_FromAPausedSource_LandsActive_AndSoftensAStaleInstructor()
+    {
+        var tenant = await SeedGymAsync();
+        await using var context = fixture.CreateContext(tenant);
+        var schedule = new ScheduleService(context, new NotificationService(context));
+
+        var coach = new Domain.People.Person
+        {
+            Id = Guid.NewGuid(),
+            FirstName = "Coach",
+            LastName = "T",
+            UserId = Guid.NewGuid(),
+            Roles = Domain.People.PersonRoles.Instructor,
+            JoinedOn = new DateOnly(2026, 1, 1),
+        };
+        context.Persons.Add(coach);
+        var source = new ClassTemplate
+        {
+            Id = Guid.NewGuid(),
+            Name = "No-Gi",
+            Day = DayOfWeek.Tuesday,
+            StartTime = new TimeOnly(6, 0),
+            DurationMinutes = 60,
+            DefaultInstructorPersonId = coach.Id,
+            Active = false,
+        };
+        context.ClassTemplates.Add(source);
+        await context.SaveChangesAsync();
+
+        coach.Archived = true;
+        await context.SaveChangesAsync();
+
+        var firstOccurrenceId = await schedule.DuplicateTemplateAsync(source.Id, DayOfWeek.Saturday, new TimeOnly(9, 0), Sunday);
+
+        var occurrence = await context.ClassSessions.SingleAsync(s => s.Id == firstOccurrenceId);
+        var copy = await context.ClassTemplates.SingleAsync(t => t.Id == occurrence.TemplateId);
+        Assert.True(copy.Active);
+        Assert.Null(copy.DefaultInstructorPersonId);
+        Assert.False((await context.ClassTemplates.SingleAsync(t => t.Id == source.Id)).Active);
+    }
+
+    [Fact]
+    public async Task StartDate_BoundsMinting_AndLegacyNullStaysUnbounded()
+    {
+        var tenant = await SeedGymAsync();
+        await using var context = fixture.CreateContext(tenant);
+        var schedule = new ScheduleService(context, new NotificationService(context));
+
+        var bounded = new ClassTemplate
+        {
+            Id = Guid.NewGuid(),
+            Name = "Bounded",
+            Day = DayOfWeek.Monday,
+            StartTime = new TimeOnly(18, 0),
+            DurationMinutes = 60,
+            StartDate = Sunday,
+        };
+        var legacy = new ClassTemplate
+        {
+            Id = Guid.NewGuid(),
+            Name = "Legacy",
+            Day = DayOfWeek.Monday,
+            StartTime = new TimeOnly(19, 0),
+            DurationMinutes = 60,
+        };
+        context.ClassTemplates.AddRange(bounded, legacy);
+        await context.SaveChangesAsync();
+
+        var earlier = await schedule.GetWeekAsync(Sunday.AddDays(-14));
+        Assert.DoesNotContain(earlier, s => s.TemplateId == bounded.Id);
+        Assert.Single(earlier, s => s.TemplateId == legacy.Id);
+
+        // Pre-start weeks stay claimless — skipping must not burn the ledger.
+        Assert.False(await context.ClassTemplateWeeks.AnyAsync(w => w.TemplateId == bounded.Id));
+
+        var own = await schedule.GetWeekAsync(Sunday);
+        Assert.Single(own, s => s.TemplateId == bounded.Id);
+    }
+
+    [Fact]
+    public async Task CreateTemplateAsync_StampsAStartDate_AndValidatesShape()
+    {
+        var tenant = await SeedGymAsync();
+        await using var context = fixture.CreateContext(tenant);
+        var schedule = new ScheduleService(context, new NotificationService(context));
+
+        var id = await schedule.CreateTemplateAsync("Open Mat", DayOfWeek.Sunday, new TimeOnly(10, 0), 120, null, []);
+        var created = await context.ClassTemplates.SingleAsync(t => t.Id == id);
+        Assert.NotNull(created.StartDate);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => schedule.CreateTemplateAsync("Too Short", DayOfWeek.Monday, new TimeOnly(10, 0), 10, null, []));
+    }
+
+    [Fact]
+    public async Task DuplicateTemplate_MissingSource_Throws()
+    {
+        var tenant = await SeedGymAsync();
+        await using var context = fixture.CreateContext(tenant);
+        var schedule = new ScheduleService(context, new NotificationService(context));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => schedule.DuplicateTemplateAsync(Guid.NewGuid(), DayOfWeek.Monday, new TimeOnly(9, 0), Sunday));
+    }
 }

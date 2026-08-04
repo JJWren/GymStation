@@ -91,6 +91,33 @@ public static class AdminActionEndpoints
             }
         });
 
+        group.MapPost("/duplicate-template", async (
+            [FromForm] Guid templateId, [FromForm] string day, [FromForm] string start, [FromForm] string week,
+            ScheduleService schedule) =>
+        {
+            var weekStart = DateOnly.TryParse(week, out var parsedWeek)
+                ? GymStation.Domain.Scheduling.Weeks.WeekOf(parsedWeek)
+                : GymStation.Domain.Scheduling.Weeks.WeekOf(DateOnly.FromDateTime(DateTime.UtcNow));
+
+            if (!Enum.TryParse<DayOfWeek>(day, ignoreCase: true, out var dayOfWeek)
+                || !TimeOnly.TryParseExact(start, "HH\\:mm", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var startTime))
+            {
+                return Results.Redirect($"/admin/schedule?start={weekStart:yyyy-MM-dd}&tdupfailed=1");
+            }
+
+            try
+            {
+                var firstOccurrenceId = await schedule.DuplicateTemplateAsync(templateId, dayOfWeek, startTime, weekStart);
+                // Land on the copy's first occurrence with its editor open — the
+                // template section inside it confirms the new weekly class.
+                return Results.Redirect($"/admin/schedule?start={weekStart:yyyy-MM-dd}&edit={firstOccurrenceId}");
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Redirect($"/admin/schedule?start={weekStart:yyyy-MM-dd}&tdupfailed=1");
+            }
+        });
+
         group.MapPost("/delete-session", async ([FromForm] Guid sessionId, [FromForm] string? week, ScheduleService schedule) =>
         {
             // Only a date the page itself rendered rides back into the redirect.

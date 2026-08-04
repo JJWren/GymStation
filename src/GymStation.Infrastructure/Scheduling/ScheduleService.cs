@@ -45,6 +45,11 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
         {
             foreach (var template in templates.Where(t => t.Day == date.DayOfWeek))
             {
+                if (template.StartDate is { } startDate && date < startDate)
+                {
+                    continue; // before the template exists (ADR 0004) — no session, no claim
+                }
+
                 if (mintedTemplateIds.Contains(template.Id))
                 {
                     continue; // claimed — even when the slot sits vacant after a move or delete
@@ -350,6 +355,113 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
 
         template.Active = active;
         await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// Creates a weekly template (#179). StartDate = the gym's local today (ADR
+    /// 0004), so the new pattern begins with the next matching weekday and never
+    /// retro-fills past weeks an admin later browses. Returns the template id.
+    /// </summary>
+    public async Task<Guid> CreateTemplateAsync(
+        string name, DayOfWeek day, TimeOnly start, int durationMinutes,
+        Guid? instructorPersonId, IReadOnlyList<Guid> typeIds, CancellationToken ct = default)
+    {
+        ValidateShape(name, durationMinutes);
+        await ValidateInstructorAsync(instructorPersonId, ct);
+
+        var distinctTypeIds = typeIds.Distinct().ToList();
+        var types = await db.ClassTypes.Where(t => distinctTypeIds.Contains(t.Id)).ToListAsync(ct);
+        if (types.Count != distinctTypeIds.Count)
+        {
+            throw new InvalidOperationException("One of the class types no longer exists — reload and try again.");
+        }
+
+        var gym = await db.Gyms.SingleAsync(g => g.Id == db.CurrentGymId, ct);
+        var zone = TimeZoneInfo.FindSystemTimeZoneById(gym.TimeZoneId);
+        var localToday = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, zone).DateTime);
+
+        var template = new ClassTemplate
+        {
+            Id = Guid.NewGuid(),
+            Name = name.Trim(),
+            Day = day,
+            StartTime = start,
+            DurationMinutes = durationMinutes,
+            DefaultInstructorPersonId = instructorPersonId,
+            StartDate = localToday,
+            ClassTypes = types,
+        };
+
+        db.ClassTemplates.Add(template);
+        await db.SaveChangesAsync(ct);
+        return template.Id;
+    }
+
+    /// <summary>
+    /// Copies a weekly template to another day/time (#179). The copy is its own
+    /// template — verbatim name/duration/instructor/types, always Active (even
+    /// from a paused source), StartDate = its first occurrence's date (ADR 0004).
+    /// That first occurrence is minted here for the viewed week, claim included,
+    /// exactly as GetWeekAsync would — so the editor can open on it immediately
+    /// (the #171 visible-confirmation doctrine). Returns the new SESSION id.
+    /// </summary>
+    public async Task<Guid> DuplicateTemplateAsync(
+        Guid templateId, DayOfWeek day, TimeOnly start, DateOnly weekStart, CancellationToken ct = default)
+    {
+        weekStart = Weeks.WeekOf(weekStart);
+        var targetDate = weekStart.AddDays((int)day);
+
+        var source = await db.ClassTemplates
+            .Include(t => t.ClassTypes)
+            .SingleOrDefaultAsync(t => t.Id == templateId, ct)
+            ?? throw new InvalidOperationException("Template not found in the active gym.");
+
+        // Carry the default instructor only while it still points at an active
+        // Instructor-role person — a stale assignment softens to unassigned
+        // rather than blocking the duplicate.
+        var instructorPersonId = source.DefaultInstructorPersonId;
+        if (instructorPersonId is { } id && !await db.Persons.AnyAsync(
+                p => p.Id == id && !p.Archived && p.Roles.HasFlag(Domain.People.PersonRoles.Instructor), ct))
+        {
+            instructorPersonId = null;
+        }
+
+        var copy = new ClassTemplate
+        {
+            Id = Guid.NewGuid(),
+            Name = source.Name,
+            Day = day,
+            StartTime = start,
+            DurationMinutes = source.DurationMinutes,
+            DefaultInstructorPersonId = instructorPersonId,
+            Active = true,
+            StartDate = targetDate,
+            ClassTypes = [.. source.ClassTypes],
+        };
+
+        var firstOccurrence = new ClassSession
+        {
+            Id = Guid.NewGuid(),
+            TemplateId = copy.Id,
+            Date = targetDate,
+            StartTime = start,
+            DurationMinutes = copy.DurationMinutes,
+            Name = copy.Name,
+            InstructorPersonId = instructorPersonId,
+            ClassTypes = [.. source.ClassTypes],
+        };
+
+        db.ClassTemplates.Add(copy);
+        db.ClassSessions.Add(firstOccurrence);
+        db.ClassTemplateWeeks.Add(new ClassTemplateWeek
+        {
+            Id = Guid.NewGuid(),
+            TemplateId = copy.Id,
+            WeekStart = weekStart,
+        });
+
+        await db.SaveChangesAsync(ct);
+        return firstOccurrence.Id;
     }
 
     /// <summary>
