@@ -260,8 +260,12 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
                         .SetProperty(s => s.Date, s => s.Date.AddDays(dayDelta - Park)), ct);
             }
         }
-        catch (Exception ex) when (ex is DbUpdateException or Npgsql.PostgresException)
+        catch (Exception ex) when (
+            ex is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation }
+                or DbUpdateException { InnerException: Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation } })
         {
+            // ONLY the landing collision (23505) gets the friendly banner — any
+            // other database failure surfaces as itself (#88 precedent).
             throw new InvalidOperationException("That series move lands on this class's own earlier occurrences — move or delete the conflicting classes first.");
         }
 
