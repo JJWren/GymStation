@@ -108,7 +108,7 @@ _Avoid_: promotion record (a stripe is not a promotion)
 ### Money
 
 **MembershipPlan**:
-A Gym's price + billing cadence, scoped per-person or per-family. A family-scoped plan is assigned to a Family and charged to its primary guardian's Person; covered members are skipped by the individual cycle.
+A Gym's price + billing cadence, scoped per-person or per-family. A family-scoped plan is assigned to a Family and charged to its primary guardian's Person; covered members are skipped by the individual cycle. It may price by family composition: a base covering an included number of adults and wards, plus a per-head price for each extra in either lane — a comped plan is one whose computed total is zero.
 _Avoid_: subscription, tier
 
 **Charge**:

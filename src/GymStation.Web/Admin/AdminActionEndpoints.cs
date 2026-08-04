@@ -343,11 +343,15 @@ public static class AdminActionEndpoints
             return Results.Redirect("/admin/finance");
         });
 
-        group.MapPost("/update-plan", async ([FromForm] Guid planId, [FromForm] string name, [FromForm] decimal price, LedgerService ledger) =>
+        group.MapPost("/update-plan", async (
+            [FromForm] Guid planId, [FromForm] string name, [FromForm] decimal price,
+            [FromForm] int? includedAdults, [FromForm] int? includedKids,
+            [FromForm] decimal? extraAdultPrice, [FromForm] decimal? extraKidPrice,
+            LedgerService ledger) =>
         {
             try
             {
-                await ledger.UpdatePlanAsync(planId, name, price);
+                await ledger.UpdatePlanAsync(planId, name, price, includedAdults, includedKids, extraAdultPrice, extraKidPrice);
             }
             catch (InvalidOperationException)
             {

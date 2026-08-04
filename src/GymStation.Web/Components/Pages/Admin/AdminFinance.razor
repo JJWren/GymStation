@@ -86,6 +86,16 @@
                     <input type="hidden" name="planId" value="@plan.Id" />
                     <input type="text" name="name" value="@plan.Name" aria-label="Plan name" required maxlength="80" style="flex:1;min-width:7.5rem" />
                     <input type="number" name="price" value="@plan.Price" step="0.01" min="0" aria-label="Monthly price" style="width:5.625rem" />
+                    @if (plan.Scope == PlanScope.Family)
+                    {
+                        @* #181: base covers the included counts; extras add per head. *@
+                        <span class="cap" title="Base price covers this many non-ward adults / wards">INCL</span>
+                        <input type="number" name="includedAdults" value="@plan.IncludedAdults" min="0" aria-label="Included adults" title="Included adults" style="width:3.25rem" />
+                        <input type="number" name="includedKids" value="@plan.IncludedKids" min="0" aria-label="Included kids (wards)" title="Included kids (wards)" style="width:3.25rem" />
+                        <span class="cap" title="Per-cycle price for each member beyond the included counts">+$/EXTRA</span>
+                        <input type="number" name="extraAdultPrice" value="@plan.ExtraAdultPrice" step="0.01" min="0" aria-label="Price per extra adult" title="Price per extra adult" style="width:4.25rem" />
+                        <input type="number" name="extraKidPrice" value="@plan.ExtraKidPrice" step="0.01" min="0" aria-label="Price per extra kid (ward)" title="Price per extra kid (ward)" style="width:4.25rem" />
+                    }
                     <button class="btn btn--icon btn--save btn--xs" type="submit" aria-label="Save plan" title="Save plan"><Glyph Name="save" /></button>
                 </form>
                 <div class="head-row" style="margin-top:0.375rem">
@@ -124,6 +134,29 @@
             </div>
             <div class="check-row" style="margin-top:0.5rem">
                 <label><InputCheckbox @bind-Value="PlanForm!.IsFamilyScope" /> FAMILY PLAN — ONE CHARGE ON THE PRIMARY GUARDIAN, COVERED MEMBERS SKIPPED</label>
+            </div>
+            @* #181: revealed by CSS :has() when FAMILY PLAN is checked; browsers
+               without :has() keep it always visible — the cap explains itself. *@
+            <div class="fam-sizing">
+                <div class="form-grid">
+                    <div>
+                        <label for="pincla">Included adults</label>
+                        <InputNumber id="pincla" @bind-Value="PlanForm!.IncludedAdults" min="0" />
+                    </div>
+                    <div>
+                        <label for="pinclk">Included kids (wards)</label>
+                        <InputNumber id="pinclk" @bind-Value="PlanForm!.IncludedKids" min="0" />
+                    </div>
+                    <div>
+                        <label for="pextraa">+$ per extra adult</label>
+                        <InputNumber id="pextraa" @bind-Value="PlanForm!.ExtraAdultPrice" min="0" />
+                    </div>
+                    <div>
+                        <label for="pextrak">+$ per extra kid</label>
+                        <InputNumber id="pextrak" @bind-Value="PlanForm!.ExtraKidPrice" min="0" />
+                    </div>
+                </div>
+                <p class="cap" style="margin:0.375rem 0 0">FAMILY PLANS ONLY — BASE PRICE COVERS THE INCLUDED COUNTS (KID = WARD); EXTRAS ADD PER HEAD. ALL ZEROS = FLAT RATE. BAKE ANY DISCOUNT INTO THESE NUMBERS.</p>
             </div>
             @if (_planError is not null)
             {
@@ -329,6 +362,10 @@
         public string Name { get; set; } = "";
         public decimal Price { get; set; }
         public bool IsFamilyScope { get; set; }
+        public int IncludedAdults { get; set; }
+        public int IncludedKids { get; set; }
+        public decimal ExtraAdultPrice { get; set; }
+        public decimal ExtraKidPrice { get; set; }
     }
 
     public class AddExpenseForm
@@ -399,6 +436,12 @@
             return;
         }
 
+        if (form.IncludedAdults < 0 || form.IncludedKids < 0 || form.ExtraAdultPrice < 0 || form.ExtraKidPrice < 0)
+        {
+            _planError = "Family sizing can't be negative — use 0 to switch a lane off.";
+            return;
+        }
+
         await using var db = await DbFactory.CreateDbContextAsync();
         if (await db.MembershipPlans.AnyAsync(p => p.Name == name))
         {
@@ -406,12 +449,18 @@
             return;
         }
 
+        // Sizing rides only on family scope (#181) — a per-person plan ignores
+        // whatever sat in the (possibly always-visible) sizing block.
         db.MembershipPlans.Add(new MembershipPlan
         {
             Id = Guid.NewGuid(),
             Name = name,
             Price = form.Price,
             Scope = form.IsFamilyScope ? PlanScope.Family : PlanScope.PerPerson,
+            IncludedAdults = form.IsFamilyScope ? form.IncludedAdults : 0,
+            IncludedKids = form.IsFamilyScope ? form.IncludedKids : 0,
+            ExtraAdultPrice = form.IsFamilyScope ? form.ExtraAdultPrice : 0,
+            ExtraKidPrice = form.IsFamilyScope ? form.ExtraKidPrice : 0,
         });
         await db.SaveChangesAsync();
         Nav.NavigateTo("/admin/finance");

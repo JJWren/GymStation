@@ -121,11 +121,22 @@ else
                         <option value="">— no family plan —</option>
                         @foreach (var plan in _familyPlans)
                         {
-                            <option value="@plan.Id" selected="@(plan.Id == _family.MembershipPlanId)">@plan.Name · $@plan.Price.ToString("N0")</option>
+                            <option value="@plan.Id" selected="@(plan.Id == _family.MembershipPlanId)">@plan.Name · $@plan.Price.ToString("N0")@(plan.ExtraAdultPrice > 0 || plan.ExtraKidPrice > 0 ? " BASE + EXTRAS" : "")</option>
                         }
                     </select>
                     <button class="btn btn--ghost btn--xs" type="submit">SET PLAN</button>
                 </form>
+                @if (_family.MembershipPlanId is { } currentPlanId && _familyPlans.FirstOrDefault(p => p.Id == currentPlanId) is { } currentPlan)
+                {
+                    @* #181: the computed price for TODAY'S roster — size is re-counted each cycle. *@
+                    var adults = _members.Count(x => !x.Membership.IsWard && !x.Person.Archived);
+                    var kids = _members.Count(x => x.Membership.IsWard && !x.Person.Archived);
+                    var (total, extra) = GymStation.Domain.Money.FamilyPlanMath.Compute(currentPlan, adults, kids);
+                    <p class="cap" style="margin-top:0.375rem">
+                        THIS FAMILY TODAY: @adults ADULT@(adults == 1 ? "" : "S") + @kids WARD@(kids == 1 ? "" : "S") →
+                        $@currentPlan.Price.ToString("N0") BASE@(extra > 0 ? $" + ${extra:N0} EXTRAS" : "") = $@total.ToString("N0")/MO · RE-COUNTED EACH CYCLE@(total == 0 ? " · COMPED (RAISES NOTHING)" : "")
+                    </p>
+                }
                 @if (_familyPlans.Count == 0)
                 {
                     <p class="cap" style="margin-top:0.375rem">NO FAMILY-SCOPE PLANS YET — CREATE ONE UNDER FINANCE ▸ MEMBERSHIP PLANS.</p>

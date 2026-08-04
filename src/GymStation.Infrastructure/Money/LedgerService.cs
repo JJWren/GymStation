@@ -102,10 +102,13 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
     /// </summary>
     private async Task<int> RaiseFamilyChargesAsync(DateOnly cycleMonth, DateOnly raisedOn, CancellationToken ct)
     {
+        // No Price filter here (#181): a $0-base plan with per-head extras still
+        // charges sized families. "Comped" is decided per family below, on the
+        // COMPUTED total.
         var families = await db.Families
             .Where(f => f.MembershipPlanId != null)
             .Join(db.MembershipPlans.Where(pl =>
-                    !pl.Archived && pl.Scope == PlanScope.Family && pl.Cadence == PlanCadence.Monthly && pl.Price > 0),
+                    !pl.Archived && pl.Scope == PlanScope.Family && pl.Cadence == PlanCadence.Monthly),
                 f => f.MembershipPlanId, pl => pl.Id, (f, pl) => new { Family = f, Plan = pl })
             .ToListAsync(ct);
         if (families.Count == 0)
@@ -114,6 +117,18 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
         }
 
         var familyIds = families.Select(x => x.Family.Id).ToList();
+
+        // Size sampled at raise time (#181): unarchived members only, split by
+        // wardship (kid = ward, ADR 0005). Later joins/graduations reprice the
+        // NEXT cycle — raised charges are history.
+        var memberCounts = await db.FamilyMembers
+            .Where(m => familyIds.Contains(m.FamilyId))
+            .Join(db.Persons.Where(p => !p.Archived), m => m.PersonId, p => p.Id, (m, p) => new { m.FamilyId, m.IsWard })
+            .GroupBy(m => new { m.FamilyId, m.IsWard })
+            .Select(g => new { g.Key.FamilyId, g.Key.IsWard, Count = g.Count() })
+            .ToListAsync(ct);
+        var adultCounts = memberCounts.Where(x => !x.IsWard).ToDictionary(x => x.FamilyId, x => x.Count);
+        var kidCounts = memberCounts.Where(x => x.IsWard).ToDictionary(x => x.FamilyId, x => x.Count);
 
         // One round trip for this cycle's existing family keys — no per-family AnyAsync.
         var monthPrefix = $"{cycleMonth:yyyy-MM}:family:";
@@ -147,21 +162,32 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
                 continue;
             }
 
+            var adults = adultCounts.GetValueOrDefault(row.Family.Id);
+            var kids = kidCounts.GetValueOrDefault(row.Family.Id);
+            var (total, extraAmount) = FamilyPlanMath.Compute(row.Plan, adults, kids);
+            if (total <= 0)
+            {
+                continue; // computed-comped (#181): zero total raises nothing, like comped individuals
+            }
+
             db.Charges.Add(new Charge
             {
                 Id = Guid.NewGuid(),
                 PersonId = person.Id,
-                Amount = row.Plan.Price,
+                Amount = total,
                 Description = $"{row.Plan.Name} · {row.Family.Name} · {cycleMonth:yyyy-MM}",
                 RaisedOn = raisedOn,
                 CycleKey = familyCycleKey,
+                FamilyAdults = adults,
+                FamilyKids = kids,
+                FamilyExtraAmount = extraAmount,
             });
 
             notifications.Notify(
                 [primary.GuardianUserId],
                 NotificationCategory.ChargeRaised,
                 $"Family dues raised: {row.Plan.Name} · {cycleMonth:yyyy-MM}",
-                $"{row.Family.Name}'s {row.Plan.Name} dues of {row.Plan.Price:C} for {cycleMonth:MMMM yyyy} were raised on your account. Pay however your gym collects — the ledger updates when staff record it.",
+                $"{row.Family.Name}'s {row.Plan.Name} dues of {total:C} for {cycleMonth:MMMM yyyy} were raised on your account. Pay however your gym collects — the ledger updates when staff record it.",
                 "/family",
                 email: false);
 
@@ -343,7 +369,11 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
         return created;
     }
 
-    public async Task UpdatePlanAsync(Guid planId, string name, decimal price, CancellationToken ct = default)
+    public async Task UpdatePlanAsync(
+        Guid planId, string name, decimal price,
+        int? includedAdults = null, int? includedKids = null,
+        decimal? extraAdultPrice = null, decimal? extraKidPrice = null,
+        CancellationToken ct = default)
     {
         name = name.Trim();
         if (string.IsNullOrWhiteSpace(name))
@@ -361,6 +391,11 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
             throw new InvalidOperationException("Price can't be negative — use 0 for a comped plan.");
         }
 
+        if (includedAdults < 0 || includedKids < 0 || extraAdultPrice < 0 || extraKidPrice < 0)
+        {
+            throw new InvalidOperationException("Family sizing can't be negative — use 0 to switch a lane off.");
+        }
+
         var plan = await db.MembershipPlans.SingleOrDefaultAsync(p => p.Id == planId, ct)
             ?? throw new InvalidOperationException("Plan not found in the active gym.");
 
@@ -372,6 +407,16 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
         // Price changes affect FUTURE cycles only — raised charges are history.
         plan.Name = name;
         plan.Price = price;
+
+        // Sizing (#181) applies to family-scope plans; null = leave unchanged
+        // (per-person rows never post these fields).
+        if (plan.Scope == PlanScope.Family)
+        {
+            plan.IncludedAdults = includedAdults ?? plan.IncludedAdults;
+            plan.IncludedKids = includedKids ?? plan.IncludedKids;
+            plan.ExtraAdultPrice = extraAdultPrice ?? plan.ExtraAdultPrice;
+            plan.ExtraKidPrice = extraKidPrice ?? plan.ExtraKidPrice;
+        }
         await db.SaveChangesAsync(ct);
     }
 

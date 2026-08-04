@@ -1,6 +1,7 @@
 using GymStation.Domain.Money;
 using GymStation.Domain.People;
 using GymStation.Domain.Tenancy;
+using GymStation.Infrastructure;
 using GymStation.Infrastructure.Money;
 using GymStation.Infrastructure.Notifications;
 using GymStation.Infrastructure.Tenancy;
@@ -206,6 +207,155 @@ public class LedgerTests(PostgresFixture fixture)
         var september = await context.Charges.Where(c => c.PersonId == primaryPerson.Id && c.RaisedOn == new DateOnly(2026, 9, 1)).ToListAsync();
         Assert.Single(september);
         Assert.Equal($"2026-09:family:{family.Id}", september[0].CycleKey);
+    }
+
+    private static Person Ward(string first) => new()
+    {
+        Id = Guid.NewGuid(),
+        FirstName = first,
+        LastName = "Hale",
+        JoinedOn = new DateOnly(2026, 1, 1),
+    };
+
+    private async Task<(Family Family, Person PrimaryPerson, List<FamilyMember> Wards)> SeedSizedFamilyAsync(
+        GymStationDbContext context, MembershipPlan familyPlan, int wardCount)
+    {
+        var primaryUserId = Guid.NewGuid();
+        var primaryPerson = new Person
+        {
+            Id = Guid.NewGuid(),
+            FirstName = "Sarah",
+            LastName = "Hale",
+            UserId = primaryUserId,
+            JoinedOn = new DateOnly(2026, 1, 1),
+        };
+        context.Persons.Add(primaryPerson);
+
+        var family = new Family { Id = Guid.NewGuid(), Name = "HALE FAMILY", MembershipPlanId = familyPlan.Id };
+        context.Families.Add(family);
+        context.FamilyGuardians.Add(new FamilyGuardian { Id = Guid.NewGuid(), FamilyId = family.Id, GuardianUserId = primaryUserId, IsPrimary = true });
+
+        // The primary's own Person rides as the family's (only) adult member.
+        context.FamilyMembers.Add(new FamilyMember { Id = Guid.NewGuid(), FamilyId = family.Id, PersonId = primaryPerson.Id, IsWard = false });
+
+        var wardMemberships = new List<FamilyMember>();
+        for (var i = 0; i < wardCount; i++)
+        {
+            var ward = Ward($"Kid{i}");
+            context.Persons.Add(ward);
+            var membership = new FamilyMember { Id = Guid.NewGuid(), FamilyId = family.Id, PersonId = ward.Id, IsWard = true };
+            wardMemberships.Add(membership);
+            context.FamilyMembers.Add(membership);
+        }
+
+        await context.SaveChangesAsync();
+        return (family, primaryPerson, wardMemberships);
+    }
+
+    [Fact]
+    public async Task SizedFamilyPlan_ChargesByComposition_AndStampsTheBreakdown()
+    {
+        var (tenant, planned, _, _) = await SeedAsync();
+
+        await using var context = fixture.CreateContext(tenant);
+        // Base $150 covers 2 adults + 2 wards; extras $30/adult, $20/ward.
+        var familyPlan = new MembershipPlan
+        {
+            Id = Guid.NewGuid(),
+            Name = "Family Standard",
+            Price = 150m,
+            Scope = PlanScope.Family,
+            IncludedAdults = 2,
+            IncludedKids = 2,
+            ExtraAdultPrice = 30m,
+            ExtraKidPrice = 20m,
+        };
+        context.MembershipPlans.Add(familyPlan);
+        var (family, primaryPerson, _) = await SeedSizedFamilyAsync(context, familyPlan, wardCount: 3);
+
+        var ledger = new LedgerService(context, new NotificationService(context));
+        // Ana (planned, outside the family) gets her individual charge; the family
+        // gets one sized charge: 1 adult + 3 wards → base + 1 extra kid = $170.
+        Assert.Equal(2, await ledger.RaiseMonthlyChargesAsync(new DateOnly(2026, 8, 1)));
+
+        var familyCharge = await context.Charges.SingleAsync(c => c.CycleKey == $"2026-08:family:{family.Id}");
+        Assert.Equal(primaryPerson.Id, familyCharge.PersonId);
+        Assert.Equal(170m, familyCharge.Amount);
+        Assert.Equal(1, familyCharge.FamilyAdults);
+        Assert.Equal(3, familyCharge.FamilyKids);
+        Assert.Equal(20m, familyCharge.FamilyExtraAmount);
+
+        // Individual charges never carry the family breakdown.
+        var individual = await context.Charges.SingleAsync(c => c.PersonId == planned.Id);
+        Assert.Null(individual.FamilyAdults);
+        Assert.Null(individual.FamilyKids);
+        Assert.Null(individual.FamilyExtraAmount);
+    }
+
+    [Fact]
+    public async Task ZeroBasePerHeadFamilyPlan_StillCharges()
+    {
+        var (tenant, _, _, _) = await SeedAsync();
+
+        await using var context = fixture.CreateContext(tenant);
+        // Comped is the COMPUTED total now — a $0 base with per-head prices bills.
+        var familyPlan = new MembershipPlan
+        {
+            Id = Guid.NewGuid(),
+            Name = "Family Per-Head",
+            Price = 0m,
+            Scope = PlanScope.Family,
+            ExtraAdultPrice = 80m,
+            ExtraKidPrice = 50m,
+        };
+        context.MembershipPlans.Add(familyPlan);
+        var (family, _, _) = await SeedSizedFamilyAsync(context, familyPlan, wardCount: 1);
+
+        var ledger = new LedgerService(context, new NotificationService(context));
+        await ledger.RaiseMonthlyChargesAsync(new DateOnly(2026, 8, 1));
+
+        var familyCharge = await context.Charges.SingleAsync(c => c.CycleKey == $"2026-08:family:{family.Id}");
+        Assert.Equal(130m, familyCharge.Amount);
+        Assert.Equal(130m, familyCharge.FamilyExtraAmount);
+    }
+
+    [Fact]
+    public async Task FamilyResizing_RepricesTheNextCycle()
+    {
+        var (tenant, _, _, _) = await SeedAsync();
+
+        await using var context = fixture.CreateContext(tenant);
+        var familyPlan = new MembershipPlan
+        {
+            Id = Guid.NewGuid(),
+            Name = "Family Standard",
+            Price = 150m,
+            Scope = PlanScope.Family,
+            IncludedAdults = 2,
+            IncludedKids = 2,
+            ExtraAdultPrice = 30m,
+            ExtraKidPrice = 20m,
+        };
+        context.MembershipPlans.Add(familyPlan);
+        var (family, primaryPerson, wards) = await SeedSizedFamilyAsync(context, familyPlan, wardCount: 3);
+
+        var ledger = new LedgerService(context, new NotificationService(context));
+        await ledger.RaiseMonthlyChargesAsync(new DateOnly(2026, 8, 1));
+
+        // A ward graduates to a billing-only adult — the NEXT cycle re-counts:
+        // 2 adults + 2 wards fits the included size, so September is base only.
+        wards[0].IsWard = false;
+        await context.SaveChangesAsync();
+        await ledger.RaiseMonthlyChargesAsync(new DateOnly(2026, 9, 1));
+
+        var august = await context.Charges.SingleAsync(c => c.CycleKey == $"2026-08:family:{family.Id}");
+        var september = await context.Charges.SingleAsync(c => c.CycleKey == $"2026-09:family:{family.Id}");
+        Assert.Equal(170m, august.Amount);
+        Assert.Equal(150m, september.Amount);
+        Assert.Equal(2, september.FamilyAdults);
+        Assert.Equal(2, september.FamilyKids);
+        Assert.Equal(0m, september.FamilyExtraAmount);
+        Assert.Equal(primaryPerson.Id, september.PersonId);
     }
 
     [Fact]
