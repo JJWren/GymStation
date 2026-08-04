@@ -487,15 +487,25 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
     /// </summary>
     public async Task PromoteToTemplateAsync(Guid sessionId, CancellationToken ct = default)
     {
-        var session = await db.ClassSessions
-            .Include(s => s.ClassTypes)
-            .SingleOrDefaultAsync(s => s.Id == sessionId, ct)
+        // Lock-before-check (#169 pattern): serialize on the session row so two
+        // promote submits can't both observe TemplateId == null and mint twin
+        // templates — the loser's orphan would keep materializing a phantom
+        // series. Tenant predicate stays inside the locked SQL so a foreign
+        // gym's row is never locked even transiently.
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+        var session = (await db.ClassSessions
+                .FromSqlInterpolated($"""SELECT * FROM "ClassSessions" WHERE "Id" = {sessionId} AND "GymId" = {db.CurrentGymId} FOR UPDATE""")
+                .ToListAsync(ct))
+            .SingleOrDefault()
             ?? throw new InvalidOperationException("Session not found in the active gym.");
 
         if (session.TemplateId is not null)
         {
             throw new InvalidOperationException("That class already follows a weekly template.");
         }
+
+        await db.Entry(session).Collection(s => s.ClassTypes).LoadAsync(ct);
 
         // Same softening as duplication: a stale instructor becomes unassigned.
         var instructorPersonId = session.InstructorPersonId;
@@ -529,6 +539,7 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
         });
 
         await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
     }
 
     /// <summary>
