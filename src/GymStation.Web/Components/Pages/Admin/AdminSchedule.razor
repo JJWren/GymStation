@@ -70,6 +70,17 @@
                         <option value="@id">@name</option>
                     }
                 </InputSelect>
+                @if (_editTemplate is not null)
+                {
+                    @* #170: the calendar-standard scope choice, template classes only. *@
+                    <label style="margin-top:0.5rem">Apply to</label>
+                    <div class="check-row" role="radiogroup" aria-label="Apply changes to">
+                        <InputRadioGroup @bind-Value="SessionForm!.Scope">
+                            <label><InputRadio Value="@("one")" /> JUST THIS CLASS</label>
+                            <label><InputRadio Value="@("series")" /> THIS AND FOLLOWING CLASSES</label>
+                        </InputRadioGroup>
+                    </div>
+                }
                 @if (_sessionError is not null)
                 {
                     <p class="validation-message">@_sessionError</p>
@@ -81,7 +92,12 @@
                             aria-label="Delete this class" title="Delete this class (refused once check-in or cover history exists)"
                             onclick="return confirm('Delete this class from the schedule? Classes with check-in or cover history refuse — cancel those instead.')"><Glyph Name="trash" /></button>
                 </p>
-                <p class="cap" style="margin:0.375rem 0 0">CHANGES THIS OCCURRENCE ONLY · TIME CHANGES NOTIFY STAFF AND CHECKED-IN MEMBERS</p>
+                <p class="cap" style="margin:0.375rem 0 0">
+                    @(_editTemplate is null
+                        ? "CHANGES THIS OCCURRENCE ONLY"
+                        : "JUST THIS CLASS = THIS OCCURRENCE ONLY · THIS-AND-FOLLOWING ALSO MOVES EVERY LATER CLASS AND THE WEEKLY TEMPLATE — PAST WEEKS NEVER CHANGE")
+                    · TIME OR DATE CHANGES NOTIFY STAFF AND CHECKED-IN MEMBERS
+                </p>
             </EditForm>
 
             <form id="delete-session-form" method="post" action="/admin/actions/delete-session" style="display:none">
@@ -372,6 +388,9 @@
         public string Start { get; set; } = "18:00";
         public int DurationMinutes { get; set; } = 60;
         public Guid? InstructorPersonId { get; set; }
+
+        /// <summary>"one" | "series" — the #170 scope choice (template classes only).</summary>
+        public string Scope { get; set; } = "one";
     }
 
     public class EditTemplateForm
@@ -510,7 +529,15 @@
 
         try
         {
-            await Schedule.UpdateSessionAsync(_editSession.Id, form.Name, form.Date, start, form.DurationMinutes, form.InstructorPersonId);
+            if (form.Scope == "series" && _editSession.TemplateId is not null)
+            {
+                await Schedule.UpdateSeriesAsync(_editSession.Id, form.Name, form.Date, start, form.DurationMinutes, form.InstructorPersonId);
+            }
+            else
+            {
+                await Schedule.UpdateSessionAsync(_editSession.Id, form.Name, form.Date, start, form.DurationMinutes, form.InstructorPersonId);
+            }
+
             // Follow the session to wherever it landed — its (possibly new) week.
             Nav.NavigateTo($"/admin/schedule?start={GymStation.Domain.Scheduling.Weeks.WeekOf(form.Date):yyyy-MM-dd}");
         }

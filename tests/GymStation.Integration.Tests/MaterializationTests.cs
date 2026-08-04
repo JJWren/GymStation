@@ -200,6 +200,91 @@ public class MaterializationTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task SeriesUpdate_AppliesForwardOnly_AndTheTemplateFollows()
+    {
+        var tenant = await SeedGymAsync();
+        await using var context = fixture.CreateContext(tenant);
+        var schedule = new ScheduleService(context, new NotificationService(context));
+        var template = await AddTemplateAsync(context, "No-Gi", DayOfWeek.Monday);
+
+        // Mint three consecutive weeks, then cancel week 3's occurrence.
+        var week1 = (await schedule.GetWeekAsync(Sunday)).Single(s => s.TemplateId == template.Id);
+        var week2 = (await schedule.GetWeekAsync(Sunday.AddDays(7))).Single(s => s.TemplateId == template.Id);
+        var week3 = (await schedule.GetWeekAsync(Sunday.AddDays(14))).Single(s => s.TemplateId == template.Id);
+        await schedule.CancelSessionAsync(week3.Id, "Holiday");
+
+        // Series edit FROM WEEK 2: rename, retime, and shift Monday → Wednesday.
+        await schedule.UpdateSeriesAsync(week2.Id, "No-Gi Advanced", week2.Date.AddDays(2), new TimeOnly(19, 0), 90, null);
+
+        var one = await context.ClassSessions.AsNoTracking().SingleAsync(s => s.Id == week1.Id);
+        var two = await context.ClassSessions.AsNoTracking().SingleAsync(s => s.Id == week2.Id);
+        var three = await context.ClassSessions.AsNoTracking().SingleAsync(s => s.Id == week3.Id);
+
+        // Past week untouched; pivot + following shifted, renamed, retimed.
+        Assert.Equal("No-Gi", one.Name);
+        Assert.Equal(DayOfWeek.Monday, one.Date.DayOfWeek);
+        Assert.Equal(("No-Gi Advanced", DayOfWeek.Wednesday, new TimeOnly(19, 0)), (two.Name, two.Date.DayOfWeek, two.StartTime));
+        Assert.Equal(("No-Gi Advanced", DayOfWeek.Wednesday), (three.Name, three.Date.DayOfWeek));
+
+        // The cancelled sibling follows the series but STAYS cancelled.
+        Assert.Equal(SessionStatus.Cancelled, three.Status);
+
+        // Template re-pointed: an unminted week materializes on the new day/time.
+        var week4 = (await schedule.GetWeekAsync(Sunday.AddDays(21))).Single(s => s.TemplateId == template.Id);
+        Assert.Equal((DayOfWeek.Wednesday, new TimeOnly(19, 0), "No-Gi Advanced"), (week4.Date.DayOfWeek, week4.StartTime, week4.Name));
+    }
+
+    [Fact]
+    public async Task SeriesUpdate_FullWeekShift_IsIndexSafe_AndCollisionsRefuseFriendly()
+    {
+        var tenant = await SeedGymAsync();
+        await using var context = fixture.CreateContext(tenant);
+        var schedule = new ScheduleService(context, new NotificationService(context));
+        var template = await AddTemplateAsync(context, "Comp Class", DayOfWeek.Monday);
+
+        var week1 = (await schedule.GetWeekAsync(Sunday)).Single(s => s.TemplateId == template.Id);
+        var week2 = (await schedule.GetWeekAsync(Sunday.AddDays(7))).Single(s => s.TemplateId == template.Id);
+
+        // +7 shift from week 1: every member of the run lands on the NEXT member's
+        // old date — only per-statement index checking lets this pass.
+        await schedule.UpdateSeriesAsync(week1.Id, "Comp Class", week1.Date.AddDays(7), week1.StartTime, week1.DurationMinutes, null);
+        Assert.Equal(week1.Date.AddDays(7), (await context.ClassSessions.AsNoTracking().SingleAsync(s => s.Id == week1.Id)).Date);
+        Assert.Equal(week2.Date.AddDays(7), (await context.ClassSessions.AsNoTracking().SingleAsync(s => s.Id == week2.Id)).Date);
+
+        // A -7 shift from the SECOND member now lands on the first's date — an
+        // occurrence OUTSIDE the run — and must refuse with words, changing nothing.
+        // (This same call also pins the pivot read as no-tracking: a stale
+        // identity-resolved pivot would zero the delta and no-op silently.)
+        var second = await context.ClassSessions.AsNoTracking().SingleAsync(s => s.Id == week2.Id);
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => schedule.UpdateSeriesAsync(second.Id, second.Name, second.Date.AddDays(-7), second.StartTime, second.DurationMinutes, null));
+        Assert.Equal(week2.Date.AddDays(7), (await context.ClassSessions.AsNoTracking().SingleAsync(s => s.Id == week2.Id)).Date);
+    }
+
+    [Fact]
+    public async Task SeriesUpdate_RefusesAOneOff()
+    {
+        var tenant = await SeedGymAsync();
+        await using var context = fixture.CreateContext(tenant);
+        var schedule = new ScheduleService(context, new NotificationService(context));
+
+        var oneOff = new ClassSession
+        {
+            Id = Guid.NewGuid(),
+            TemplateId = null,
+            Date = Monday,
+            StartTime = new TimeOnly(10, 0),
+            DurationMinutes = 60,
+            Name = "Seminar",
+        };
+        context.ClassSessions.Add(oneOff);
+        await context.SaveChangesAsync();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => schedule.UpdateSeriesAsync(oneOff.Id, "Seminar", Monday, new TimeOnly(11, 0), 60, null));
+    }
+
+    [Fact]
     public async Task Delete_NeverTouchesAnotherGymsSession()
     {
         var tenant = await SeedGymAsync();
