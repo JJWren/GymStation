@@ -201,7 +201,9 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
         {
             // The mint ledger's whole job is this uniqueness: a template-week is
             // claimed at most once, and the claim outlives the occurrence (#168).
-            e.HasIndex(w => new { w.GymId, w.TemplateId, w.WeekStart }).IsUnique();
+            // WeekStart before TemplateId so the same index serves GetWeekAsync's
+            // (gym, week) lookup.
+            e.HasIndex(w => new { w.GymId, w.WeekStart, w.TemplateId }).IsUnique();
             e.HasQueryFilter(w => CurrentGymId != null && w.GymId == CurrentGymId);
         });
 

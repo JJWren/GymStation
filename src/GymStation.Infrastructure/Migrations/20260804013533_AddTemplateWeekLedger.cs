@@ -26,9 +26,9 @@ namespace GymStation.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_ClassTemplateWeeks_GymId_TemplateId_WeekStart",
+                name: "IX_ClassTemplateWeeks_GymId_WeekStart_TemplateId",
                 table: "ClassTemplateWeeks",
-                columns: new[] { "GymId", "TemplateId", "WeekStart" },
+                columns: new[] { "GymId", "WeekStart", "TemplateId" },
                 unique: true);
 
             // Claim every already-materialized template-week so existing calendars

@@ -30,13 +30,14 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
                 .ToListAsync(ct))
             .ToHashSet();
 
-        // Occupied slots absorb the mint: a row moved IN from elsewhere claims the
-        // week without a duplicate insert colliding on the (TemplateId, Date) index.
-        var occupiedSlots = (await db.ClassSessions
+        // ANY occurrence of a template inside the week absorbs the mint — not just
+        // one sitting on the template's own day. A row moved IN from another week
+        // may land on any weekday (the modal date field and edge-hover paging allow
+        // arbitrary moves), and minting beside it would recreate the duplicate.
+        var occupiedTemplateIds = (await db.ClassSessions
                 .Where(s => s.Date >= weekStart && s.Date <= weekEnd && s.TemplateId != null)
-                .Select(s => new { s.TemplateId, s.Date })
+                .Select(s => s.TemplateId!.Value)
                 .ToListAsync(ct))
-            .Select(x => (x.TemplateId!.Value, x.Date))
             .ToHashSet();
 
         var created = false;
@@ -49,7 +50,7 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
                     continue; // claimed — even when the slot sits vacant after a move or delete
                 }
 
-                if (!occupiedSlots.Contains((template.Id, date)))
+                if (!occupiedTemplateIds.Contains(template.Id))
                 {
                     db.ClassSessions.Add(new ClassSession
                     {

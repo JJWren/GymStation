@@ -90,6 +90,27 @@ public class MaterializationTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task MoveIntoAnUnviewedWeek_OnADifferentDay_StillAbsorbsTheMint()
+    {
+        var tenant = await SeedGymAsync();
+        await using var context = fixture.CreateContext(tenant);
+        var schedule = new ScheduleService(context, new NotificationService(context));
+        var template = await AddTemplateAsync(context, "Kids BJJ", DayOfWeek.Monday);
+
+        var session = (await schedule.GetWeekAsync(Sunday)).Single(s => s.TemplateId == template.Id);
+
+        // Move to NEXT week's WEDNESDAY — a week never viewed, a day that is not
+        // the template's. The occupancy check must be per template-week, not per
+        // slot, or first view mints a fresh Monday copy beside it.
+        var targetWednesday = Sunday.AddDays(7 + 3);
+        await schedule.UpdateSessionAsync(session.Id, session.Name, targetWednesday, session.StartTime, session.DurationMinutes, null);
+
+        var target = (await schedule.GetWeekAsync(Sunday.AddDays(7))).Where(s => s.TemplateId == template.Id).ToList();
+        Assert.Single(target);
+        Assert.Equal(targetWednesday, target[0].Date);
+    }
+
+    [Fact]
     public async Task TemplateDayChange_DoesNotDoubleMintAMintedWeek()
     {
         var tenant = await SeedGymAsync();

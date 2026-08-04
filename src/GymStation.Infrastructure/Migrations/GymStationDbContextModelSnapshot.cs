@@ -1225,7 +1225,7 @@ namespace GymStation.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("GymId", "TemplateId", "WeekStart")
+                    b.HasIndex("GymId", "WeekStart", "TemplateId")
                         .IsUnique();
 
                     b.ToTable("ClassTemplateWeeks");
