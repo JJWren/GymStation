@@ -226,6 +226,62 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
         await db.SaveChangesAsync(ct);
     }
 
+    /// <summary>
+    /// Hard-deletes one occurrence (#169) — but ONLY a clean one. Attendance and
+    /// substitution rows both cascade on session delete, so any recorded history
+    /// refuses with words instead of silently destroying it (the rank-remove
+    /// doctrine: history stays — cancel covers a class that isn't happening).
+    /// The template-week ledger claim (#168) keeps the deleted slot vacant.
+    /// </summary>
+    public async Task DeleteSessionAsync(Guid sessionId, CancellationToken ct = default)
+    {
+        // Exclusive row lock BEFORE the history checks: check-ins and sub requests
+        // take KEY SHARE on this row through their FKs, so a concurrent insert
+        // either commits first (the checks below see it and refuse) or queues
+        // behind the lock and fails on the vanished parent — never cascaded away
+        // silently between a check and the delete.
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+        // Tenant predicate lives IN the raw SQL: the composed global filter still
+        // wraps this query, but a foreign gym's row must never be locked even
+        // transiently, and the guarantee should be visible right here.
+        var session = (await db.ClassSessions
+                .FromSqlInterpolated($"""SELECT * FROM "ClassSessions" WHERE "Id" = {sessionId} AND "GymId" = {db.CurrentGymId} FOR UPDATE""")
+                .ToListAsync(ct))
+            .SingleOrDefault();
+        if (session is null)
+        {
+            return; // idempotent: already gone (stale modal, double submit) — the goal state holds
+        }
+
+        if (await db.AttendanceRecords.AnyAsync(a => a.SessionId == session.Id, ct))
+        {
+            throw new InvalidOperationException("That class has check-in history — history stays. Cancel the session instead.");
+        }
+
+        if (await db.SubstitutionRequests.AnyAsync(r => r.SessionId == session.Id, ct))
+        {
+            throw new InvalidOperationException("That class has substitution history — history stays. Cancel the session instead.");
+        }
+
+        var recipients = await notifications.StaffUserIdsAsync(ct);
+        if (session.InstructorPersonId is { } instructorPersonId)
+        {
+            recipients.AddRange(await notifications.UserIdsForPersonsAsync([instructorPersonId], ct));
+        }
+
+        notifications.Notify(
+            recipients,
+            NotificationCategory.SessionCancelled,
+            $"Removed: {session.Name} · {session.Date:ddd dd MMM} {session.StartTime:HH\\:mm}",
+            $"{session.Name} on {session.Date:dddd dd MMMM} at {session.StartTime:HH\\:mm} was removed from the schedule.",
+            "/admin/schedule");
+
+        db.ClassSessions.Remove(session);
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+    }
+
     public async Task CancelSessionAsync(Guid sessionId, string reason, CancellationToken ct = default)
     {
         var session = await db.ClassSessions.SingleOrDefaultAsync(s => s.Id == sessionId, ct)
