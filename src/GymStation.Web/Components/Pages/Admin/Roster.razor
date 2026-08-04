@@ -192,12 +192,14 @@
 
         if (!string.IsNullOrWhiteSpace(Q))
         {
-            // Postgres ILIKE: culture-safe case-insensitivity; escape LIKE wildcards in user input.
+            // Postgres ILIKE: culture-safe case-insensitivity; escape LIKE wildcards
+            // in user input. The escape char must be declared — the two-arg ILike
+            // translation applies NO escape, leaving backslashes literal (#182 find).
             var pattern = "%" + Q.Trim()
                 .Replace(@"\", @"\\")
                 .Replace("%", @"\%")
                 .Replace("_", @"\_") + "%";
-            query = query.Where(p => EF.Functions.ILike(p.FirstName + " " + p.LastName, pattern));
+            query = query.Where(p => EF.Functions.ILike(p.FirstName + " " + p.LastName, pattern, @"\"));
         }
 
         query = Role switch
