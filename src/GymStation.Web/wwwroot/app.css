@@ -246,9 +246,8 @@ button:focus-visible { outline: 2px solid var(--glow, var(--tenant)); outline-of
 .btn--icon svg { width: 0.875rem; height: 0.875rem; display: block; }
 .btn--icon.btn--xs { padding: 0.4375rem; }
 .btn--icon.btn--xs svg { width: 0.75rem; height: 0.75rem; }
-.btn--save { background: transparent; border: 1.5px solid var(--ok); color: var(--ok); --glow: var(--ok); }
+.btn--save, .btn--copy { background: transparent; border: 1.5px solid var(--ok); color: var(--ok); --glow: var(--ok); }
 .btn--del { background: transparent; border: 1.5px solid var(--bad); color: var(--bad); --glow: var(--bad); }
-.btn--copy { background: transparent; border: 1.5px solid var(--ok); color: var(--ok); --glow: var(--ok); }
 .form-card { background: var(--surface); border-radius: 0.75rem; padding: 1rem; }
 .form-card label { display: block; font: 600 0.5625rem/1 var(--font-mono); letter-spacing: .14em; color: var(--ink-dim); margin: 0.75rem 0 0.3125rem; text-transform: uppercase; }
 /* :not() form so the typeless <input> Blazor's InputText renders is covered too
