@@ -180,6 +180,128 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
         await db.SaveChangesAsync(ct);
     }
 
+    /// <summary>
+    /// "This and following" (#170): updates this occurrence AND every later one of
+    /// the same template, then re-points the template so unmaterialized weeks
+    /// follow too. A date change shifts the whole run by the same day delta via
+    /// the park-and-land two-phase (the MoveRankAsync recipe) — the unique
+    /// (GymId, TemplateId, Date) index checks per ROW, so a uniform shift can
+    /// transiently collide with its own members (±7 always would). Collisions
+    /// with occurrences OUTSIDE the run (earlier history sitting on a landing
+    /// date) surface as a friendly refusal and roll everything back. Past
+    /// occurrences never change; cancelled future ones follow but stay cancelled.
+    /// </summary>
+    public async Task UpdateSeriesAsync(
+        Guid sessionId, string name, DateOnly date, TimeOnly start, int durationMinutes, Guid? instructorPersonId,
+        CancellationToken ct = default)
+    {
+        ValidateShape(name, durationMinutes);
+
+        // AsNoTracking: the pivot MUST be the database's current date. A tracked
+        // read would hand back a stale identity-resolved instance after any
+        // earlier shift on this context, silently zeroing the delta.
+        var session = await db.ClassSessions.AsNoTracking().SingleOrDefaultAsync(s => s.Id == sessionId, ct)
+            ?? throw new InvalidOperationException("Session not found in the active gym.");
+
+        if (session.TemplateId is not { } templateId)
+        {
+            throw new InvalidOperationException("That class is a one-off — there is no series behind it.");
+        }
+
+        var template = await db.ClassTemplates.SingleOrDefaultAsync(t => t.Id == templateId, ct)
+            ?? throw new InvalidOperationException("The weekly template behind this class no longer exists.");
+
+        await ValidateInstructorAsync(instructorPersonId, ct);
+
+        var pivot = session.Date;
+        var dayDelta = date.DayNumber - pivot.DayNumber;
+        var trimmed = name.Trim();
+        var timeChanged = session.StartTime != start || session.DurationMinutes != durationMinutes;
+
+        // Audience gathered BEFORE the shift: staff, the incoming instructor, and
+        // everyone checked in on any affected occurrence (plus their guardians) —
+        // the same people a cancellation would reach.
+        var affectedIds = await db.ClassSessions
+            .Where(s => s.TemplateId == templateId && s.Date >= pivot)
+            .Select(s => s.Id)
+            .ToListAsync(ct);
+
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        try
+        {
+            if (dayDelta == 0)
+            {
+                await db.ClassSessions
+                    .Where(s => s.TemplateId == templateId && s.Date >= pivot)
+                    .ExecuteUpdateAsync(set => set
+                        .SetProperty(s => s.Name, trimmed)
+                        .SetProperty(s => s.StartTime, start)
+                        .SetProperty(s => s.DurationMinutes, durationMinutes)
+                        .SetProperty(s => s.InstructorPersonId, instructorPersonId), ct);
+            }
+            else
+            {
+                // Park the run ~55 years out (no real occurrence lives there),
+                // then land it with the delta applied — each phase is per-row
+                // collision-free among the run's own members.
+                const int Park = 20000;
+                var parked = pivot.AddDays(Park);
+                await db.ClassSessions
+                    .Where(s => s.TemplateId == templateId && s.Date >= pivot)
+                    .ExecuteUpdateAsync(set => set
+                        .SetProperty(s => s.Date, s => s.Date.AddDays(Park)), ct);
+                await db.ClassSessions
+                    .Where(s => s.TemplateId == templateId && s.Date >= parked)
+                    .ExecuteUpdateAsync(set => set
+                        .SetProperty(s => s.Name, trimmed)
+                        .SetProperty(s => s.StartTime, start)
+                        .SetProperty(s => s.DurationMinutes, durationMinutes)
+                        .SetProperty(s => s.InstructorPersonId, instructorPersonId)
+                        .SetProperty(s => s.Date, s => s.Date.AddDays(dayDelta - Park)), ct);
+            }
+        }
+        catch (Exception ex) when (ex is DbUpdateException or Npgsql.PostgresException)
+        {
+            throw new InvalidOperationException("That series move lands on this class's own earlier occurrences — move or delete the conflicting classes first.");
+        }
+
+        template.Name = trimmed;
+        template.Day = date.DayOfWeek;
+        template.StartTime = start;
+        template.DurationMinutes = durationMinutes;
+        template.DefaultInstructorPersonId = instructorPersonId;
+
+        if (timeChanged || dayDelta != 0)
+        {
+            var recipients = await notifications.StaffUserIdsAsync(ct);
+            if (instructorPersonId is { } instructor)
+            {
+                recipients.AddRange(await notifications.UserIdsForPersonsAsync([instructor], ct));
+            }
+
+            var checkedInPersonIds = await db.AttendanceRecords
+                .Where(a => affectedIds.Contains(a.SessionId) && a.Status != Domain.Attendance.AttendanceStatus.Removed)
+                .Select(a => a.PersonId)
+                .Distinct()
+                .ToListAsync(ct);
+            recipients.AddRange(await notifications.UserIdsForPersonsAsync(checkedInPersonIds, ct));
+            recipients.AddRange(await db.FamilyGuardians
+                .Join(db.FamilyMembers.Where(m => m.IsWard && checkedInPersonIds.Contains(m.PersonId)),
+                    g => g.FamilyId, m => m.FamilyId, (g, m) => g.GuardianUserId)
+                .ToListAsync(ct));
+
+            notifications.Notify(
+                recipients,
+                NotificationCategory.SessionChanged,
+                $"Changed: {trimmed} · this and all following classes",
+                $"{trimmed} now runs {date.DayOfWeek}s at {start:HH\\:mm} for {durationMinutes} minutes, starting {date:dddd dd MMMM}.",
+                "/schedule");
+        }
+
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+    }
+
     /// <summary>Edits the weekly template. Applies to weeks not yet materialized;
     /// occurrences already on the calendar keep their own values.</summary>
     public async Task UpdateTemplateAsync(
