@@ -32,5 +32,24 @@ public class MembershipPlan : ITenantOwned
     /// cycle and the individual cycle skips every covered member (#91).</summary>
     public PlanScope Scope { get; set; } = PlanScope.PerPerson;
 
+    /// <summary>
+    /// Family-size pricing (#181, ADR 0005) — family-scope plans only. Price covers
+    /// IncludedAdults non-ward members and IncludedKids wards; each member beyond a
+    /// lane adds its extra price, per head, per cycle (strict lanes — adult and kid
+    /// slots never pool). All zeros = flat rate. Owners bake discounts into these
+    /// numbers; there is no percent-off knob. "Comped" means the COMPUTED total is
+    /// zero, not the base.
+    /// </summary>
+    public int IncludedAdults { get; set; }
+
+    /// <inheritdoc cref="IncludedAdults" />
+    public int IncludedKids { get; set; }
+
+    /// <inheritdoc cref="IncludedAdults" />
+    public decimal ExtraAdultPrice { get; set; }
+
+    /// <inheritdoc cref="IncludedAdults" />
+    public decimal ExtraKidPrice { get; set; }
+
     public bool Archived { get; set; }
 }

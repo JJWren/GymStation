@@ -105,7 +105,7 @@
             {
                 <h2 class="section-h">Billing</h2>
                 <div class="head-row" style="padding:0.25rem 0">
-                    <span class="mono">@billing.PlanName · $@billing.Price.ToString("N0")/MO ON @billing.PrimaryName.ToUpperInvariant()</span>
+                    <span class="mono">@billing.PlanName · $@billing.Total.ToString("N0")/MO ON @billing.PrimaryName.ToUpperInvariant()</span>
                     @if (billing.Balance > 0)
                     {
                         <span class="stamp stamp--bad">DUE $@billing.Balance.ToString("N0")</span>
@@ -115,6 +115,14 @@
                         <span class="stamp stamp--ok">PAID UP</span>
                     }
                 </div>
+                @if (billing.Extra > 0)
+                {
+                    @* #181: size-priced plan — show the math for today's roster. *@
+                    <p class="cap" style="margin:0.125rem 0 0">
+                        BASE $@billing.Price.ToString("N0") + $@billing.Extra.ToString("N0") EXTRAS ·
+                        @billing.Adults ADULT@(billing.Adults == 1 ? "" : "S") + @billing.Kids WARD@(billing.Kids == 1 ? "" : "S") · RE-COUNTED EACH CYCLE
+                    </p>
+                }
             }
 
             <h2 class="section-h">Guardians</h2>
@@ -216,7 +224,9 @@
     [CascadingParameter] public HttpContext? HttpContext { get; set; }
     [SupplyParameterFromQuery(Name = "failed")] public int? FailedFlag { get; set; }
 
-    private sealed record BillingView(string PlanName, decimal Price, string PrimaryName, decimal Balance);
+    private sealed record BillingView(
+        string PlanName, decimal Price, decimal Total, decimal Extra, int Adults, int Kids,
+        string PrimaryName, decimal Balance);
 
     private sealed record FamilyView(
         Family Family,
@@ -305,7 +315,11 @@
                 if (plan is not null && primaryPerson is not null)
                 {
                     var arrears = await Ledger.ArrearsForAsync(primaryPerson.Id);
-                    billing = new BillingView(plan.Name, plan.Price, primaryPerson.DisplayName, arrears.Balance);
+                    // #181: computed for today's roster — the cycle re-counts monthly.
+                    var adults = f.Members.Count(m => m.Person is { Archived: false } && !m.IsWard);
+                    var kids = f.Members.Count(m => m.Person is { Archived: false } && m.IsWard);
+                    var (total, extra) = GymStation.Domain.Money.FamilyPlanMath.Compute(plan, adults, kids);
+                    billing = new BillingView(plan.Name, plan.Price, total, extra, adults, kids, primaryPerson.DisplayName, arrears.Balance);
                 }
             }
 

@@ -256,6 +256,8 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
         {
             e.Property(p => p.Name).HasMaxLength(80);
             e.Property(p => p.Price).HasPrecision(10, 2);
+            e.Property(p => p.ExtraAdultPrice).HasPrecision(10, 2);
+            e.Property(p => p.ExtraKidPrice).HasPrecision(10, 2);
             e.HasIndex(p => new { p.GymId, p.Name }).IsUnique();
             e.HasQueryFilter(p => CurrentGymId != null && p.GymId == CurrentGymId);
         });
@@ -263,6 +265,7 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
         builder.Entity<Charge>(e =>
         {
             e.Property(c => c.Amount).HasPrecision(10, 2);
+            e.Property(c => c.FamilyExtraAmount).HasPrecision(10, 2);
             e.Property(c => c.Description).HasMaxLength(150);
             // Wide enough for the family variant: "yyyy-MM:family:{guid}" (#91).
             e.Property(c => c.CycleKey).HasMaxLength(60);

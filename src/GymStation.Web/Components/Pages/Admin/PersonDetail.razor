@@ -359,6 +359,19 @@ else
     private decimal _balance;
 
     private sealed record LedgerLine(DateOnly When, string Label, decimal Amount, bool IsCharge, Guid? PaymentId, bool Voided);
+
+    // #181: family charges carry their size breakdown as columns — render it
+    // from the stamped facts, never re-derived from today's roster.
+    private static string FamilyBreakdownSuffix(GymStation.Domain.Money.Charge c)
+    {
+        if (c.FamilyAdults is not { } adults || c.FamilyKids is not { } kids)
+        {
+            return "";
+        }
+
+        var extras = c.FamilyExtraAmount is { } extra && extra > 0 ? $" (+${extra:N0} EXTRAS)" : "";
+        return $" · {adults}A+{kids}K{extras}";
+    }
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
 
     public class RecordAwardForm
@@ -417,7 +430,7 @@ else
         var payments = await db.Payments.Where(p => p.PersonId == PersonId).ToListAsync();
         _balance = GymStation.Domain.Money.LedgerMath.Balance(charges, payments);
         _ledgerLines = charges
-            .Select(c => new LedgerLine(c.RaisedOn, "CHARGE · " + c.Description.ToUpperInvariant(), c.Amount, true, null, false))
+            .Select(c => new LedgerLine(c.RaisedOn, "CHARGE · " + c.Description.ToUpperInvariant() + FamilyBreakdownSuffix(c), c.Amount, true, null, false))
             .Concat(payments.Select(p => new LedgerLine(
                 p.ReceivedOn,
                 p.Voided ? $"PAYMENT · VOID: {p.VoidReason?.ToUpperInvariant()}" : "PAYMENT",
