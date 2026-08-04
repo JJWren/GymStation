@@ -235,3 +235,11 @@ As an aside, my gym is predominantly BJJ, Fitness/Conditioning (called \"Bootcam
 **Context**: Post-round-4 live usage feedback — schedule editor maturity pass
 
 ---
+
+## Round-4.1 Complete
+**Timestamp**: 2026-08-04T02:57:40Z
+**User Input**: (none — autonomous execution of the four filed asks)
+**AI Response**: All four issues shipped through the standard loop and released as v1.10.0, live in the lab. #168→PR172 (ClassTemplateWeek mint ledger — a template-week materializes at most once; occupancy is per template-week after Copilot caught the moved-into-an-unviewed-week-on-another-day hole; ledger index leads (GymId, WeekStart, TemplateId); AddTemplateWeekLedger backfilled 165 claims on the live calendar). #169→PR174 (trash beside save via the form= sibling-form trick; hard delete refuses when check-in or substitution history exists since both FKs cascade; three review rounds hardened it — idempotent on missing sessions, FOR UPDATE lock-before-check kills the TOCTOU race, tenant predicate inside the locked SQL). #170→PR175 (JUST THIS CLASS / THIS AND FOLLOWING radio; series updates future occurrences + template; date shifts ride the park-and-land two-phase because the unique index checks per ROW — my own test caught both that and a stale tracked-pivot no-op bug pre-review; collision catch narrowed to 23505). #171→PR176 (DUPLICATE TO day/time; the copy is a one-off by design and coexists with the template's own future mint; clean round 1). Deploy: migrate-v1.10.0.sql staged + grep-verified (AddTemplateWeekLedger), psql'd into live gymstation-db (history 29→30) BEFORE the compose bump 1.9.0→1.10.0; healthy; /ironworks-bjj /login /favicon.svg all 200; rig removed. Note: the pre-existing duplicate from the live repro is still on the calendar — the new trash button is its cleanup tool.
+**Context**: Round-4.1 complete — schedule editor: fixed drag duplication, delete, series scope, duplicate-to all live at v1.10.0
+
+---
