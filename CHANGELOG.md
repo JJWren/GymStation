@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.10.0](https://github.com/JJWren/GymStation/compare/v1.9.0...v1.10.0) (2026-08-04)
+
+
+### Features
+
+* delete a class occurrence from the edit modal ([#174](https://github.com/JJWren/GymStation/issues/174)) ([5c3e026](https://github.com/JJWren/GymStation/commit/5c3e026e292bf85ffb34ea70b70aced04e7ee5c6))
+* duplicate a class to another day or time ([#176](https://github.com/JJWren/GymStation/issues/176)) ([3674bca](https://github.com/JJWren/GymStation/commit/3674bca31a85bb8c321da1814ee17accdc1e1e61))
+* occurrence-vs-series scope on template-class saves ([#175](https://github.com/JJWren/GymStation/issues/175)) ([f7b9255](https://github.com/JJWren/GymStation/commit/f7b9255f2dd3902e258c0970e2b2d747526271b0))
+
+
+### Bug Fixes
+
+* template-week mint ledger — moved classes no longer duplicate ([#172](https://github.com/JJWren/GymStation/issues/172)) ([5f498da](https://github.com/JJWren/GymStation/commit/5f498da5ef95c36830e3afdde7f4db5a4099a435))
+
 ## [1.9.0](https://github.com/JJWren/GymStation/compare/v1.8.0...v1.9.0) (2026-08-03)
 
 
