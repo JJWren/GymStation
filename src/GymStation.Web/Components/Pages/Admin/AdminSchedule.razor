@@ -38,6 +38,11 @@
     <p class="auth-error" role="alert">Template duplicate refused — the start time must be HH:mm and the source template must still exist.</p>
 }
 
+@if (PromoteFailed == 1)
+{
+    <p class="auth-error" role="alert">Promote refused — the class must still exist and not already follow a weekly template.</p>
+}
+
 <ScheduleRailIsland WeekStartIso="@_weekStart.ToString("yyyy-MM-dd")" @rendermode="InteractiveServer" />
 <p class="cap" style="margin-top:0.375rem">
     MAT HOURS @_open.ToString("HH\\:mm")–@_close.ToString("HH\\:mm") (SET IN SETTINGS) ·
@@ -220,6 +225,20 @@
                 </form>
                 <p class="cap" style="margin:0.375rem 0 0">THE COPY IS ITS OWN WEEKLY CLASS — IT STARTS THIS WEEK AND NEVER FILLS EARLIER WEEKS.</p>
             }
+            else if (editing.TemplateId is null)
+            {
+                <h2 class="section-h">Weekly template</h2>
+                @* #180: one-off → weekly. Text button per the #123 rule — this is a
+                   conversion, not a duplicate, so no copy glyph. *@
+                <form method="post" action="/admin/actions/promote-session" style="margin-top:0.25rem">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="sessionId" value="@editing.Id" />
+                    <input type="hidden" name="week" value="@_weekStart.ToString("yyyy-MM-dd")" />
+                    <button class="btn btn--ghost btn--xs" type="submit"
+                            onclick="return confirm('Make this class weekly? It becomes week one of a new weekly template — every @editing.Date.DayOfWeek at @editing.StartTime.ToString("HH\\:mm") from here on.')">MAKE THIS WEEKLY</button>
+                </form>
+                <p class="cap" style="margin:0.375rem 0 0">THIS CLASS BECOMES WEEK ONE OF A NEW WEEKLY TEMPLATE — EVERY @editing.Date.DayOfWeek.ToString().ToUpperInvariant() AT @editing.StartTime.ToString("HH\\:mm").</p>
+            }
         </div>
     </div>
 }
@@ -348,6 +367,7 @@
     [SupplyParameterFromQuery(Name = "delfailed")] public int? DeleteFailed { get; set; }
     [SupplyParameterFromQuery(Name = "dupfailed")] public int? DuplicateFailed { get; set; }
     [SupplyParameterFromQuery(Name = "tdupfailed")] public int? TemplateDuplicateFailed { get; set; }
+    [SupplyParameterFromQuery(Name = "promotefailed")] public int? PromoteFailed { get; set; }
 
     [CascadingParameter] public HttpContext? HttpContext { get; set; }
 

@@ -528,6 +528,100 @@ public class MaterializationTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task Promote_MakesTheSourceOccurrenceOne_AndTheSeriesFlowsFromIt()
+    {
+        var tenant = await SeedGymAsync();
+        await using var context = fixture.CreateContext(tenant);
+        var schedule = new ScheduleService(context, new NotificationService(context));
+
+        var tuesday = Sunday.AddDays(2);
+        var oneOff = new ClassSession
+        {
+            Id = Guid.NewGuid(),
+            TemplateId = null,
+            Date = tuesday,
+            StartTime = new TimeOnly(18, 0),
+            DurationMinutes = 75,
+            Name = "Takedown Seminar",
+        };
+        context.ClassSessions.Add(oneOff);
+        await context.SaveChangesAsync();
+
+        await schedule.PromoteToTemplateAsync(oneOff.Id);
+
+        var promoted = await context.ClassSessions.SingleAsync(s => s.Id == oneOff.Id);
+        Assert.NotNull(promoted.TemplateId);
+
+        var template = await context.ClassTemplates.SingleAsync(t => t.Id == promoted.TemplateId);
+        Assert.Equal(DayOfWeek.Tuesday, template.Day);
+        Assert.Equal(new TimeOnly(18, 0), template.StartTime);
+        Assert.Equal(75, template.DurationMinutes);
+        Assert.Equal("Takedown Seminar", template.Name);
+        Assert.Equal(tuesday, template.StartDate);
+        Assert.True(template.Active);
+
+        // Week one is claimed at promote time — its view never mints a twin...
+        var own = await schedule.GetWeekAsync(Sunday);
+        Assert.Single(own, s => s.TemplateId == template.Id);
+
+        // ...the next week mints occurrence #2 on the same weekday...
+        var next = await schedule.GetWeekAsync(Sunday.AddDays(7));
+        var second = Assert.Single(next, s => s.TemplateId == template.Id);
+        Assert.NotEqual(oneOff.Id, second.Id);
+        Assert.Equal(tuesday.AddDays(7), second.Date);
+
+        // ...and earlier weeks never see it (ADR 0004).
+        Assert.DoesNotContain(await schedule.GetWeekAsync(Sunday.AddDays(-7)), s => s.TemplateId == template.Id);
+    }
+
+    [Fact]
+    public async Task Promote_RefusesTemplateBornSessions_AndASecondPromote()
+    {
+        var tenant = await SeedGymAsync();
+        await using var context = fixture.CreateContext(tenant);
+        var schedule = new ScheduleService(context, new NotificationService(context));
+        var template = await AddTemplateAsync(context, "Fundamentals", DayOfWeek.Monday);
+
+        var minted = (await schedule.GetWeekAsync(Sunday)).Single(s => s.TemplateId == template.Id);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => schedule.PromoteToTemplateAsync(minted.Id));
+
+        var oneOff = new ClassSession { Id = Guid.NewGuid(), Date = Sunday.AddDays(3), StartTime = new TimeOnly(9, 0), DurationMinutes = 60, Name = "Pop-up" };
+        context.ClassSessions.Add(oneOff);
+        await context.SaveChangesAsync();
+
+        await schedule.PromoteToTemplateAsync(oneOff.Id);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => schedule.PromoteToTemplateAsync(oneOff.Id));
+    }
+
+    [Fact]
+    public async Task Promote_KeepsACancelledSourceCancelled()
+    {
+        var tenant = await SeedGymAsync();
+        await using var context = fixture.CreateContext(tenant);
+        var schedule = new ScheduleService(context, new NotificationService(context));
+
+        var oneOff = new ClassSession
+        {
+            Id = Guid.NewGuid(),
+            Date = Sunday.AddDays(5),
+            StartTime = new TimeOnly(19, 0),
+            DurationMinutes = 60,
+            Name = "Open Mat Special",
+            Status = SessionStatus.Cancelled,
+            CancelledReason = "Flooded mats",
+        };
+        context.ClassSessions.Add(oneOff);
+        await context.SaveChangesAsync();
+
+        await schedule.PromoteToTemplateAsync(oneOff.Id);
+
+        var promoted = await context.ClassSessions.SingleAsync(s => s.Id == oneOff.Id);
+        Assert.NotNull(promoted.TemplateId);
+        Assert.Equal(SessionStatus.Cancelled, promoted.Status);
+        Assert.Equal("Flooded mats", promoted.CancelledReason);
+    }
+
+    [Fact]
     public async Task UndefinedWeekday_RefusesEverywhere()
     {
         var tenant = await SeedGymAsync();
