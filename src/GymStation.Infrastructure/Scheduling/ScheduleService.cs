@@ -235,7 +235,16 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
     /// </summary>
     public async Task DeleteSessionAsync(Guid sessionId, CancellationToken ct = default)
     {
-        var session = await db.ClassSessions.SingleOrDefaultAsync(s => s.Id == sessionId, ct);
+        // Exclusive row lock BEFORE the history checks: check-ins and sub requests
+        // take KEY SHARE on this row through their FKs, so a concurrent insert
+        // either commits first (the checks below see it and refuse) or queues
+        // behind the lock and fails on the vanished parent — never cascaded away
+        // silently between a check and the delete.
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var session = (await db.ClassSessions
+                .FromSqlInterpolated($"""SELECT * FROM "ClassSessions" WHERE "Id" = {sessionId} FOR UPDATE""")
+                .ToListAsync(ct))
+            .SingleOrDefault();
         if (session is null)
         {
             return; // idempotent: already gone (stale modal, double submit) — the goal state holds
@@ -266,6 +275,7 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
 
         db.ClassSessions.Remove(session);
         await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
     }
 
     public async Task CancelSessionAsync(Guid sessionId, string reason, CancellationToken ct = default)
