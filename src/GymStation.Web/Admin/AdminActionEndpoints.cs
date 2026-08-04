@@ -72,20 +72,39 @@ public static class AdminActionEndpoints
             return Results.Redirect("/admin/schedule");
         });
 
-        group.MapPost("/delete-session", async ([FromForm] Guid sessionId, [FromForm] string? start, ScheduleService schedule) =>
+        group.MapPost("/duplicate-session", async ([FromForm] Guid sessionId, [FromForm] DateOnly date, [FromForm] string start, ScheduleService schedule) =>
+        {
+            if (!TimeOnly.TryParseExact(start, "HH\\:mm", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var startTime))
+            {
+                return Results.Redirect($"/admin/schedule?start={GymStation.Domain.Scheduling.Weeks.WeekOf(date):yyyy-MM-dd}&dupfailed=1");
+            }
+
+            try
+            {
+                var copyId = await schedule.DuplicateSessionAsync(sessionId, date, startTime);
+                // Land on the copy's week with its editor open — visible confirmation.
+                return Results.Redirect($"/admin/schedule?start={GymStation.Domain.Scheduling.Weeks.WeekOf(date):yyyy-MM-dd}&edit={copyId}");
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Redirect($"/admin/schedule?start={GymStation.Domain.Scheduling.Weeks.WeekOf(date):yyyy-MM-dd}&dupfailed=1");
+            }
+        });
+
+        group.MapPost("/delete-session", async ([FromForm] Guid sessionId, [FromForm] string? week, ScheduleService schedule) =>
         {
             // Only a date the page itself rendered rides back into the redirect.
-            var week = DateOnly.TryParse(start, out var parsed) ? $"?start={parsed:yyyy-MM-dd}" : "";
+            var back = DateOnly.TryParse(week, out var parsed) ? $"?start={parsed:yyyy-MM-dd}" : "";
             try
             {
                 await schedule.DeleteSessionAsync(sessionId);
-                return Results.Redirect($"/admin/schedule{week}");
+                return Results.Redirect($"/admin/schedule{back}");
             }
             catch (InvalidOperationException)
             {
                 // Delete is idempotent on a missing session, so the ONLY refusal
                 // left is recorded history — the banner names exactly that.
-                return Results.Redirect($"/admin/schedule{week}{(week.Length > 0 ? "&" : "?")}delfailed=1");
+                return Results.Redirect($"/admin/schedule{back}{(back.Length > 0 ? "&" : "?")}delfailed=1");
             }
         });
 

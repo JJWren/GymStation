@@ -408,6 +408,37 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
         await tx.CommitAsync(ct);
     }
 
+    /// <summary>
+    /// Copies one class to another day/time (#171). The copy is a ONE-OFF
+    /// (TemplateId = null) by design: an extra class, deliberately untethered
+    /// from the weekly series, so it can never collide with materialization or
+    /// series edits — the template's own occurrence still mints beside it.
+    /// Always lands Scheduled, whatever the source's status. Returns the new id.
+    /// </summary>
+    public async Task<Guid> DuplicateSessionAsync(Guid sessionId, DateOnly date, TimeOnly start, CancellationToken ct = default)
+    {
+        var source = await db.ClassSessions
+            .Include(s => s.ClassTypes)
+            .SingleOrDefaultAsync(s => s.Id == sessionId, ct)
+            ?? throw new InvalidOperationException("Session not found in the active gym.");
+
+        var copy = new ClassSession
+        {
+            Id = Guid.NewGuid(),
+            TemplateId = null,
+            Date = date,
+            StartTime = start,
+            DurationMinutes = source.DurationMinutes,
+            Name = source.Name,
+            InstructorPersonId = source.InstructorPersonId,
+            ClassTypes = [.. source.ClassTypes],
+        };
+
+        db.ClassSessions.Add(copy);
+        await db.SaveChangesAsync(ct);
+        return copy.Id;
+    }
+
     public async Task CancelSessionAsync(Guid sessionId, string reason, CancellationToken ct = default)
     {
         var session = await db.ClassSessions.SingleOrDefaultAsync(s => s.Id == sessionId, ct)
