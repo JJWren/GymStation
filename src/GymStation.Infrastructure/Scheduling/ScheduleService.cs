@@ -8,11 +8,15 @@ namespace GymStation.Infrastructure.Scheduling;
 public class ScheduleService(GymStationDbContext db, NotificationService notifications)
 {
     /// <summary>
-    /// Sessions for [weekStart, weekStart+6], lazily materializing template occurrences.
-    /// Idempotent: the (GymId, TemplateId, Date) unique index backstops races.
+    /// Sessions for the week containing <paramref name="weekStart"/>, lazily
+    /// materializing template occurrences. A template-week mints AT MOST ONCE —
+    /// the ClassTemplateWeek ledger claim outlives the occurrence, so moving or
+    /// deleting it never refills the vacated slot (#168). Idempotent: the ledger's
+    /// unique index and the (GymId, TemplateId, Date) session index backstop races.
     /// </summary>
     public async Task<List<ClassSession>> GetWeekAsync(DateOnly weekStart, CancellationToken ct = default)
     {
+        weekStart = Weeks.WeekOf(weekStart);
         var weekEnd = weekStart.AddDays(6);
 
         var templates = await db.ClassTemplates
@@ -20,7 +24,15 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
             .Include(t => t.ClassTypes)
             .ToListAsync(ct);
 
-        var existingKeys = (await db.ClassSessions
+        var mintedTemplateIds = (await db.ClassTemplateWeeks
+                .Where(w => w.WeekStart == weekStart)
+                .Select(w => w.TemplateId)
+                .ToListAsync(ct))
+            .ToHashSet();
+
+        // Occupied slots absorb the mint: a row moved IN from elsewhere claims the
+        // week without a duplicate insert colliding on the (TemplateId, Date) index.
+        var occupiedSlots = (await db.ClassSessions
                 .Where(s => s.Date >= weekStart && s.Date <= weekEnd && s.TemplateId != null)
                 .Select(s => new { s.TemplateId, s.Date })
                 .ToListAsync(ct))
@@ -32,21 +44,31 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
         {
             foreach (var template in templates.Where(t => t.Day == date.DayOfWeek))
             {
-                if (existingKeys.Contains((template.Id, date)))
+                if (mintedTemplateIds.Contains(template.Id))
                 {
-                    continue;
+                    continue; // claimed — even when the slot sits vacant after a move or delete
                 }
 
-                db.ClassSessions.Add(new ClassSession
+                if (!occupiedSlots.Contains((template.Id, date)))
+                {
+                    db.ClassSessions.Add(new ClassSession
+                    {
+                        Id = Guid.NewGuid(),
+                        TemplateId = template.Id,
+                        Date = date,
+                        StartTime = template.StartTime,
+                        DurationMinutes = template.DurationMinutes,
+                        Name = template.Name,
+                        InstructorPersonId = template.DefaultInstructorPersonId,
+                        ClassTypes = [.. template.ClassTypes],
+                    });
+                }
+
+                db.ClassTemplateWeeks.Add(new ClassTemplateWeek
                 {
                     Id = Guid.NewGuid(),
                     TemplateId = template.Id,
-                    Date = date,
-                    StartTime = template.StartTime,
-                    DurationMinutes = template.DurationMinutes,
-                    Name = template.Name,
-                    InstructorPersonId = template.DefaultInstructorPersonId,
-                    ClassTypes = [.. template.ClassTypes],
+                    WeekStart = weekStart,
                 });
                 created = true;
             }
@@ -60,8 +82,8 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
             }
             catch (DbUpdateException)
             {
-                // A concurrent request materialized the same slots; the unique index
-                // kept the data correct — reload below.
+                // A concurrent request minted the same template-weeks; the unique
+                // indexes kept the data correct — reload below.
                 db.ChangeTracker.Clear();
             }
         }

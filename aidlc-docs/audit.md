@@ -225,3 +225,13 @@ As an aside, my gym is predominantly BJJ, Fitness/Conditioning (called \"Bootcam
 **Context**: Round-4 complete — landing CMS, contact pipeline, icon system, inline edit, schedule drag, markdown, custom ladders, tri-discipline demo all live at v1.9.0
 
 ---
+
+## Round-4.1: Live drag bug + schedule editor asks
+**Timestamp**: 2026-08-04T01:20:00Z
+**User Input**: "When I moved a class from Monday to Sunday using the new drag feature, it duplicated it to that spot instead. While you fix this, also look at having a delete class feature from the admin class edit modal (cancel should remain, and delete -- trash can -- should be right next to save)."
+**User Input**: "Additionally, when I update a class that is apart of a weekly template, it should ask if I want to update just this occurrence or all of the following classes apart of that template as well."
+**User Input**: "I should have the ability to duplicate a class to another day or time."
+**AI Response**: Filed #168 (bug: lazy materialization refills a vacated template slot — the #131 wrinkle bites; fix = ClassTemplateWeek mint ledger, a template-week mints at most once), #169 (hard-delete occurrence from the edit modal, trash beside save, refuses when attendance or substitution history exists — both FKs cascade, so the guard protects history; CANCEL SESSION unchanged), #170 (occurrence-vs-series save scope: JUST THIS CLASS / THIS AND FOLLOWING — series updates future occurrences + template, date changes shift the series by the day delta), #171 (DUPLICATE TO day/time — copy lands as a one-off session, deliberately untethered from the weekly series). Worked through the standard loop; release + lab deploy at the end.
+**Context**: Post-round-4 live usage feedback — schedule editor maturity pass
+
+---
