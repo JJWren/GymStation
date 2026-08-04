@@ -243,3 +243,16 @@ As an aside, my gym is predominantly BJJ, Fitness/Conditioning (called \"Bootcam
 **Context**: Round-4.1 complete — schedule editor: fixed drag duplication, delete, series scope, duplicate-to all live at v1.10.0
 
 ---
+
+## Round-4.2: Grill session — duplication matrix, family-plan sizing, notification filters
+**Timestamp**: 2026-08-04T04:30:00Z
+**User Input**: "project: https://github.com/JJWren/GymStation
+I want the ability to duplicate a class and/or template to another date/time. We should review the possibilities here including what the icon(s) should look like that are associated with it (probably the typical copy icon symble (two overlapping squares))."
+**User Input**: "Another item to consider:
+For a family plan, there should be a standard flate rate with an optional increase based on family size. Things to consider:
+- flexibility in setting the standard family size for the owner/admin (flexible adults, flexible kids)"
+**User Input**: "For notifications, I should be able to switch between read and unread and all notifications (with unread being the default). I should also be able to search notifications by title with an optional date range selector (should be able to search a specific day, all notifications, or inclusive start and end range dates)."
+**AI Response**: Grill-with-docs session produced 16 decisions (D1–D16, full detail in the session plan file). Item 1 — duplication: class→class already shipped as #171; this round adds the copy glyph + `.btn--copy` replacing the floppy on the shipped row (D1–D2, semantic rule now floppy=persist/trash=hard-delete/copy=duplicate-a-record), template→template duplication via DUPLICATE TO [weekday][time] with eager first-mint + editor-open confirmation (D3–D4), promote-to-template where the source one-off becomes occurrence #1 (D6/D6a, text button MAKE THIS WEEKLY), and the retro-mint fix: nullable ClassTemplate.StartDate bounds materialization, recorded as ADR 0004 (D5). Item 2 — family sizing: kid=ward per glossary doctrine (D8), four per-plan fields IncludedAdults/IncludedKids/ExtraAdultPrice/ExtraKidPrice (D9), one strict-lane formula spanning flat/standard+increase/pure-per-head with discounts baked into the plan's own numbers and comped redefined as computed-total==0 (D10), breakdown columns on Charge chosen over description enrichment (D11 — Joshua's pick over the recommended option), CSS :has() reveal on the add-plan form (D12, Joshua pushed for a reactive form; :has() chosen over static JS). Item 3 — notifications: UNREAD/READ/ALL chips + ILIKE title search + ALL/DAY/RANGE date-mode chips (D13 — Joshua chose explicit mode chips over the recommended two-input inference), bulk mark-read scoped to the active filter with dynamic label (D14), unread badges on member bell + admin INBOX (D15). Shipping: issues #178–#182, sequential gated PRs, one v1.11.0 release + lab deploy (D16, supersedes interim D7).
+**Context**: Round-4.2 inception — plan approved; issues #178–#182 filed; construction loop begins
+
+---
