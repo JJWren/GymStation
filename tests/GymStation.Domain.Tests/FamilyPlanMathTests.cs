@@ -36,7 +36,7 @@ public class FamilyPlanMathTests
         => Assert.Equal((150m, 0m), FamilyPlanMath.Compute(Plan(150, 2, 2, 30, 20), 0, 0));
 
     [Fact]
-    public void PureQerHead_ZeroBaseStillPrices()
+    public void PurePerHead_ZeroBaseStillPrices()
         => Assert.Equal((180m, 180m), FamilyPlanMath.Compute(Plan(0, 0, 0, 80, 50), 1, 2));
 
     [Fact]

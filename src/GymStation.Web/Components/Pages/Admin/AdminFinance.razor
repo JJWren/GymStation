@@ -436,7 +436,11 @@
             return;
         }
 
-        if (form.IncludedAdults < 0 || form.IncludedKids < 0 || form.ExtraAdultPrice < 0 || form.ExtraKidPrice < 0)
+        // Sizing only matters (and is only validated) on family scope — in a
+        // no-:has() browser the block is always visible, and junk left in it
+        // must not block creating a per-person plan that ignores it anyway.
+        if (form.IsFamilyScope
+            && (form.IncludedAdults < 0 || form.IncludedKids < 0 || form.ExtraAdultPrice < 0 || form.ExtraKidPrice < 0))
         {
             _planError = "Family sizing can't be negative — use 0 to switch a lane off.";
             return;
