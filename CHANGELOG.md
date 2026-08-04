@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.11.0](https://github.com/JJWren/GymStation/compare/v1.10.0...v1.11.0) (2026-08-04)
+
+
+### Features
+
+* dedicated copy glyph for duplicate actions ([#183](https://github.com/JJWren/GymStation/issues/183)) ([ebb7a54](https://github.com/JJWren/GymStation/commit/ebb7a5428246614fe88e4d692d2015d1e0e4fddf))
+* duplicate a weekly template to another day or time ([#185](https://github.com/JJWren/GymStation/issues/185)) ([9904874](https://github.com/JJWren/GymStation/commit/99048749a39ab05d2a33bcb25f4cd7c00e7f2ffe))
+* family plans price by family size ([#187](https://github.com/JJWren/GymStation/issues/187)) ([17ee324](https://github.com/JJWren/GymStation/commit/17ee324be3db571645efda43285e26ece3f2a1fa))
+* notification filters and unread badges ([#188](https://github.com/JJWren/GymStation/issues/188)) ([bbe8c55](https://github.com/JJWren/GymStation/commit/bbe8c55307100f2c2edb71f8158253abbe057b93))
+* promote a one-off class to a weekly template ([#186](https://github.com/JJWren/GymStation/issues/186)) ([13a7c0d](https://github.com/JJWren/GymStation/commit/13a7c0db8a48333b5a3c5df77d264c610b27928a))
+
 ## [1.10.0](https://github.com/JJWren/GymStation/compare/v1.9.0...v1.10.0) (2026-08-04)
 
 
