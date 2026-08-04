@@ -40,6 +40,7 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
     public DbSet<RankAward> RankAwards => Set<RankAward>();
     public DbSet<ClassType> ClassTypes => Set<ClassType>();
     public DbSet<ClassTemplate> ClassTemplates => Set<ClassTemplate>();
+    public DbSet<ClassTemplateWeek> ClassTemplateWeeks => Set<ClassTemplateWeek>();
     public DbSet<ClassSession> ClassSessions => Set<ClassSession>();
     public DbSet<SubstitutionRequest> SubstitutionRequests => Set<SubstitutionRequest>();
     public DbSet<Notification> Notifications => Set<Notification>();
@@ -194,6 +195,16 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
             e.Property(t => t.Name).HasMaxLength(80);
             e.HasMany(t => t.ClassTypes).WithMany().UsingEntity("ClassTemplateClassTypes");
             e.HasQueryFilter(t => CurrentGymId != null && t.GymId == CurrentGymId);
+        });
+
+        builder.Entity<ClassTemplateWeek>(e =>
+        {
+            // The mint ledger's whole job is this uniqueness: a template-week is
+            // claimed at most once, and the claim outlives the occurrence (#168).
+            // WeekStart before TemplateId so the same index serves GetWeekAsync's
+            // (gym, week) lookup.
+            e.HasIndex(w => new { w.GymId, w.WeekStart, w.TemplateId }).IsUnique();
+            e.HasQueryFilter(w => CurrentGymId != null && w.GymId == CurrentGymId);
         });
 
         builder.Entity<ClassSession>(e =>
