@@ -478,6 +478,71 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
     }
 
     /// <summary>
+    /// Promotes a one-off class to a weekly template (#180). The source session
+    /// BECOMES occurrence #1 — it gets the new TemplateId, its week's ledger
+    /// claim is written, and the template inherits everything from it (weekday
+    /// from its date, StartDate = that date per ADR 0004), so series edits
+    /// propagate from the class the admin is looking at. Status is untouched:
+    /// a cancelled one-off promotes into a cancelled first occurrence.
+    /// </summary>
+    public async Task PromoteToTemplateAsync(Guid sessionId, CancellationToken ct = default)
+    {
+        // Lock-before-check (#169 pattern): serialize on the session row so two
+        // promote submits can't both observe TemplateId == null and mint twin
+        // templates — the loser's orphan would keep materializing a phantom
+        // series. Tenant predicate stays inside the locked SQL so a foreign
+        // gym's row is never locked even transiently.
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+        var session = (await db.ClassSessions
+                .FromSqlInterpolated($"""SELECT * FROM "ClassSessions" WHERE "Id" = {sessionId} AND "GymId" = {db.CurrentGymId} FOR UPDATE""")
+                .ToListAsync(ct))
+            .SingleOrDefault()
+            ?? throw new InvalidOperationException("Session not found in the active gym.");
+
+        if (session.TemplateId is not null)
+        {
+            throw new InvalidOperationException("That class already follows a weekly template.");
+        }
+
+        await db.Entry(session).Collection(s => s.ClassTypes).LoadAsync(ct);
+
+        // Same softening as duplication: a stale instructor becomes unassigned.
+        var instructorPersonId = session.InstructorPersonId;
+        if (instructorPersonId is { } id && !await db.Persons.AnyAsync(
+                p => p.Id == id && !p.Archived && p.Roles.HasFlag(Domain.People.PersonRoles.Instructor), ct))
+        {
+            instructorPersonId = null;
+        }
+
+        var template = new ClassTemplate
+        {
+            Id = Guid.NewGuid(),
+            Name = session.Name,
+            Day = session.Date.DayOfWeek,
+            StartTime = session.StartTime,
+            DurationMinutes = session.DurationMinutes,
+            DefaultInstructorPersonId = instructorPersonId,
+            Active = true,
+            StartDate = session.Date,
+            ClassTypes = [.. session.ClassTypes],
+        };
+
+        session.TemplateId = template.Id;
+
+        db.ClassTemplates.Add(template);
+        db.ClassTemplateWeeks.Add(new ClassTemplateWeek
+        {
+            Id = Guid.NewGuid(),
+            TemplateId = template.Id,
+            WeekStart = Weeks.WeekOf(session.Date),
+        });
+
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+    }
+
+    /// <summary>
     /// Hard-deletes one occurrence (#169) — but ONLY a clean one. Attendance and
     /// substitution rows both cascade on session delete, so any recorded history
     /// refuses with words instead of silently destroying it (the rank-remove

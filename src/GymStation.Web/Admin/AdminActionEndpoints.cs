@@ -121,6 +121,22 @@ public static class AdminActionEndpoints
             }
         });
 
+        group.MapPost("/promote-session", async ([FromForm] Guid sessionId, [FromForm] string? week, ScheduleService schedule) =>
+        {
+            var back = DateOnly.TryParseExact(week, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsed) ? $"start={parsed:yyyy-MM-dd}&" : "";
+            try
+            {
+                await schedule.PromoteToTemplateAsync(sessionId);
+                // Reopen the same class — its editor now shows the weekly-template
+                // section, which IS the visible confirmation.
+                return Results.Redirect($"/admin/schedule?{back}edit={sessionId}");
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Redirect($"/admin/schedule?{back}promotefailed=1");
+            }
+        });
+
         group.MapPost("/delete-session", async ([FromForm] Guid sessionId, [FromForm] string? week, ScheduleService schedule) =>
         {
             // Only a date the page itself rendered rides back into the redirect.
