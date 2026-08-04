@@ -1,21 +1,69 @@
 @using System.Security.Claims
 @using GymStation.Domain.Notifications
+@using GymStation.Infrastructure.Notifications
 @inject IDbContextFactory<GymStationDbContext> DbFactory
 @inject NavigationManager Nav
 
 <div class="head-row">
     <h1 class="page-title" style="font-size:1.25rem">NOTIFICATIONS</h1>
-    @if (_hasUnread)
+    @if (_hasUnreadInScope)
     {
-        <EditForm FormName="mark-read" Model="Marker" OnValidSubmit="MarkAllReadAsync">
-            <button class="btn btn--ghost btn--xs" type="submit">MARK ALL READ</button>
+        @* #182: the button stamps exactly what the current filter matches (every
+           page of it) — the label says so whenever the view is narrowed. *@
+        <EditForm FormName="mark-read" Model="Marker" OnValidSubmit="MarkTheseReadAsync">
+            <button class="btn btn--ghost btn--xs" type="submit">@(_filter.Narrowed ? "MARK THESE READ" : "MARK ALL READ")</button>
         </EditForm>
     }
 </div>
 
+@* #182: read chips · title search · date modes. Everything is GET over the query
+   string; each control re-emits the OTHERS and omits page (filters reset to 1). *@
+<div class="row-form" style="margin:0 0 0.375rem">
+    <a class="chip @(_filter.Read == "unread" ? "chip--on" : null)" href="@Url(read: "unread")">UNREAD</a>
+    <a class="chip @(_filter.Read == "read" ? "chip--on" : null)" href="@Url(read: "read")">READ</a>
+    <a class="chip @(_filter.Read == "all" ? "chip--on" : null)" href="@Url(read: "all")">ALL</a>
+    <span class="cap" style="margin:0 0 0 0.25rem">·</span>
+    <a class="chip @(_uiDateMode == "all" ? "chip--on" : null)" href="@Url(dmode: "all")">ALL DATES</a>
+    <a class="chip @(_uiDateMode == "day" ? "chip--on" : null)" href="@Url(dmode: "day")">DAY</a>
+    <a class="chip @(_uiDateMode == "range" ? "chip--on" : null)" href="@Url(dmode: "range")">RANGE</a>
+</div>
+
+<form method="get" action="@ReturnPath" class="row-form" style="margin:0 0 0.375rem">
+    @foreach (var (key, value) in CarrierInputs("q"))
+    {
+        <input type="hidden" name="@key" value="@value" />
+    }
+    <input type="search" name="q" value="@_filter.Query" placeholder="SEARCH TITLES…" aria-label="Search notifications by title" />
+    <button class="btn btn--ghost btn--xs" type="submit">SEARCH</button>
+</form>
+
+@if (_uiDateMode == "day")
+{
+    <form method="get" action="@ReturnPath" class="row-form" style="margin:0 0 0.625rem">
+        @foreach (var (key, value) in CarrierInputs("on"))
+        {
+            <input type="hidden" name="@key" value="@value" />
+        }
+        <input type="date" name="on" value="@(_filter.On?.ToString("yyyy-MM-dd"))" aria-label="Show notifications from this day" required />
+        <button class="btn btn--ghost btn--xs" type="submit">APPLY DAY</button>
+    </form>
+}
+else if (_uiDateMode == "range")
+{
+    <form method="get" action="@ReturnPath" class="row-form" style="margin:0 0 0.625rem">
+        @foreach (var (key, value) in CarrierInputs("from", "to"))
+        {
+            <input type="hidden" name="@key" value="@value" />
+        }
+        <input type="date" name="from" value="@(_filter.From?.ToString("yyyy-MM-dd"))" aria-label="From date" required />
+        <input type="date" name="to" value="@(_filter.To?.ToString("yyyy-MM-dd"))" aria-label="To date (inclusive)" required />
+        <button class="btn btn--ghost btn--xs" type="submit">APPLY RANGE</button>
+    </form>
+}
+
 @if (_items.Count == 0)
 {
-    <p class="cap">NOTHING YET. CANCELLATIONS, SUBSTITUTIONS, AND PROMOTIONS LAND HERE (AND IN EMAIL).</p>
+    <p class="cap">@(_filter.Narrowed ? "NOTHING MATCHES THESE FILTERS." : "NOTHING UNREAD. CANCELLATIONS, SUBSTITUTIONS, AND PROMOTIONS LAND HERE (AND IN EMAIL) — ALL SHOWS EVERYTHING.")</p>
 }
 @foreach (var item in _items)
 {
@@ -33,13 +81,13 @@
 }
 @if (_total > 0)
 {
-    <Pager Path="@ReturnPath" Page="@_page" PageCount="@_pageCount" Size="@_size" />
+    <Pager Path="@ReturnPath" Page="@_page" PageCount="@_pageCount" Size="@_size" Preserve="@PreservedQuery" />
 }
 
 @code {
     [CascadingParameter] public HttpContext? HttpContext { get; set; }
 
-    /// <summary>Where mark-all-read returns to — the member and admin inboxes share this panel.</summary>
+    /// <summary>Where filters, paging, and mark-read return to — the member and admin inboxes share this panel.</summary>
     [Parameter] public string ReturnPath { get; set; } = "/notifications";
 
     [SupplyParameterFromForm(FormName = "mark-read")]
@@ -47,6 +95,12 @@
 
     [SupplyParameterFromQuery(Name = "page")] public int? PageRaw { get; set; }
     [SupplyParameterFromQuery(Name = "size")] public int? SizeRaw { get; set; }
+    [SupplyParameterFromQuery(Name = "read")] public string? ReadRaw { get; set; }
+    [SupplyParameterFromQuery(Name = "q")] public string? QRaw { get; set; }
+    [SupplyParameterFromQuery(Name = "dmode")] public string? DmodeRaw { get; set; }
+    [SupplyParameterFromQuery(Name = "on")] public string? OnRaw { get; set; }
+    [SupplyParameterFromQuery(Name = "from")] public string? FromRaw { get; set; }
+    [SupplyParameterFromQuery(Name = "to")] public string? ToRaw { get; set; }
 
     protected override void OnInitialized() => Marker ??= new();
 
@@ -57,7 +111,22 @@
     private int _pageCount = 1;
     private int _size = Pager.DefaultSize;
     private int _total;
-    private bool _hasUnread;
+    private bool _hasUnreadInScope;
+    private NotificationFilter _filter = new("unread", null, "all", null, null, null);
+    private string _uiDateMode = "all";
+    private TimeZoneInfo _zone = TimeZoneInfo.Utc;
+
+    // The mode the CONTROLS show (which date form renders) — distinct from the
+    // resolved filter, which falls back to ALL until a valid date is applied.
+    private Dictionary<string, string?> PreservedQuery => new()
+    {
+        ["read"] = _filter.Read == "unread" ? null : _filter.Read,
+        ["q"] = _filter.Query,
+        ["dmode"] = _uiDateMode == "all" ? null : _uiDateMode,
+        ["on"] = _filter.On?.ToString("yyyy-MM-dd"),
+        ["from"] = _filter.From?.ToString("yyyy-MM-dd"),
+        ["to"] = _filter.To?.ToString("yyyy-MM-dd"),
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -68,19 +137,23 @@
         }
 
         await using var db = await DbFactory.CreateDbContextAsync();
-        var scope = db.Notifications.Where(n => n.RecipientUserId == userId);
+        _zone = await GymZoneAsync(db);
+        _uiDateMode = DmodeRaw is "day" or "range" ? DmodeRaw : "all";
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, _zone).DateTime);
+        _filter = NotificationFilters.Resolve(ReadRaw, QRaw, DmodeRaw, OnRaw, FromRaw, ToRaw, today);
+
+        var scope = NotificationFilters.Apply(db.Notifications.Where(n => n.RecipientUserId == userId), _filter, _zone);
         _total = await scope.CountAsync();
         _size = Pager.ResolveSize(SizeRaw);
         (_page, _pageCount) = Pager.Resolve(PageRaw, _total, _size);
 
-        // Empty inbox: nothing to page, nothing unread — skip the extra queries.
         if (_total == 0)
         {
             return;
         }
 
-        // Unread can live on any page — the mark-all button keys off the whole set.
-        _hasUnread = await scope.AnyAsync(n => n.ReadUtc == null);
+        // Unread can live on any page of the filtered set — the button keys off all of it.
+        _hasUnreadInScope = await scope.AnyAsync(n => n.ReadUtc == null);
         _items = await scope
             .OrderByDescending(n => n.CreatedUtc)
             .Skip((_page - 1) * _size)
@@ -89,13 +162,18 @@
             .ToListAsync();
     }
 
-    private async Task MarkAllReadAsync()
+    private async Task MarkTheseReadAsync()
     {
         var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (Guid.TryParse(raw, out var userId))
         {
             await using var db = await DbFactory.CreateDbContextAsync();
-            var unread = await db.Notifications.Where(n => n.RecipientUserId == userId && n.ReadUtc == null).ToListAsync();
+            // Same predicate the view used — the stamp covers every page of the
+            // filtered set, and nothing outside it (#182).
+            var unread = await NotificationFilters
+                .Apply(db.Notifications.Where(n => n.RecipientUserId == userId), _filter, _zone)
+                .Where(n => n.ReadUtc == null)
+                .ToListAsync();
             foreach (var notification in unread)
             {
                 notification.ReadUtc = DateTimeOffset.UtcNow;
@@ -103,6 +181,74 @@
             await db.SaveChangesAsync();
         }
 
-        Nav.NavigateTo(ReturnPath);
+        Nav.NavigateTo(Url());
+    }
+
+    private static async Task<TimeZoneInfo> GymZoneAsync(GymStationDbContext db)
+    {
+        var tz = await db.Gyms.Where(g => g.Id == db.CurrentGymId).Select(g => g.TimeZoneId).SingleOrDefaultAsync();
+        try
+        {
+            return tz is null ? TimeZoneInfo.Utc : TimeZoneInfo.FindSystemTimeZoneById(tz);
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return TimeZoneInfo.Utc;
+        }
+    }
+
+    /// <summary>Filter URLs: pass read/dmode to switch that control, everything
+    /// else carries over. Switching date mode drops the old dates; page is
+    /// always omitted so filter changes land on page 1.</summary>
+    private string Url(string? read = null, string? dmode = null)
+    {
+        var readState = read ?? _filter.Read;
+        var mode = dmode ?? _uiDateMode;
+        var keepDates = dmode is null;
+
+        var pairs = new List<string>();
+        if (readState != "unread")
+        {
+            pairs.Add($"read={readState}");
+        }
+        if (_filter.Query is { } q)
+        {
+            pairs.Add($"q={Uri.EscapeDataString(q)}");
+        }
+        if (mode != "all")
+        {
+            pairs.Add($"dmode={mode}");
+            if (keepDates && _filter.On is { } on)
+            {
+                pairs.Add($"on={on:yyyy-MM-dd}");
+            }
+            if (keepDates && _filter is { From: { } from, To: { } to })
+            {
+                pairs.Add($"from={from:yyyy-MM-dd}");
+                pairs.Add($"to={to:yyyy-MM-dd}");
+            }
+        }
+        if (_size != Pager.DefaultSize)
+        {
+            pairs.Add($"size={_size}");
+        }
+
+        return pairs.Count == 0 ? ReturnPath : ReturnPath + "?" + string.Join("&", pairs);
+    }
+
+    /// <summary>Hidden inputs so a GET form re-emits every OTHER active filter.</summary>
+    private IEnumerable<(string Key, string Value)> CarrierInputs(params string[] except)
+    {
+        foreach (var (key, value) in PreservedQuery)
+        {
+            if (!except.Contains(key) && !string.IsNullOrEmpty(value))
+            {
+                yield return (key, value);
+            }
+        }
+        if (_size != Pager.DefaultSize && !except.Contains("size"))
+        {
+            yield return ("size", _size.ToString());
+        }
     }
 }

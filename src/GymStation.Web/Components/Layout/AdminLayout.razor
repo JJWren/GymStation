@@ -34,7 +34,7 @@
             <NavLink class="tab" href="/admin/ranks">RANKS</NavLink>
             <NavLink class="tab" href="/admin/schedule">SCHEDULE</NavLink>
             <NavLink class="tab" href="/instructor/swaps">SWAPS</NavLink>
-            <NavLink class="tab" href="/admin/inbox">INBOX</NavLink>
+            <NavLink class="tab" href="/admin/inbox">INBOX@(_unreadNotifications > 0 ? $" ({_unreadNotifications})" : null)</NavLink>
             <NavLink class="tab tab--msg" href="/admin/messages"><Glyph Name="envelope" /> MESSAGES@(_unreadMessages > 0 ? $" ({_unreadMessages})" : null)</NavLink>
             <NavLink class="tab" href="/admin/finance">FINANCE</NavLink>
             <NavLink class="tab" href="/admin/events">EVENTS</NavLink>
@@ -84,6 +84,7 @@
     private string? _logoPath;
     private string? _email;
     private int _unreadMessages;
+    private int _unreadNotifications;
     private int? _idleMinutes;
 
     protected override async Task OnInitializedAsync()
@@ -117,6 +118,9 @@
             var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (Guid.TryParse(raw, out var userId))
             {
+                // #182: unread count on the INBOX tab — the MESSAGES badge idiom.
+                _unreadNotifications = await db.Notifications.CountAsync(n => n.RecipientUserId == userId && n.ReadUtc == null);
+
                 var account = await db.Users.Where(u => u.Id == userId)
                     .Select(u => new { u.PreferredThemeDark, u.IdleSignOutMinutes })
                     .FirstOrDefaultAsync();
