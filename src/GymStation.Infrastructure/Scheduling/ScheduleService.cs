@@ -241,8 +241,12 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
         // behind the lock and fails on the vanished parent — never cascaded away
         // silently between a check and the delete.
         await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+        // Tenant predicate lives IN the raw SQL: the composed global filter still
+        // wraps this query, but a foreign gym's row must never be locked even
+        // transiently, and the guarantee should be visible right here.
         var session = (await db.ClassSessions
-                .FromSqlInterpolated($"""SELECT * FROM "ClassSessions" WHERE "Id" = {sessionId} FOR UPDATE""")
+                .FromSqlInterpolated($"""SELECT * FROM "ClassSessions" WHERE "Id" = {sessionId} AND "GymId" = {db.CurrentGymId} FOR UPDATE""")
                 .ToListAsync(ct))
             .SingleOrDefault();
         if (session is null)

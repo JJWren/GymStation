@@ -200,6 +200,28 @@ public class MaterializationTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task Delete_NeverTouchesAnotherGymsSession()
+    {
+        var tenant = await SeedGymAsync();
+        var otherTenant = await SeedGymAsync();
+
+        Guid foreignSessionId;
+        await using (var foreign = fixture.CreateContext(otherTenant))
+        {
+            var schedule = new ScheduleService(foreign, new NotificationService(foreign));
+            var template = await AddTemplateAsync(foreign, "Foreign Class", DayOfWeek.Monday);
+            foreignSessionId = (await schedule.GetWeekAsync(Sunday)).Single(s => s.TemplateId == template.Id).Id;
+        }
+
+        // A foreign id is indistinguishable from an already-deleted one: no-op.
+        await using var context = fixture.CreateContext(tenant);
+        await new ScheduleService(context, new NotificationService(context)).DeleteSessionAsync(foreignSessionId);
+
+        await using var verify = fixture.CreateContext(otherTenant);
+        Assert.NotNull(await verify.ClassSessions.SingleOrDefaultAsync(s => s.Id == foreignSessionId));
+    }
+
+    [Fact]
     public async Task NewTemplate_StillMintsIntoAnAlreadyViewedWeek()
     {
         var tenant = await SeedGymAsync();
