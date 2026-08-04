@@ -526,4 +526,21 @@ public class MaterializationTests(PostgresFixture fixture)
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => schedule.DuplicateTemplateAsync(Guid.NewGuid(), DayOfWeek.Monday, new TimeOnly(9, 0), Sunday));
     }
+
+    [Fact]
+    public async Task UndefinedWeekday_RefusesEverywhere()
+    {
+        var tenant = await SeedGymAsync();
+        await using var context = fixture.CreateContext(tenant);
+        var schedule = new ScheduleService(context, new NotificationService(context));
+        var source = await AddTemplateAsync(context, "Fundamentals", DayOfWeek.Monday);
+
+        // Enum.TryParse accepts out-of-range numerics — the services must not.
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => schedule.DuplicateTemplateAsync(source.Id, (DayOfWeek)9, new TimeOnly(9, 0), Sunday));
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => schedule.CreateTemplateAsync("Ghost Day", (DayOfWeek)9, new TimeOnly(9, 0), 60, null, []));
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => schedule.UpdateTemplateAsync(source.Id, "Fundamentals", (DayOfWeek)9, new TimeOnly(9, 0), 60, null, []));
+    }
 }

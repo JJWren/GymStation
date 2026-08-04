@@ -101,6 +101,16 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
             .ToListAsync(ct);
     }
 
+    private static void ValidateDay(DayOfWeek day)
+    {
+        // Enum params can carry undefined numerics through model binding; an
+        // undefined Day never matches date.DayOfWeek, minting nothing, forever.
+        if (!Enum.IsDefined(day))
+        {
+            throw new InvalidOperationException("Pick a real weekday.");
+        }
+    }
+
     private static void ValidateShape(string name, int durationMinutes)
     {
         if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > 80)
@@ -317,6 +327,7 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
         Guid templateId, string name, DayOfWeek day, TimeOnly start, int durationMinutes,
         Guid? instructorPersonId, IReadOnlyList<Guid> typeIds, CancellationToken ct = default)
     {
+        ValidateDay(day);
         ValidateShape(name, durationMinutes);
 
         var template = await db.ClassTemplates
@@ -366,6 +377,7 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
         string name, DayOfWeek day, TimeOnly start, int durationMinutes,
         Guid? instructorPersonId, IReadOnlyList<Guid> typeIds, CancellationToken ct = default)
     {
+        ValidateDay(day);
         ValidateShape(name, durationMinutes);
         await ValidateInstructorAsync(instructorPersonId, ct);
 
@@ -408,6 +420,7 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
     public async Task<Guid> DuplicateTemplateAsync(
         Guid templateId, DayOfWeek day, TimeOnly start, DateOnly weekStart, CancellationToken ct = default)
     {
+        ValidateDay(day);
         weekStart = Weeks.WeekOf(weekStart);
         var targetDate = weekStart.AddDays((int)day);
 

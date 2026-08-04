@@ -95,11 +95,14 @@ public static class AdminActionEndpoints
             [FromForm] Guid templateId, [FromForm] string day, [FromForm] string start, [FromForm] string week,
             ScheduleService schedule) =>
         {
-            var weekStart = DateOnly.TryParse(week, out var parsedWeek)
+            var weekStart = DateOnly.TryParseExact(week, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsedWeek)
                 ? GymStation.Domain.Scheduling.Weeks.WeekOf(parsedWeek)
                 : GymStation.Domain.Scheduling.Weeks.WeekOf(DateOnly.FromDateTime(DateTime.UtcNow));
 
+            // Enum.TryParse happily accepts out-of-range numerics ("9") — IsDefined
+            // keeps a tampered weekday from minting a template that never matches.
             if (!Enum.TryParse<DayOfWeek>(day, ignoreCase: true, out var dayOfWeek)
+                || !Enum.IsDefined(dayOfWeek)
                 || !TimeOnly.TryParseExact(start, "HH\\:mm", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var startTime))
             {
                 return Results.Redirect($"/admin/schedule?start={weekStart:yyyy-MM-dd}&tdupfailed=1");
@@ -121,7 +124,7 @@ public static class AdminActionEndpoints
         group.MapPost("/delete-session", async ([FromForm] Guid sessionId, [FromForm] string? week, ScheduleService schedule) =>
         {
             // Only a date the page itself rendered rides back into the redirect.
-            var back = DateOnly.TryParse(week, out var parsed) ? $"?start={parsed:yyyy-MM-dd}" : "";
+            var back = DateOnly.TryParseExact(week, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsed) ? $"?start={parsed:yyyy-MM-dd}" : "";
             try
             {
                 await schedule.DeleteSessionAsync(sessionId);
