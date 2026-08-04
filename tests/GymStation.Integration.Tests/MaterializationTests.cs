@@ -133,6 +133,70 @@ public class MaterializationTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task DeleteCleanSession_RemovesIt_AndTheVacatedSlotStaysVacant()
+    {
+        var tenant = await SeedGymAsync();
+        await using var context = fixture.CreateContext(tenant);
+        var schedule = new ScheduleService(context, new NotificationService(context));
+        var template = await AddTemplateAsync(context, "Open Mat", DayOfWeek.Friday);
+
+        var session = (await schedule.GetWeekAsync(Sunday)).Single(s => s.TemplateId == template.Id);
+        await schedule.DeleteSessionAsync(session.Id);
+
+        Assert.Null(await context.ClassSessions.SingleOrDefaultAsync(s => s.Id == session.Id));
+
+        // The ledger claim (#168) holds: the deleted class does not resurrect.
+        Assert.Empty((await schedule.GetWeekAsync(Sunday)).Where(s => s.TemplateId == template.Id));
+    }
+
+    [Fact]
+    public async Task DeleteRefuses_WhenHistoryExists_BecauseBothForeignKeysCascade()
+    {
+        var tenant = await SeedGymAsync();
+        await using var context = fixture.CreateContext(tenant);
+        var schedule = new ScheduleService(context, new NotificationService(context));
+        var template = await AddTemplateAsync(context, "Fundamentals", DayOfWeek.Monday);
+        var session = (await schedule.GetWeekAsync(Sunday)).Single(s => s.TemplateId == template.Id);
+
+        var person = new Domain.People.Person
+        {
+            Id = Guid.NewGuid(),
+            FirstName = "Checked",
+            LastName = "In",
+            Roles = Domain.People.PersonRoles.Member | Domain.People.PersonRoles.Instructor,
+            JoinedOn = new DateOnly(2026, 1, 1),
+        };
+        context.Persons.Add(person);
+        context.AttendanceRecords.Add(new Domain.Attendance.AttendanceRecord
+        {
+            Id = Guid.NewGuid(),
+            SessionId = session.Id,
+            PersonId = person.Id,
+            Source = Domain.Attendance.CheckInSource.Self,
+            Status = Domain.Attendance.AttendanceStatus.Confirmed,
+        });
+        await context.SaveChangesAsync();
+
+        // Check-in history refuses — a cascade would silently destroy it.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => schedule.DeleteSessionAsync(session.Id));
+
+        // Substitution history refuses the same way (fresh session, swap record only).
+        var second = (await schedule.GetWeekAsync(Sunday.AddDays(7))).Single(s => s.TemplateId == template.Id);
+        context.SubstitutionRequests.Add(new SubstitutionRequest
+        {
+            Id = Guid.NewGuid(),
+            SessionId = second.Id,
+            RequestedByPersonId = person.Id,
+            Status = SubstitutionStatus.Declined,
+        });
+        await context.SaveChangesAsync();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => schedule.DeleteSessionAsync(second.Id));
+
+        Assert.NotNull(await context.ClassSessions.SingleOrDefaultAsync(s => s.Id == session.Id));
+        Assert.NotNull(await context.ClassSessions.SingleOrDefaultAsync(s => s.Id == second.Id));
+    }
+
+    [Fact]
     public async Task NewTemplate_StillMintsIntoAnAlreadyViewedWeek()
     {
         var tenant = await SeedGymAsync();

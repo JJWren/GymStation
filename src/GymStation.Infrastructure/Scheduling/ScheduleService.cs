@@ -226,6 +226,45 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
         await db.SaveChangesAsync(ct);
     }
 
+    /// <summary>
+    /// Hard-deletes one occurrence (#169) — but ONLY a clean one. Attendance and
+    /// substitution rows both cascade on session delete, so any recorded history
+    /// refuses with words instead of silently destroying it (the rank-remove
+    /// doctrine: history stays — cancel covers a class that isn't happening).
+    /// The template-week ledger claim (#168) keeps the deleted slot vacant.
+    /// </summary>
+    public async Task DeleteSessionAsync(Guid sessionId, CancellationToken ct = default)
+    {
+        var session = await db.ClassSessions.SingleOrDefaultAsync(s => s.Id == sessionId, ct)
+            ?? throw new InvalidOperationException("Session not found in the active gym.");
+
+        if (await db.AttendanceRecords.AnyAsync(a => a.SessionId == session.Id, ct))
+        {
+            throw new InvalidOperationException("That class has check-in history — history stays. Cancel the session instead.");
+        }
+
+        if (await db.SubstitutionRequests.AnyAsync(r => r.SessionId == session.Id, ct))
+        {
+            throw new InvalidOperationException("That class has substitution history — history stays. Cancel the session instead.");
+        }
+
+        var recipients = await notifications.StaffUserIdsAsync(ct);
+        if (session.InstructorPersonId is { } instructorPersonId)
+        {
+            recipients.AddRange(await notifications.UserIdsForPersonsAsync([instructorPersonId], ct));
+        }
+
+        notifications.Notify(
+            recipients,
+            NotificationCategory.SessionCancelled,
+            $"Removed: {session.Name} · {session.Date:ddd dd MMM} {session.StartTime:HH\\:mm}",
+            $"{session.Name} on {session.Date:dddd dd MMMM} at {session.StartTime:HH\\:mm} was removed from the schedule.",
+            "/admin/schedule");
+
+        db.ClassSessions.Remove(session);
+        await db.SaveChangesAsync(ct);
+    }
+
     public async Task CancelSessionAsync(Guid sessionId, string reason, CancellationToken ct = default)
     {
         var session = await db.ClassSessions.SingleOrDefaultAsync(s => s.Id == sessionId, ct)

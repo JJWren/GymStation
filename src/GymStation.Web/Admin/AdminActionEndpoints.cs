@@ -72,6 +72,21 @@ public static class AdminActionEndpoints
             return Results.Redirect("/admin/schedule");
         });
 
+        group.MapPost("/delete-session", async ([FromForm] Guid sessionId, [FromForm] string? start, ScheduleService schedule) =>
+        {
+            // Only a date the page itself rendered rides back into the redirect.
+            var week = DateOnly.TryParse(start, out var parsed) ? $"?start={parsed:yyyy-MM-dd}" : "";
+            try
+            {
+                await schedule.DeleteSessionAsync(sessionId);
+                return Results.Redirect($"/admin/schedule{week}");
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Redirect($"/admin/schedule{week}{(week.Length > 0 ? "&" : "?")}delfailed=1");
+            }
+        });
+
         group.MapPost("/reopen-session", async ([FromForm] Guid sessionId, ScheduleService schedule) =>
         {
             await schedule.ReopenSessionAsync(sessionId);
