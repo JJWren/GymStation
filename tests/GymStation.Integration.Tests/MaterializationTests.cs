@@ -145,6 +145,9 @@ public class MaterializationTests(PostgresFixture fixture)
 
         Assert.Null(await context.ClassSessions.SingleOrDefaultAsync(s => s.Id == session.Id));
 
+        // Idempotent: a stale modal's second submit is a no-op, not a scary banner.
+        await schedule.DeleteSessionAsync(session.Id);
+
         // The ledger claim (#168) holds: the deleted class does not resurrect.
         Assert.Empty((await schedule.GetWeekAsync(Sunday)).Where(s => s.TemplateId == template.Id));
     }

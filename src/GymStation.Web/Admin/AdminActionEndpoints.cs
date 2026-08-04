@@ -83,6 +83,8 @@ public static class AdminActionEndpoints
             }
             catch (InvalidOperationException)
             {
+                // Delete is idempotent on a missing session, so the ONLY refusal
+                // left is recorded history — the banner names exactly that.
                 return Results.Redirect($"/admin/schedule{week}{(week.Length > 0 ? "&" : "?")}delfailed=1");
             }
         });

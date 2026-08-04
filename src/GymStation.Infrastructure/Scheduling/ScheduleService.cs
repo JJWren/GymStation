@@ -235,8 +235,11 @@ public class ScheduleService(GymStationDbContext db, NotificationService notific
     /// </summary>
     public async Task DeleteSessionAsync(Guid sessionId, CancellationToken ct = default)
     {
-        var session = await db.ClassSessions.SingleOrDefaultAsync(s => s.Id == sessionId, ct)
-            ?? throw new InvalidOperationException("Session not found in the active gym.");
+        var session = await db.ClassSessions.SingleOrDefaultAsync(s => s.Id == sessionId, ct);
+        if (session is null)
+        {
+            return; // idempotent: already gone (stale modal, double submit) — the goal state holds
+        }
 
         if (await db.AttendanceRecords.AnyAsync(a => a.SessionId == session.Id, ct))
         {
