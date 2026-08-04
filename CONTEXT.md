@@ -62,12 +62,16 @@ _Avoid_: coach, professor, trainer (these may return later as per-Gym display la
 ### Scheduling
 
 **ClassTemplate**:
-A recurring weekly slot: day, time, duration, ClassTypes, default Instructor. Editing it changes the future pattern, never a single date.
+A recurring weekly slot: day, time, duration, ClassTypes, default Instructor. Editing it changes the future pattern, never a single date. Effective from its start date — earlier weeks never materialize it.
 _Avoid_: class (ambiguous), schedule entry
 
 **ClassSession**:
 A dated occurrence of a ClassTemplate (or a one-off). The unit of check-in, substitution, and cancellation.
 _Avoid_: class, event, occurrence
+
+**One-off**:
+A ClassSession with no ClassTemplate — added directly or by duplication. It never follows a weekly pattern, and can be promoted to start one.
+_Avoid_: extra class, ad-hoc session
 
 **ClassType**:
 A filterable tag on templates/sessions: gi, no-gi, kids, fundamentals, competition, open-mat, plus per-Gym custom tags.

@@ -21,5 +21,13 @@ public class ClassTemplate : ITenantOwned
 
     public bool Active { get; set; } = true;
 
+    /// <summary>
+    /// Earliest date this template materializes (#179, ADR 0004). Weeks before it
+    /// never mint an occurrence, so a template created today cannot retro-fill
+    /// history when an admin browses past weeks. Null = unbounded (legacy
+    /// templates keep their original mint-anywhere behavior).
+    /// </summary>
+    public DateOnly? StartDate { get; set; }
+
     public List<ClassType> ClassTypes { get; set; } = [];
 }
