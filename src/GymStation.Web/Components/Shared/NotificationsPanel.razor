@@ -11,7 +11,7 @@
         @* #182: the button stamps exactly what the current filter matches (every
            page of it) — the label says so whenever the view is narrowed. *@
         <EditForm FormName="mark-read" Model="Marker" OnValidSubmit="MarkTheseReadAsync">
-            <button class="btn btn--ghost btn--xs" type="submit">@(_filter.Narrowed ? "MARK THESE READ" : "MARK ALL READ")</button>
+            <button class="btn btn--ghost btn--xs" type="submit">@(_filter.NarrowsUnreadSet ? "MARK THESE READ" : "MARK ALL READ")</button>
         </EditForm>
     }
 </div>
@@ -181,26 +181,24 @@ else if (_uiDateMode == "range")
             await db.SaveChangesAsync();
         }
 
-        Nav.NavigateTo(Url());
+        // Same filtered URL INCLUDING the page — the Pager clamps if the
+        // stamped view shrank beneath it.
+        Nav.NavigateTo(Url(keepPage: true));
     }
 
     private static async Task<TimeZoneInfo> GymZoneAsync(GymStationDbContext db)
     {
         var tz = await db.Gyms.Where(g => g.Id == db.CurrentGymId).Select(g => g.TimeZoneId).SingleOrDefaultAsync();
-        try
-        {
-            return tz is null ? TimeZoneInfo.Utc : TimeZoneInfo.FindSystemTimeZoneById(tz);
-        }
-        catch (TimeZoneNotFoundException)
-        {
-            return TimeZoneInfo.Utc;
-        }
+        // Try-variant covers both a missing AND a corrupted TZ id — a bad gym
+        // row must not take the inbox down with it.
+        return tz is not null && TimeZoneInfo.TryFindSystemTimeZoneById(tz, out var zone) ? zone : TimeZoneInfo.Utc;
     }
 
     /// <summary>Filter URLs: pass read/dmode to switch that control, everything
     /// else carries over. Switching date mode drops the old dates; page is
-    /// always omitted so filter changes land on page 1.</summary>
-    private string Url(string? read = null, string? dmode = null)
+    /// omitted so filter changes land on page 1 — keepPage is for redirects
+    /// that must return to the very view the user was on.</summary>
+    private string Url(string? read = null, string? dmode = null, bool keepPage = false)
     {
         var readState = read ?? _filter.Read;
         var mode = dmode ?? _uiDateMode;
@@ -231,6 +229,10 @@ else if (_uiDateMode == "range")
         if (_size != Pager.DefaultSize)
         {
             pairs.Add($"size={_size}");
+        }
+        if (keepPage && _page > 1)
+        {
+            pairs.Add($"page={_page}");
         }
 
         return pairs.Count == 0 ? ReturnPath : ReturnPath + "?" + string.Join("&", pairs);

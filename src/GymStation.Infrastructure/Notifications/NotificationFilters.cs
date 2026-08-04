@@ -12,9 +12,15 @@ namespace GymStation.Infrastructure.Notifications;
 /// </summary>
 public sealed record NotificationFilter(string Read, string? Query, string DateMode, DateOnly? On, DateOnly? From, DateOnly? To)
 {
-    /// <summary>True when any control narrows past the default view (UNREAD, no
-    /// search, all dates) — drives the MARK ALL READ / MARK THESE READ label.</summary>
+    /// <summary>True when any control differs from the default view (UNREAD, no
+    /// search, all dates) — drives the empty-state copy.</summary>
     public bool Narrowed => Read != "unread" || Query is not null || DateMode != "all";
+
+    /// <summary>True when the UNREAD SUBSET the bulk button would stamp is
+    /// smaller than "all my unread" — search or a date window. Read chips never
+    /// count: ALL broadens (same unread set), and READ has nothing to stamp.
+    /// Drives the MARK ALL READ / MARK THESE READ label.</summary>
+    public bool NarrowsUnreadSet => Query is not null || DateMode != "all";
 }
 
 public static class NotificationFilters

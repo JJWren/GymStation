@@ -68,6 +68,11 @@ public class NotificationTests(PostgresFixture fixture)
 
         // Junk read values fall back to the default view.
         Assert.Equal("unread", NotificationFilters.Resolve("banana", null, null, null, null, null, Today).Read);
+
+        // Read chips never shrink the unread subset — ALL broadens, so the bulk
+        // button still means "all my unread"; a search does narrow it.
+        Assert.False(all.NarrowsUnreadSet);
+        Assert.True(NotificationFilters.Resolve("all", "gi", null, null, null, null, Today).NarrowsUnreadSet);
     }
 
     [Fact]
