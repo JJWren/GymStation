@@ -235,6 +235,12 @@ else
                     <input type="hidden" name="personId" value="@PersonId" />
                     <select name="planId" aria-label="Membership plan">
                         <option value="">— no plan (no automatic charges) —</option>
+                        @if (_dormantPlan is { } dormant)
+                        {
+                            @* #197: an archived pointer is DORMANT, not gone — say so
+                               instead of masquerading as "— no plan —". *@
+                            <option value="@dormant.Id" selected disabled>DORMANT — @dormant.Name (@(dormant.Archived ? "ARCHIVED" : "WRONG SCOPE"), RAISES NOTHING)</option>
+                        }
                         @foreach (var plan in _plans)
                         {
                             <option value="@plan.Id" selected="@(plan.Id == _person.MembershipPlanId)">@plan.Name · $@plan.Price.ToString("N0")</option>
@@ -242,6 +248,15 @@ else
                     </select>
                     <button class="btn btn--ghost btn--xs" type="submit">SET PLAN</button>
                 </form>
+                @if (_coveringFamily is { } covering)
+                {
+                    @* #197: coverage was invisible — the cycle skips this person while
+                       the family plan is active, and any personal plan lies dormant. *@
+                    <p class="cap" style="margin:0 0 0.625rem">
+                        COVERED BY <a href="/admin/families/@covering.Id">@covering.Name.ToUpperInvariant()</a> FAMILY PLAN —
+                        @(_person.MembershipPlanId is null ? "NO PERSONAL CHARGES WHILE COVERED." : "THIS PERSONAL PLAN IS DORMANT WHILE COVERED (IT RESUMES IF THE FAMILY PLAN EVER CLEARS).")
+                    </p>
+                }
                 @foreach (var line in _ledgerLines)
                 {
                     <div class="head-row" style="border-bottom:1px dashed #2c3440;padding:0.3125rem 0;@(line.Voided ? "opacity:.55" : null)">
@@ -388,6 +403,8 @@ else
     private List<GymStation.Domain.Attendance.WeekCount> _weeklyCounts = [];
     private int _weeklyPeak;
     private List<GymStation.Domain.Money.MembershipPlan> _plans = [];
+    private GymStation.Domain.Money.MembershipPlan? _dormantPlan;
+    private Family? _coveringFamily;
     private List<LedgerLine> _ledgerLines = [];
     private decimal _balance;
 
@@ -467,6 +484,12 @@ else
             .OrderBy(p => p.Price)
             .ToListAsync();
 
+        // #197: a pointer at a plan the filtered list can't show (archived, or a
+        // legacy family-scope assignment) is DORMANT — load it for honest rendering.
+        _dormantPlan = _person.MembershipPlanId is { } pointedPlanId && _plans.All(p => p.Id != pointedPlanId)
+            ? await db.MembershipPlans.SingleOrDefaultAsync(p => p.Id == pointedPlanId)
+            : null;
+
         var charges = await db.Charges.Where(c => c.PersonId == PersonId).ToListAsync();
         var payments = await db.Payments.Where(p => p.PersonId == PersonId).ToListAsync();
         _balance = GymStation.Domain.Money.LedgerMath.Balance(charges, payments);
@@ -485,6 +508,14 @@ else
         if (_familyMembership is not null)
         {
             _family = await db.Families.SingleOrDefaultAsync(f => f.Id == _familyMembership.FamilyId);
+
+            // #197: covered = the family points at an ACTIVE family-scope plan
+            // (the #91 covered-set predicate, person-shaped).
+            if (_family?.MembershipPlanId is { } familyPlanId
+                && await db.MembershipPlans.AnyAsync(p => p.Id == familyPlanId && !p.Archived && p.Scope == GymStation.Domain.Money.PlanScope.Family))
+            {
+                _coveringFamily = _family;
+            }
             var guardians = await db.FamilyGuardians
                 .Where(g => g.FamilyId == _familyMembership.FamilyId)
                 .OrderByDescending(g => g.IsPrimary)
