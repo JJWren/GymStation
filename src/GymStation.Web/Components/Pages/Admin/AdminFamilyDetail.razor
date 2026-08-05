@@ -354,8 +354,11 @@ else
         _guardians = guardianRows
             .Select(g => (g, emails.GetValueOrDefault(g.GuardianUserId, "unknown"), rosterByUser.GetValueOrDefault(g.GuardianUserId)))
             .ToList();
+        // Only candidates the service will accept: login-less, and in THIS
+        // family or none (cross-family linking lives on PersonDetail).
         _linkablePersons = await db.Persons
-            .Where(p => !p.Archived && p.UserId == null)
+            .Where(p => !p.Archived && p.UserId == null
+                && !db.FamilyMembers.Any(m => m.PersonId == p.Id && m.FamilyId != FamilyId))
             .OrderBy(p => p.FirstName).ThenBy(p => p.LastName)
             .ToListAsync();
 

@@ -191,9 +191,6 @@ public class FamilyService(GymStationDbContext db)
         await db.SaveChangesAsync(ct);
     }
 
-    /// <summary>Assigns (or clears) the family's plan — staff-only structure, like
-    /// creation. The plan must be Family-scope and unarchived; the cycle then bills
-    /// the primary's Person once per month (#91).</summary>
     /// <summary>
     /// Connects a guardian LOGIN to a roster Person (#191) — the missing half of
     /// the Sarah-and-Tom shape: a guardian may train too, and the family plan
@@ -237,25 +234,30 @@ public class FamilyService(GymStationDbContext db)
             throw new InvalidOperationException("That guardian already has a roster record in this gym.");
         }
 
+        // This-family-or-none, with or without the membership stroke: linking a
+        // guardian to a person parked in ANOTHER family would tangle two
+        // households' identities. The general cross-family case (a guardian
+        // whose own training home is elsewhere) stays on PersonDetail's
+        // link-by-email, which carries no family context.
+        var membership = await db.FamilyMembers.SingleOrDefaultAsync(m => m.PersonId == personId, ct);
+        if (membership is not null && membership.FamilyId != familyId)
+        {
+            throw new InvalidOperationException("That person already belongs to a family — one family per person.");
+        }
+
         person.UserId = guardian.GuardianUserId;
 
-        if (alsoAddAsAdultMember)
+        if (alsoAddAsAdultMember && membership is null)
         {
-            var membership = await db.FamilyMembers.SingleOrDefaultAsync(m => m.PersonId == personId, ct);
-            if (membership is not null && membership.FamilyId != familyId)
-            {
-                throw new InvalidOperationException("That person already belongs to a family — one family per person.");
-            }
-
-            if (membership is null)
-            {
-                db.FamilyMembers.Add(new FamilyMember { Id = Guid.NewGuid(), FamilyId = familyId, PersonId = personId, IsWard = false });
-            }
+            db.FamilyMembers.Add(new FamilyMember { Id = Guid.NewGuid(), FamilyId = familyId, PersonId = personId, IsWard = false });
         }
 
         await db.SaveChangesAsync(ct);
     }
 
+    /// <summary>Assigns (or clears) the family's plan — staff-only structure, like
+    /// creation. The plan must be Family-scope and unarchived; the cycle then bills
+    /// the primary's Person once per month (#91).</summary>
     public async Task SetFamilyPlanAsync(FamilyActor actor, Guid familyId, Guid? planId, CancellationToken ct = default)
     {
         if (!actor.IsStaff)

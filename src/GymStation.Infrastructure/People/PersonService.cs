@@ -118,7 +118,6 @@ public class PersonService(GymStationDbContext db)
         await db.SaveChangesAsync(ct);
     }
 
-    /// <summary>Quick-add from the live roll: a walk-in with a name and nothing else.</summary>
     /// <summary>
     /// Post-hoc login link (#191) — the create-time-only "Link login by email"
     /// finally gets an editing life. The caller resolves the email to a User id
@@ -161,6 +160,7 @@ public class PersonService(GymStationDbContext db)
         await db.SaveChangesAsync(ct);
     }
 
+    /// <summary>Quick-add from the live roll: a walk-in with a name and nothing else.</summary>
     public async Task<Person> AddVisitorAsync(string firstName, string lastName, CancellationToken ct = default)
     {
         var (first, last) = NormalizeName(firstName, lastName);

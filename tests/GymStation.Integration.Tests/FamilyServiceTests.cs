@@ -305,6 +305,10 @@ public class FamilyServiceTests(PostgresFixture fixture)
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             service.LinkGuardianPersonAsync(FamilyActor.Staff, cast.FamilyId, cast.GrandparentGuardianId, stray.Id, alsoAddAsAdultMember: true));
+        // ...and the guard holds WITHOUT the membership stroke too — the family
+        // page never tangles another household's person (review round 1).
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.LinkGuardianPersonAsync(FamilyActor.Staff, cast.FamilyId, cast.GrandparentGuardianId, stray.Id, alsoAddAsAdultMember: false));
         context.ChangeTracker.Clear();
         Assert.Null((await context.Persons.SingleAsync(p => p.Id == stray.Id)).UserId);
     }
