@@ -66,6 +66,46 @@ public static class AdminActionEndpoints
             }
         });
 
+        // #191: post-hoc login link/unlink on an existing Person. Email→User
+        // resolution stays here at the edge (roster add-form precedent) — the
+        // service speaks Guids.
+        group.MapPost("/link-login", async (
+            [FromForm] Guid personId, [FromForm] string email,
+            Microsoft.AspNetCore.Identity.UserManager<GymStation.Infrastructure.Identity.AppUser> users,
+            GymStation.Infrastructure.People.PersonService people) =>
+        {
+            var user = await users.FindByEmailAsync(email.Trim());
+            if (user is null)
+            {
+                return Results.Redirect($"/admin/people/{personId}?linkfailed=1");
+            }
+
+            try
+            {
+                await people.LinkLoginAsync(personId, user.Id);
+                return Results.Redirect($"/admin/people/{personId}");
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Redirect($"/admin/people/{personId}?linkfailed=1");
+            }
+        });
+
+        group.MapPost("/unlink-login", async (
+            [FromForm] Guid personId, GymStation.Infrastructure.People.PersonService people) =>
+        {
+            try
+            {
+                await people.UnlinkLoginAsync(personId);
+            }
+            catch (InvalidOperationException)
+            {
+                // Missing person: the goal state (no link) holds either way.
+            }
+
+            return Results.Redirect($"/admin/people/{personId}");
+        });
+
         group.MapPost("/cancel-session", async ([FromForm] Guid sessionId, [FromForm] string reason, ScheduleService schedule) =>
         {
             await schedule.CancelSessionAsync(sessionId, string.IsNullOrWhiteSpace(reason) ? "No reason given" : reason);

@@ -257,4 +257,87 @@ public class FamilyServiceTests(PostgresFixture fixture)
         Assert.True(await service.IsGuardianInGymAsync(cast.Grandparent));
         Assert.False(await service.IsGuardianInGymAsync(Guid.NewGuid()));
     }
+
+    [Fact]
+    public async Task LinkGuardianPerson_OneStroke_LinksAndAddsAdultMember()
+    {
+        var cast = await SeedAsync();
+        await using var context = fixture.CreateContext(cast.Tenant);
+        var service = new FamilyService(context);
+
+        var dad = new Person { Id = Guid.NewGuid(), FirstName = "Sam", LastName = "Hale", JoinedOn = new DateOnly(2026, 1, 1) };
+        context.Persons.Add(dad);
+        await context.SaveChangesAsync();
+
+        await service.LinkGuardianPersonAsync(FamilyActor.Staff, cast.FamilyId, cast.FatherGuardianId, dad.Id, alsoAddAsAdultMember: true);
+
+        Assert.Equal(cast.Father, (await context.Persons.SingleAsync(p => p.Id == dad.Id)).UserId);
+        var membership = await context.FamilyMembers.SingleAsync(m => m.PersonId == dad.Id);
+        Assert.Equal(cast.FamilyId, membership.FamilyId);
+        Assert.False(membership.IsWard);
+    }
+
+    [Fact]
+    public async Task LinkGuardianPerson_ToleratesExistingMembership_AndRefusesCrossFamily()
+    {
+        var cast = await SeedAsync();
+        await using var context = fixture.CreateContext(cast.Tenant);
+        var service = new FamilyService(context);
+
+        // Jin's exact shape: the person was already added to THIS family before
+        // anyone linked the login — the one-stroke path must not duplicate.
+        var mom = new Person { Id = Guid.NewGuid(), FirstName = "May", LastName = "Hale", JoinedOn = new DateOnly(2026, 1, 1) };
+        context.Persons.Add(mom);
+        await context.SaveChangesAsync();
+        await service.AddMemberAsync(FamilyActor.Staff, cast.FamilyId, mom.Id, isWard: false);
+
+        await service.LinkGuardianPersonAsync(FamilyActor.Staff, cast.FamilyId, cast.MotherGuardianId, mom.Id, alsoAddAsAdultMember: true);
+        Assert.Equal(cast.Mother, (await context.Persons.SingleAsync(p => p.Id == mom.Id)).UserId);
+        Assert.Single(await context.FamilyMembers.Where(m => m.PersonId == mom.Id).ToListAsync());
+
+        // A person in ANOTHER family refuses the one-stroke add — and nothing
+        // persists (link and membership ride one SaveChanges).
+        var otherFamily = await service.CreateFamilyAsync(FamilyActor.Staff, "Second Family");
+        var stray = new Person { Id = Guid.NewGuid(), FirstName = "Zed", LastName = "Hale", JoinedOn = new DateOnly(2026, 1, 1) };
+        context.Persons.Add(stray);
+        await context.SaveChangesAsync();
+        await service.AddMemberAsync(FamilyActor.Staff, otherFamily.Id, stray.Id, isWard: false);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.LinkGuardianPersonAsync(FamilyActor.Staff, cast.FamilyId, cast.GrandparentGuardianId, stray.Id, alsoAddAsAdultMember: true));
+        context.ChangeTracker.Clear();
+        Assert.Null((await context.Persons.SingleAsync(p => p.Id == stray.Id)).UserId);
+    }
+
+    [Fact]
+    public async Task LinkGuardianPerson_Refusals()
+    {
+        var cast = await SeedAsync();
+        await using var context = fixture.CreateContext(cast.Tenant);
+        var service = new FamilyService(context);
+
+        // Already-linked person (the uncle holds a login).
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.LinkGuardianPersonAsync(FamilyActor.Staff, cast.FamilyId, cast.FatherGuardianId, cast.AdultUncle, false));
+
+        // Staff-only can't acquire a portal through this path (#87 parity).
+        var deskOnly = new Person { Id = Guid.NewGuid(), FirstName = "Pat", LastName = "Desk", Roles = PersonRoles.Staff, JoinedOn = new DateOnly(2026, 1, 1) };
+        context.Persons.Add(deskOnly);
+        await context.SaveChangesAsync();
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.LinkGuardianPersonAsync(FamilyActor.Staff, cast.FamilyId, cast.FatherGuardianId, deskOnly.Id, false));
+
+        // One roster record per login: a guardian who has one refuses a second.
+        var dad = new Person { Id = Guid.NewGuid(), FirstName = "Sam", LastName = "Hale", JoinedOn = new DateOnly(2026, 1, 1) };
+        var dadTwin = new Person { Id = Guid.NewGuid(), FirstName = "Sammy", LastName = "Hale", JoinedOn = new DateOnly(2026, 1, 1) };
+        context.Persons.AddRange(dad, dadTwin);
+        await context.SaveChangesAsync();
+        await service.LinkGuardianPersonAsync(FamilyActor.Staff, cast.FamilyId, cast.FatherGuardianId, dad.Id, false);
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.LinkGuardianPersonAsync(FamilyActor.Staff, cast.FamilyId, cast.FatherGuardianId, dadTwin.Id, false));
+
+        // Structure linking is staff-only — even the primary can't self-serve it.
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.LinkGuardianPersonAsync(FamilyActor.User(cast.Father), cast.FamilyId, cast.MotherGuardianId, dadTwin.Id, false));
+    }
 }
