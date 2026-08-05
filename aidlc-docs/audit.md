@@ -273,3 +273,11 @@ For a family plan, there should be a standard flate rate with an optional increa
 **Context**: Round-4.3 inception — plan approved; issues #190–#191 filed; construction loop begins
 
 ---
+
+## Round-4.3 Complete
+**Timestamp**: 2026-08-05T06:40:00Z
+**User Input**: (none — autonomous execution of the approved round-4.3 plan)
+**AI Response**: Both issues shipped and released as v1.12.0, live in the lab (image-only deploy — no migrations). #190→PR192 (strip-nav anchors slug-qualified; clean round 1; the asks entry rode this PR). #191→PR194 (guardian rows show ROSTER: NAME or NO ROSTER PERSON + inline LINK ROSTER PERSON with pre-checked ALSO ADD AS ADULT MEMBER; FamilyService.LinkGuardianPersonAsync staff-only with this-family-or-none enforced regardless of the membership stroke after Copilot round 1 caught the checkbox-gated guard — the picker filters to match, and the general cross-family case deliberately lives on PersonDetail's new LINK LOGIN by email + UNLINK via PersonService.Link/UnlinkLoginAsync with #87/#92-parity guards; ADD MEMBER's ward checkbox no longer pre-checked, labeled WARD — GUARDIANS ACT FOR THEM · BILLS AS KID; round 1 also restored two doc comments my insert had orphaned onto the new methods — anchor-on-signature lesson). Deploy: compose 1.11.0→1.12.0, healthy, /ironworks-bjj /login /favicon.svg all 200. Lab aftercare for the reported Jin Park state: her Person needs MAKE ADULT on the family page, and if her roster row still shows NO LOGIN, the guardian row's LINK ROSTER PERSON connects her to the jin.park login (the select tolerates her existing membership).
+**Context**: Round-4.3 complete — public anchors fixed, guardian↔Person connection visible and manageable, all live at v1.12.0
+
+---
