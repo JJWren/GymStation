@@ -199,6 +199,42 @@ public class PersonServiceTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task AssignPlan_GuardsScope_AndConvertsVisitors()
+    {
+        var (tenant, _, _) = await SeedAsync();
+        await using var context = fixture.CreateContext(tenant);
+        var service = new PersonService(context);
+
+        var perPerson = new GymStation.Domain.Money.MembershipPlan { Id = Guid.NewGuid(), Name = "Adult", Price = 85m };
+        var familyScope = new GymStation.Domain.Money.MembershipPlan
+        {
+            Id = Guid.NewGuid(),
+            Name = "Family",
+            Price = 150m,
+            Scope = GymStation.Domain.Money.PlanScope.Family,
+        };
+        context.MembershipPlans.AddRange(perPerson, familyScope);
+        var visitor = new Person { Id = Guid.NewGuid(), FirstName = "Walk", LastName = "In", Visitor = true, JoinedOn = new DateOnly(2026, 1, 1) };
+        context.Persons.Add(visitor);
+        await context.SaveChangesAsync();
+
+        // Family-scope plans attach to a FAMILY, never a person (#196).
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.AssignPlanAsync(visitor.Id, familyScope.Id));
+
+        // Assigning a real plan converts the visitor — the documented moment.
+        await service.AssignPlanAsync(visitor.Id, perPerson.Id);
+        var converted = await context.Persons.SingleAsync(p => p.Id == visitor.Id);
+        Assert.False(converted.Visitor);
+        Assert.Equal(perPerson.Id, converted.MembershipPlanId);
+
+        // Clearing the plan never re-flags.
+        await service.AssignPlanAsync(visitor.Id, null);
+        var cleared = await context.Persons.SingleAsync(p => p.Id == visitor.Id);
+        Assert.False(cleared.Visitor);
+        Assert.Null(cleared.MembershipPlanId);
+    }
+
+    [Fact]
     public async Task LinkLogin_RoundTrips_WithEveryGuard()
     {
         var (tenant, _, _) = await SeedAsync();
