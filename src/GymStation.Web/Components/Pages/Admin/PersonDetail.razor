@@ -412,7 +412,7 @@ else
 
     // #181 breakdown rendering now lives on the shared member ledger (#199).
     private static string FamilyBreakdownSuffix(GymStation.Domain.Money.Charge c)
-        => Shared.DuesLedgerPanel.FamilyBreakdownSuffix(c);
+        => DuesLedgerPanel.FamilyBreakdownSuffix(c);
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
 
     public class RecordAwardForm

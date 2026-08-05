@@ -271,14 +271,23 @@ public class FamilyServiceTests(PostgresFixture fixture)
         Assert.False(await service.CanViewBillingForAsync(cast.Mother, cast.Kid1));
         Assert.False(await service.CanViewBillingForAsync(cast.Grandparent, cast.Kid1));
 
-        // Adult members are family business too — grant mother ViewBilling and the
-        // ward AND any adult member open up; strangers and non-members never do.
+        // Not-a-member refuses — before the uncle joins, even the primary can't
+        // open his ledger through the family.
+        Assert.False(await service.CanViewBillingForAsync(cast.Father, cast.AdultUncle));
+
+        // Granting VIEW BILLING opens the ward's ledger...
         await service.SetGuardianFlagsAsync(FamilyActor.Staff, cast.FamilyId, cast.MotherGuardianId,
             actForWards: true, manageGuardians: true, manageMembers: false, viewBilling: true);
         Assert.True(await service.CanViewBillingForAsync(cast.Mother, cast.Kid1));
 
+        // ...and ADULT members are family business too once they join.
+        await service.AddMemberAsync(FamilyActor.Staff, cast.FamilyId, cast.AdultUncle, isWard: false);
+        Assert.True(await service.CanViewBillingForAsync(cast.Father, cast.AdultUncle));
+        Assert.True(await service.CanViewBillingForAsync(cast.Mother, cast.AdultUncle));
+
+        // Strangers and unknown persons never resolve.
         Assert.False(await service.CanViewBillingForAsync(Guid.NewGuid(), cast.Kid1));
-        Assert.False(await service.CanViewBillingForAsync(cast.Father, cast.AdultUncle)); // uncle isn't a member
+        Assert.False(await service.CanViewBillingForAsync(cast.Father, Guid.NewGuid()));
     }
 
     [Fact]

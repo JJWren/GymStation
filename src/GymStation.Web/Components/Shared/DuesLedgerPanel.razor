@@ -36,8 +36,8 @@
     protected override async Task OnInitializedAsync()
     {
         await using var db = await DbFactory.CreateDbContextAsync();
-        var charges = await db.Charges.Where(c => c.PersonId == PersonId).ToListAsync();
-        var payments = await db.Payments.Where(p => p.PersonId == PersonId).ToListAsync();
+        var charges = await db.Charges.Where(c => c.PersonId == PersonId).AsNoTracking().ToListAsync();
+        var payments = await db.Payments.Where(p => p.PersonId == PersonId).AsNoTracking().ToListAsync();
         _balance = LedgerMath.Balance(charges, payments);
         _lines = charges
             .Select(c => new Line(c.RaisedOn, "CHARGE · " + c.Description.ToUpperInvariant() + FamilyBreakdownSuffix(c), c.Amount, true, false))
