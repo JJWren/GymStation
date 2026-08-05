@@ -410,18 +410,9 @@ else
 
     private sealed record LedgerLine(DateOnly When, string Label, decimal Amount, bool IsCharge, Guid? PaymentId, bool Voided);
 
-    // #181: family charges carry their size breakdown as columns — render it
-    // from the stamped facts, never re-derived from today's roster.
+    // #181 breakdown rendering now lives on the shared member ledger (#199).
     private static string FamilyBreakdownSuffix(GymStation.Domain.Money.Charge c)
-    {
-        if (c.FamilyAdults is not { } adults || c.FamilyKids is not { } kids)
-        {
-            return "";
-        }
-
-        var extras = c.FamilyExtraAmount is { } extra && extra > 0 ? $" (+${extra:N0} EXTRAS)" : "";
-        return $" · {adults}A+{kids}K{extras}";
-    }
+        => DuesLedgerPanel.FamilyBreakdownSuffix(c);
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
 
     public class RecordAwardForm

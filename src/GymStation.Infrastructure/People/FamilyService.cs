@@ -49,6 +49,20 @@ public class FamilyService(GymStationDbContext db)
             .AnyAsync(ct);
     }
 
+    /// <summary>Billing eyes (#199): may this login open a person's ledger? True
+    /// when the person is a member (ward OR adult — a family's dues are family
+    /// business) of a family where the user is the PRIMARY or holds VIEW BILLING.
+    /// Matrix-consistent with the MyFamily billing card and chips.</summary>
+    public async Task<bool> CanViewBillingForAsync(Guid guardianUserId, Guid personId, CancellationToken ct = default)
+    {
+        return await db.FamilyGuardians
+            .Where(g => g.GuardianUserId == guardianUserId && (g.IsPrimary || g.ViewBilling))
+            .Join(db.FamilyMembers.Where(m => m.PersonId == personId),
+                g => g.FamilyId, m => m.FamilyId, (g, m) => m.PersonId)
+            .Join(db.Persons.Where(p => !p.Archived), pid => pid, p => p.Id, (pid, p) => p.Id)
+            .AnyAsync(ct);
+    }
+
     /// <summary>Guardianship keeps a login attached to a gym only while an unarchived
     /// ward exists — the same semantics GymMembershipService and the claims factory
     /// apply on their unfiltered paths.</summary>
