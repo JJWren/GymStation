@@ -461,7 +461,11 @@ else
         _names = await db.Persons.Where(p => awarderIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, p => p.DisplayName);
 
-        _plans = await db.MembershipPlans.Where(p => !p.Archived).OrderBy(p => p.Price).ToListAsync();
+        // #196: per-person plans only — family-scope plans attach to a Family.
+        _plans = await db.MembershipPlans
+            .Where(p => !p.Archived && p.Scope == GymStation.Domain.Money.PlanScope.PerPerson)
+            .OrderBy(p => p.Price)
+            .ToListAsync();
 
         var charges = await db.Charges.Where(c => c.PersonId == PersonId).ToListAsync();
         var payments = await db.Payments.Where(p => p.PersonId == PersonId).ToListAsync();

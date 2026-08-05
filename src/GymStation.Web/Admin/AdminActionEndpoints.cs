@@ -471,22 +471,20 @@ public static class AdminActionEndpoints
             return Results.Redirect("/admin/finance");
         });
 
-        group.MapPost("/assign-plan", async ([FromForm] Guid personId, [FromForm] Guid? planId, GymStationDbContext db) =>
+        // #196: the person-side guard SetFamilyPlanAsync always had — scope
+        // validated, visitors converted by assignment.
+        group.MapPost("/assign-plan", async (
+            [FromForm] Guid personId, [FromForm] Guid? planId, GymStation.Infrastructure.People.PersonService people) =>
         {
-            var person = await db.Persons.SingleOrDefaultAsync(p => p.Id == personId);
-            if (person is null)
+            try
             {
-                return Results.Redirect("/admin/roster");
+                await people.AssignPlanAsync(personId, planId);
+                return Results.Redirect($"/admin/people/{personId}");
             }
-
-            if (planId is { } id && !await db.MembershipPlans.AnyAsync(pl => pl.Id == id && !pl.Archived))
+            catch (InvalidOperationException)
             {
                 return Results.Redirect($"/admin/people/{personId}?failed=1");
             }
-
-            person.MembershipPlanId = planId;
-            await db.SaveChangesAsync();
-            return Results.Redirect($"/admin/people/{personId}");
         });
 
         return app;

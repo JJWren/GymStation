@@ -4,11 +4,10 @@ namespace GymStation.Domain.Money;
 
 public enum PlanCadence
 {
-    /// <summary>Raises a Charge on the 1st of each month for every Person on the plan.</summary>
+    /// <summary>Raises a Charge on the 1st of each month for every Person on the plan.
+    /// The only cadence — drop-ins are ad-hoc charges, never a plan (#196 removed
+    /// the dead PerVisit value; every stored row is Monthly).</summary>
     Monthly = 0,
-
-    /// <summary>No automatic cycle — charges are raised ad hoc (drop-ins).</summary>
-    PerVisit = 1,
 }
 
 /// <summary>Who a plan covers: one Person, or a whole Family in one charge (#91).</summary>

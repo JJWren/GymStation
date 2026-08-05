@@ -160,6 +160,34 @@ public class PersonService(GymStationDbContext db)
         await db.SaveChangesAsync(ct);
     }
 
+    /// <summary>
+    /// Assigns (or clears) a Person's individual plan (#196) — the long-missing
+    /// mirror of SetFamilyPlanAsync's guard: only unarchived PER-PERSON plans
+    /// attach here (a family-scope plan on a person would bill its flat base and
+    /// ignore #181 sizing). Assigning a real plan CONVERTS a visitor — the
+    /// documented conversion moment; clearing a plan never re-flags.
+    /// </summary>
+    public async Task AssignPlanAsync(Guid personId, Guid? planId, CancellationToken ct = default)
+    {
+        var person = await db.Persons.SingleOrDefaultAsync(p => p.Id == personId, ct)
+            ?? throw new InvalidOperationException("Person not found in the active gym.");
+
+        if (planId is { } id)
+        {
+            var plan = await db.MembershipPlans.SingleOrDefaultAsync(pl => pl.Id == id && !pl.Archived, ct)
+                ?? throw new InvalidOperationException("Plan not found in the active gym.");
+            if (plan.Scope != Domain.Money.PlanScope.PerPerson)
+            {
+                throw new InvalidOperationException("Family plans attach to a FAMILY, not a person — set it on their family page.");
+            }
+
+            person.Visitor = false;
+        }
+
+        person.MembershipPlanId = planId;
+        await db.SaveChangesAsync(ct);
+    }
+
     /// <summary>Quick-add from the live roll: a walk-in with a name and nothing else.</summary>
     public async Task<Person> AddVisitorAsync(string firstName, string lastName, CancellationToken ct = default)
     {
