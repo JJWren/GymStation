@@ -129,7 +129,7 @@ else
                         @if (_dormantFamilyPlan is { } dormantPlan)
                         {
                             @* #197: archived pointer = DORMANT, not unassigned. *@
-                            <option value="@dormantPlan.Id" selected disabled>DORMANT — @dormantPlan.Name (ARCHIVED, RAISES NOTHING)</option>
+                            <option value="@dormantPlan.Id" selected disabled>DORMANT — @dormantPlan.Name (@(dormantPlan.Archived ? "ARCHIVED" : "WRONG SCOPE"), RAISES NOTHING)</option>
                         }
                         @foreach (var plan in _familyPlans)
                         {
@@ -152,7 +152,7 @@ else
                 @if (_dormantFamilyPlan is not null)
                 {
                     <p class="cap" style="margin-top:0.375rem">
-                        PLAN DORMANT — THE POINTED PLAN IS ARCHIVED AND RAISES NOTHING. MEMBERS' PERSONAL PLANS RESUME BILLING WHILE THIS SITS DORMANT.
+                        PLAN DORMANT — THE POINTED PLAN @(_dormantFamilyPlan!.Archived ? "IS ARCHIVED" : "HAS THE WRONG SCOPE") AND RAISES NOTHING. MEMBERS' PERSONAL PLANS RESUME BILLING WHILE THIS SITS DORMANT.
                     </p>
                 }
                 @if (_familyPlans.Count == 0)

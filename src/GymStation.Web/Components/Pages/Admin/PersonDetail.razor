@@ -239,7 +239,7 @@ else
                         {
                             @* #197: an archived pointer is DORMANT, not gone — say so
                                instead of masquerading as "— no plan —". *@
-                            <option value="@dormant.Id" selected disabled>DORMANT — @dormant.Name (ARCHIVED, RAISES NOTHING)</option>
+                            <option value="@dormant.Id" selected disabled>DORMANT — @dormant.Name (@(dormant.Archived ? "ARCHIVED" : "WRONG SCOPE"), RAISES NOTHING)</option>
                         }
                         @foreach (var plan in _plans)
                         {
