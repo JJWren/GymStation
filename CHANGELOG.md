@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.13.0](https://github.com/JJWren/GymStation/compare/v1.12.0...v1.13.0) (2026-08-05)
+
+
+### Features
+
+* member dues ledger and honest family balance ([#204](https://github.com/JJWren/GymStation/issues/204)) ([54c779c](https://github.com/JJWren/GymStation/commit/54c779cb49f5537983558f268a320344e715ea95))
+* ward dues notify the family's billing eyes ([#203](https://github.com/JJWren/GymStation/issues/203)) ([725da70](https://github.com/JJWren/GymStation/commit/725da7043071307394af75bae15b1f67984ff625))
+
+
+### Bug Fixes
+
+* person-side plan-assignment guards ([#200](https://github.com/JJWren/GymStation/issues/200)) ([9fb58a4](https://github.com/JJWren/GymStation/commit/9fb58a4ea32d9c537225213890557f839816bed3))
+* plan-association states become visible ([#202](https://github.com/JJWren/GymStation/issues/202)) ([4cc5099](https://github.com/JJWren/GymStation/commit/4cc5099ba645a6e5afd233410daf5297f501cf8d))
+
 ## [1.12.0](https://github.com/JJWren/GymStation/compare/v1.11.0...v1.12.0) (2026-08-05)
 
 
