@@ -19,9 +19,12 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
         var cycleKey = $"{cycleMonth:yyyy-MM}";
         var raisedOn = new DateOnly(cycleMonth.Year, cycleMonth.Month, 1);
 
+        // Per-person scope only (#197): a family-scope plan on a Person is a
+        // legacy mis-assignment (#196 guards the door now) — billing its flat
+        // base here would ignore #181 sizing, so the cycle refuses it outright.
         var planned = await db.Persons
             .Where(p => !p.Archived && p.MembershipPlanId != null)
-            .Join(db.MembershipPlans.Where(pl => !pl.Archived && pl.Cadence == PlanCadence.Monthly),
+            .Join(db.MembershipPlans.Where(pl => !pl.Archived && pl.Cadence == PlanCadence.Monthly && pl.Scope == PlanScope.PerPerson),
                 p => p.MembershipPlanId, pl => pl.Id, (p, pl) => new { Person = p, Plan = pl })
             .ToListAsync(ct);
 

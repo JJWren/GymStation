@@ -253,6 +253,28 @@ public class LedgerTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task PersonHeldFamilyScopePlan_NeverBillsIndividually()
+    {
+        var (tenant, _, unplanned, _) = await SeedAsync();
+
+        await using var context = fixture.CreateContext(tenant);
+        // A legacy mis-assignment (#196 guards the door now): the pointer is set
+        // directly, the way pre-guard data could hold it.
+        var familyScope = new MembershipPlan { Id = Guid.NewGuid(), Name = "Family Misfit", Price = 150m, Scope = PlanScope.Family };
+        context.MembershipPlans.Add(familyScope);
+        var person = await context.Persons.SingleAsync(p => p.Id == unplanned.Id);
+        person.MembershipPlanId = familyScope.Id;
+        await context.SaveChangesAsync();
+
+        var ledger = new LedgerService(context, new NotificationService(context));
+        await ledger.RaiseMonthlyChargesAsync(new DateOnly(2026, 8, 1));
+
+        // The individual cycle refuses family-scope outright (#197) — no flat-base
+        // charge, no sizing bypass.
+        Assert.Empty(await context.Charges.Where(c => c.PersonId == unplanned.Id).ToListAsync());
+    }
+
+    [Fact]
     public async Task SizedFamilyPlan_ChargesByComposition_AndStampsTheBreakdown()
     {
         var (tenant, planned, _, _) = await SeedAsync();
