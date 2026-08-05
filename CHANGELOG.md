@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.12.0](https://github.com/JJWren/GymStation/compare/v1.11.0...v1.12.0) (2026-08-05)
+
+
+### Features
+
+* guardian-to-roster linking with visible status ([#194](https://github.com/JJWren/GymStation/issues/194)) ([890026b](https://github.com/JJWren/GymStation/commit/890026bbfbf0f184e0cd8964608059389e23b0d8))
+
+
+### Bug Fixes
+
+* slug-qualify public section anchors ([#192](https://github.com/JJWren/GymStation/issues/192)) ([f24e36e](https://github.com/JJWren/GymStation/commit/f24e36edf3f861f13fa5dd8b0c67f1604ecb3152))
+
 ## [1.11.0](https://github.com/JJWren/GymStation/compare/v1.10.0...v1.11.0) (2026-08-04)
 
 
