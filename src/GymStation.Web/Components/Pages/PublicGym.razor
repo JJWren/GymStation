@@ -48,7 +48,9 @@ else
                             <text> · </text>
                         }
                         var anchorKey = _visibleSections[i];
-                        <a href="#@anchorKey">@LabelFor(anchorKey)</a>
+                        @* Slug-qualified (#190): <base href="/"> resolves bare fragments
+                           against the ROOT, turning a scroll into a real navigation to /. *@
+                        <a href="/@_gym.Slug#@anchorKey">@LabelFor(anchorKey)</a>
                     }
                 </p>
                 @if (_signedInEmail is { } email)

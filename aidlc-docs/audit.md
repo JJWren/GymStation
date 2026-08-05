@@ -264,3 +264,12 @@ For a family plan, there should be a standard flate rate with an optional increa
 **Context**: Round-4.2 complete — duplication matrix (copy glyph, template duplication, promote-to-template, StartDate bound), family-size pricing, notification filters + badges all live at v1.11.0
 
 ---
+
+## Round-4.3: v1.11.0 live-usage finds — public anchors + guardian↔Person gap
+**Timestamp**: 2026-08-05T02:40:00Z
+**User Input**: "- when signed in as the owner, clicking on the instructors link below the gym name on the landing page takes me to the admin port at /#instructors
+- when trying to create a parent for leo park (currently a ward, but no training parent), I used the same email as shows for the guardian for leo and made jin park with email jin.park@ironworks-bjj.demo. I added jin to the family, but it adds her as ward instead of primary guardian (same email... so how do we connect this or how should we make this connection?)"
+**AI Response**: Diagnosed and planned as round 4.3 (issues #190, #191; three decisions). #190: the strip-nav anchors render bare fragments and Blazor's `<base href="/">` resolves them against the root — a real navigation to `/`, the admin Today screen for Owners; fix = slug-qualify the loop's href, the same form every other section anchor in the file already uses. #191: the guardian↔Person connection is invisible and create-time-only — the roster form's "Link login by email" is the sole linking path, ADD MEMBER pre-checks WARD (now a billing error under kid=ward pricing), and no unlink exists despite the #87 error naming one. Decisions: D1 both surfaces (guardian rows show their roster Person or NO ROSTER PERSON + inline LINK; PersonDetail gains link-by-email + UNLINK), D2 the family-page link carries a pre-checked ALSO ADD AS ADULT MEMBER (one-stroke training-parent setup, covered-primary doctrine), D3 the ward checkbox default flips to unchecked with consequences in the label (WARD — GUARDIANS ACT FOR THEM · BILLS AS KID). No migrations; ships as v1.12.0.
+**Context**: Round-4.3 inception — plan approved; issues #190–#191 filed; construction loop begins
+
+---
