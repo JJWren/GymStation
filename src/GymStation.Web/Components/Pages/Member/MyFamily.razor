@@ -91,13 +91,20 @@
                             <text> · WARD</text>
                         }
                     </span>
-                    @if (member.Membership.IsWard && view.MyGuardian.ActForWards)
-                    {
-                        <span class="row-form" style="margin:0">
+                    <span class="row-form" style="margin:0">
+                        @* #198: per-member dues, billing eyes only — the ward-dues
+                           blind spot (a member's individual plan bills even when the
+                           family card shows nothing). *@
+                        @if (view.MemberBalances is { } balances && balances.TryGetValue(member.Person.Id, out var owed))
+                        {
+                            <span class="stamp @(owed > 0 ? "stamp--bad" : "stamp--ok")">@(owed > 0 ? $"DUE ${owed:N0}" : "PAID UP")</span>
+                        }
+                        @if (member.Membership.IsWard && view.MyGuardian.ActForWards)
+                        {
                             <a class="btn btn--ghost btn--xs" href="/diary/child/@member.Person.Id">DIARY</a>
                             <a class="btn btn--ghost btn--xs" href="/progress/child/@member.Person.Id">PROGRESS</a>
-                        </span>
-                    }
+                        }
+                    </span>
                 </div>
             }
 
@@ -234,7 +241,8 @@
         List<(FamilyMember Membership, Person Person)> Members,
         List<(FamilyGuardian Row, string Email)> Guardians,
         BillingView? Billing,
-        List<Person> AdultAgedWards);
+        List<Person> AdultAgedWards,
+        Dictionary<Guid, decimal>? MemberBalances);
 
     private List<FamilyView> _families = [];
     private List<(string Key, string Label, bool HasLogin)> _graduatable = [];
@@ -343,13 +351,22 @@
                     .Select(x => ($"{f.Id}:{x.Person.Id}", $"{x.Person.DisplayName} — {f.Name}", x.Person.UserId is not null)));
             }
 
+            // #198: per-member balances load only for billing eyes — batched,
+            // never N+1 (review round 1).
+            Dictionary<Guid, decimal>? memberBalances = null;
+            if (mine.IsPrimary || mine.ViewBilling)
+            {
+                memberBalances = await Ledger.BalancesForAsync(members.Select(x => x.Person.Id).ToList());
+            }
+
             _families.Add(new FamilyView(f, mine, members,
                 f.Guardians
                     .OrderByDescending(g => g.IsPrimary)
                     .Select(g => (g, emails.GetValueOrDefault(g.GuardianUserId, "unknown")))
                     .ToList(),
                 billing,
-                adultAged));
+                adultAged,
+                memberBalances));
         }
     }
 }

@@ -47,11 +47,33 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
                 .ToListAsync(ct))
             .ToHashSet();
 
+        // The set that will actually raise — filtered once, used for both the
+        // notification prefetch and the charge loop (review: don't prefetch for
+        // rows the cycle is about to skip).
+        var toRaise = planned
+            .Where(x => !alreadyCharged.Contains(x.Person.Id)
+                && !familyCoveredPersonIds.Contains(x.Person.Id) && x.Plan.Price > 0)
+            .ToList();
+
+        // #198: ward and login-less charges route to the family's billing eyes
+        // (primary + VIEW BILLING) — the member either can't be told (no login)
+        // or shouldn't carry it (wards don't pay). Batch the lookups up front.
+        var raisingIds = toRaise.Select(x => x.Person.Id).ToList();
+        var membershipByPerson = await db.FamilyMembers
+            .Where(m => raisingIds.Contains(m.PersonId))
+            .ToDictionaryAsync(m => m.PersonId, ct);
+        var notifyFamilyIds = membershipByPerson.Values.Select(m => m.FamilyId).Distinct().ToList();
+        var billingGuardiansByFamily = (await db.FamilyGuardians
+                .Where(g => notifyFamilyIds.Contains(g.FamilyId) && (g.IsPrimary || g.ViewBilling))
+                .ToListAsync(ct))
+            .GroupBy(g => g.FamilyId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.GuardianUserId).Distinct().ToList());
+
         var raised = 0;
 
-        // Zero-price plans are comped (instructors, staff) — no charges, no notifications.
-        foreach (var row in planned.Where(x => !alreadyCharged.Contains(x.Person.Id)
-            && !familyCoveredPersonIds.Contains(x.Person.Id) && x.Plan.Price > 0))
+        // Zero-price plans are comped (instructors, staff) — no charges, no
+        // notifications (already excluded from toRaise).
+        foreach (var row in toRaise)
         {
             db.Charges.Add(new Charge
             {
@@ -63,7 +85,24 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
                 CycleKey = cycleKey,
             });
 
-            if (row.Person.UserId is { } userId)
+            var membership = membershipByPerson.GetValueOrDefault(row.Person.Id);
+            if (membership is not null && (membership.IsWard || row.Person.UserId is null))
+            {
+                // Ward or login-less family member: the billing eyes hear it,
+                // named per member. A family-less login-less person stays silent
+                // (nobody exists to tell — the staff dues page is the backstop).
+                if (billingGuardiansByFamily.TryGetValue(membership.FamilyId, out var guardianUserIds))
+                {
+                    notifications.Notify(
+                        guardianUserIds,
+                        NotificationCategory.ChargeRaised,
+                        $"Dues raised: {row.Person.DisplayName} · {row.Plan.Name} · {cycleKey}",
+                        $"{row.Person.DisplayName}'s {row.Plan.Name} dues of {row.Plan.Price:C} for {cycleMonth:MMMM yyyy} were raised. Pay however your gym collects — the ledger updates when staff record it.",
+                        "/family",
+                        email: false);
+                }
+            }
+            else if (row.Person.UserId is { } userId)
             {
                 notifications.Notify(
                     [userId],
@@ -229,6 +268,23 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
         var charges = await db.Charges.Where(c => c.PersonId == personId).ToListAsync(ct);
         var payments = await db.Payments.Where(p => p.PersonId == personId).ToListAsync(ct);
         return LedgerMath.Arrears(charges, payments);
+    }
+
+    /// <summary>Batched balances (#198): one charges query + one payments query
+    /// for the whole id set — the per-member chips on a family page must not
+    /// N+1 their way through the ledger.</summary>
+    public async Task<Dictionary<Guid, decimal>> BalancesForAsync(IReadOnlyList<Guid> personIds, CancellationToken ct = default)
+    {
+        var charges = await db.Charges.Where(c => personIds.Contains(c.PersonId)).ToListAsync(ct);
+        var payments = await db.Payments.Where(p => personIds.Contains(p.PersonId)).ToListAsync(ct);
+        var chargesByPerson = charges.GroupBy(c => c.PersonId).ToDictionary(g => g.Key, g => g.ToList());
+        var paymentsByPerson = payments.GroupBy(p => p.PersonId).ToDictionary(g => g.Key, g => g.ToList());
+
+        return personIds.Distinct().ToDictionary(
+            id => id,
+            id => LedgerMath.Balance(
+                chargesByPerson.GetValueOrDefault(id) ?? [],
+                paymentsByPerson.GetValueOrDefault(id) ?? []));
     }
 
     /// <summary>Members behind on dues, oldest arrears first.</summary>
