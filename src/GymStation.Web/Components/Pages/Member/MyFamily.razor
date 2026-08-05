@@ -351,15 +351,12 @@
                     .Select(x => ($"{f.Id}:{x.Person.Id}", $"{x.Person.DisplayName} — {f.Name}", x.Person.UserId is not null)));
             }
 
-            // #198: per-member balances load only for billing eyes.
+            // #198: per-member balances load only for billing eyes — batched,
+            // never N+1 (review round 1).
             Dictionary<Guid, decimal>? memberBalances = null;
             if (mine.IsPrimary || mine.ViewBilling)
             {
-                memberBalances = [];
-                foreach (var (_, person) in members)
-                {
-                    memberBalances[person.Id] = (await Ledger.ArrearsForAsync(person.Id)).Balance;
-                }
+                memberBalances = await Ledger.BalancesForAsync(members.Select(x => x.Person.Id).ToList());
             }
 
             _families.Add(new FamilyView(f, mine, members,

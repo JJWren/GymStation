@@ -47,12 +47,20 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
                 .ToListAsync(ct))
             .ToHashSet();
 
+        // The set that will actually raise — filtered once, used for both the
+        // notification prefetch and the charge loop (review: don't prefetch for
+        // rows the cycle is about to skip).
+        var toRaise = planned
+            .Where(x => !alreadyCharged.Contains(x.Person.Id)
+                && !familyCoveredPersonIds.Contains(x.Person.Id) && x.Plan.Price > 0)
+            .ToList();
+
         // #198: ward and login-less charges route to the family's billing eyes
         // (primary + VIEW BILLING) — the member either can't be told (no login)
         // or shouldn't carry it (wards don't pay). Batch the lookups up front.
-        var plannedIds = planned.Select(x => x.Person.Id).ToList();
+        var raisingIds = toRaise.Select(x => x.Person.Id).ToList();
         var membershipByPerson = await db.FamilyMembers
-            .Where(m => plannedIds.Contains(m.PersonId))
+            .Where(m => raisingIds.Contains(m.PersonId))
             .ToDictionaryAsync(m => m.PersonId, ct);
         var notifyFamilyIds = membershipByPerson.Values.Select(m => m.FamilyId).Distinct().ToList();
         var billingGuardiansByFamily = (await db.FamilyGuardians
@@ -63,9 +71,9 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
 
         var raised = 0;
 
-        // Zero-price plans are comped (instructors, staff) — no charges, no notifications.
-        foreach (var row in planned.Where(x => !alreadyCharged.Contains(x.Person.Id)
-            && !familyCoveredPersonIds.Contains(x.Person.Id) && x.Plan.Price > 0))
+        // Zero-price plans are comped (instructors, staff) — no charges, no
+        // notifications (already excluded from toRaise).
+        foreach (var row in toRaise)
         {
             db.Charges.Add(new Charge
             {
@@ -260,6 +268,23 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
         var charges = await db.Charges.Where(c => c.PersonId == personId).ToListAsync(ct);
         var payments = await db.Payments.Where(p => p.PersonId == personId).ToListAsync(ct);
         return LedgerMath.Arrears(charges, payments);
+    }
+
+    /// <summary>Batched balances (#198): one charges query + one payments query
+    /// for the whole id set — the per-member chips on a family page must not
+    /// N+1 their way through the ledger.</summary>
+    public async Task<Dictionary<Guid, decimal>> BalancesForAsync(IReadOnlyList<Guid> personIds, CancellationToken ct = default)
+    {
+        var charges = await db.Charges.Where(c => personIds.Contains(c.PersonId)).ToListAsync(ct);
+        var payments = await db.Payments.Where(p => personIds.Contains(p.PersonId)).ToListAsync(ct);
+        var chargesByPerson = charges.GroupBy(c => c.PersonId).ToDictionary(g => g.Key, g => g.ToList());
+        var paymentsByPerson = payments.GroupBy(p => p.PersonId).ToDictionary(g => g.Key, g => g.ToList());
+
+        return personIds.Distinct().ToDictionary(
+            id => id,
+            id => LedgerMath.Balance(
+                chargesByPerson.GetValueOrDefault(id) ?? [],
+                paymentsByPerson.GetValueOrDefault(id) ?? []));
     }
 
     /// <summary>Members behind on dues, oldest arrears first.</summary>
