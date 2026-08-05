@@ -118,6 +118,48 @@ public class PersonService(GymStationDbContext db)
         await db.SaveChangesAsync(ct);
     }
 
+    /// <summary>
+    /// Post-hoc login link (#191) — the create-time-only "Link login by email"
+    /// finally gets an editing life. The caller resolves the email to a User id
+    /// (logins are global; UserManager lives at the edge).
+    /// </summary>
+    public async Task LinkLoginAsync(Guid personId, Guid userId, CancellationToken ct = default)
+    {
+        var person = await db.Persons.SingleOrDefaultAsync(p => p.Id == personId && !p.Archived, ct)
+            ?? throw new InvalidOperationException("Person not found in the active gym.");
+
+        if (person.UserId is not null)
+        {
+            throw new InvalidOperationException("That person already holds a login — unlink it first.");
+        }
+
+        if (person.Roles == PersonRoles.Staff)
+        {
+            throw new InvalidOperationException("Staff-only can't hold a login — the Staff role grants no portal. Add another role first.");
+        }
+
+        // #92 wording, same (GymId, UserId) space as graduation's taken-email guard.
+        if (await db.Persons.AnyAsync(p => p.UserId == userId, ct))
+        {
+            throw new InvalidOperationException("That email already belongs to another member of this gym — use a different one.");
+        }
+
+        person.UserId = userId;
+        await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>Clears the link (#191). The User keeps its account and any
+    /// guardianship — but a primary guardian's family billing skips until a
+    /// roster Person is linked again.</summary>
+    public async Task UnlinkLoginAsync(Guid personId, CancellationToken ct = default)
+    {
+        var person = await db.Persons.SingleOrDefaultAsync(p => p.Id == personId, ct)
+            ?? throw new InvalidOperationException("Person not found in the active gym.");
+
+        person.UserId = null;
+        await db.SaveChangesAsync(ct);
+    }
+
     /// <summary>Quick-add from the live roll: a walk-in with a name and nothing else.</summary>
     public async Task<Person> AddVisitorAsync(string firstName, string lastName, CancellationToken ct = default)
     {

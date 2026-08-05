@@ -64,6 +64,23 @@ public static class FamilyActionEndpoints
                 FamilyActor.Staff, familyId, user.Id, actForWards, manageGuardians, manageMembers, viewBilling));
         });
 
+        // #191: connect a guardian login to a roster Person — with an optional
+        // one-stroke adult membership so the training parent is set up whole.
+        group.MapPost("/link-guardian-person", async (
+            [FromForm] Guid familyId, [FromForm] Guid guardianId, [FromForm] Guid personId,
+            FamilyService families, [FromForm] bool alsoAdd = false) =>
+        {
+            try
+            {
+                await families.LinkGuardianPersonAsync(FamilyActor.Staff, familyId, guardianId, personId, alsoAdd);
+                return Results.Redirect($"/admin/families/{familyId}");
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Redirect($"/admin/families/{familyId}?linkfailed=1");
+            }
+        });
+
         group.MapPost("/set-flags", async (
             [FromForm] Guid familyId, [FromForm] Guid guardianId, FamilyService families,
             [FromForm] bool actForWards = false, [FromForm] bool manageGuardians = false,

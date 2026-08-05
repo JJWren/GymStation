@@ -40,6 +40,11 @@ else
         <p class="auth-error" role="alert">That change was rejected — check the values and try again.</p>
     }
 
+    @if (LinkFailed == 1)
+    {
+        <p class="auth-error" role="alert">Link refused — the person must hold no login and no other family, the guardian must have no roster record here yet, and Staff-only records hold no portal.</p>
+    }
+
     @foreach (var adultWard in _adultAgedWards)
     {
         <p class="auth-error" role="status">
@@ -103,7 +108,9 @@ else
                         <option value="@person.Id">@person.DisplayName</option>
                     }
                 </select>
-                <label class="cap" style="margin:0"><input type="checkbox" name="isWard" value="true" checked /> WARD</label>
+                @* #191: wardship is deliberate opt-in — mis-flagging an adult grants
+                   guardians acting powers AND bills them as a kid (#181). *@
+                <label class="cap" style="margin:0"><input type="checkbox" name="isWard" value="true" /> WARD — GUARDIANS ACT FOR THEM · BILLS AS KID</label>
                 <button class="btn btn--icon btn--save btn--xs" type="submit" aria-label="Add family member" title="Add family member"><Glyph Name="save" /></button>
             </form>
             <p class="cap">ONE FAMILY PER PERSON — ONLY PEOPLE WITHOUT A FAMILY ARE LISTED.</p>
@@ -179,6 +186,32 @@ else
                             <span class="stamp stamp--ok">PRIMARY</span>
                         }
                     </div>
+                    @* #191: the guardian↔roster connection, finally visible. *@
+                    @if (guardian.RosterPerson is { } rosterPerson)
+                    {
+                        <p class="cap" style="margin:0.375rem 0 0">ROSTER: <a href="/admin/people/@rosterPerson.Id">@rosterPerson.DisplayName.ToUpperInvariant()</a></p>
+                    }
+                    else
+                    {
+                        <p class="cap" style="margin:0.375rem 0 0">NO ROSTER PERSON — FAMILY BILLING SKIPS A PRIMARY WITHOUT ONE.</p>
+                        @if (_linkablePersons.Count > 0)
+                        {
+                            <form method="post" action="/admin/family-actions/link-guardian-person" class="row-form" style="margin-top:0.375rem">
+                                <AntiforgeryToken />
+                                <input type="hidden" name="familyId" value="@FamilyId" />
+                                <input type="hidden" name="guardianId" value="@guardian.Row.Id" />
+                                <select name="personId" aria-label="Roster person to link to this guardian">
+                                    @foreach (var person in _linkablePersons)
+                                    {
+                                        <option value="@person.Id">@person.DisplayName</option>
+                                    }
+                                </select>
+                                <label class="cap" style="margin:0"><input type="checkbox" name="alsoAdd" value="true" checked /> ALSO ADD AS ADULT MEMBER</label>
+                                <button class="btn btn--ghost btn--xs" type="submit">LINK ROSTER PERSON</button>
+                            </form>
+                            <p class="cap" style="margin:0.375rem 0 0">NEW PERSON INSTEAD? CREATE THEM ON THE ROSTER WITH "LINK LOGIN BY EMAIL".</p>
+                        }
+                    }
                     @if (guardian.Row.IsPrimary)
                     {
                         <p class="cap" style="margin:0.375rem 0 0">HOLDS EVERY PERMISSION — TRANSFER PRIMACY TO CHANGE HANDS.</p>
@@ -237,10 +270,12 @@ else
 @code {
     [Parameter] public Guid FamilyId { get; set; }
     [SupplyParameterFromQuery(Name = "failed")] public int? FailedFlag { get; set; }
+    [SupplyParameterFromQuery(Name = "linkfailed")] public int? LinkFailed { get; set; }
 
     private Family? _family;
     private List<(FamilyMember Membership, Person Person)> _members = [];
-    private List<(FamilyGuardian Row, string Email)> _guardians = [];
+    private List<(FamilyGuardian Row, string Email, Person? RosterPerson)> _guardians = [];
+    private List<Person> _linkablePersons = [];
     private List<Person> _addablePersons = [];
     private List<GymStation.Domain.Money.MembershipPlan> _familyPlans = [];
     private List<Person> _adultAgedWards = [];
@@ -311,7 +346,21 @@ else
         var userIds = guardianRows.Select(g => g.GuardianUserId).ToList();
         var emails = await db.Users.Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, u => u.Email ?? u.UserName ?? "unknown");
-        _guardians = guardianRows.Select(g => (g, emails.GetValueOrDefault(g.GuardianUserId, "unknown"))).ToList();
+        // #191: surface each guardian's roster Person (or its absence) and the
+        // login-less candidates the LINK action can attach.
+        var rosterByUser = await db.Persons
+            .Where(p => p.UserId != null && userIds.Contains(p.UserId.Value))
+            .ToDictionaryAsync(p => p.UserId!.Value);
+        _guardians = guardianRows
+            .Select(g => (g, emails.GetValueOrDefault(g.GuardianUserId, "unknown"), rosterByUser.GetValueOrDefault(g.GuardianUserId)))
+            .ToList();
+        // Only candidates the service will accept: login-less, and in THIS
+        // family or none (cross-family linking lives on PersonDetail).
+        _linkablePersons = await db.Persons
+            .Where(p => !p.Archived && p.UserId == null
+                && !db.FamilyMembers.Any(m => m.PersonId == p.Id && m.FamilyId != FamilyId))
+            .OrderBy(p => p.FirstName).ThenBy(p => p.LastName)
+            .ToListAsync();
 
         _familyPlans = await db.MembershipPlans
             .Where(pl => !pl.Archived && pl.Scope == GymStation.Domain.Money.PlanScope.Family)

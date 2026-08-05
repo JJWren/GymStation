@@ -197,4 +197,38 @@ public class PersonServiceTests(PostgresFixture fixture)
         await service.SetArchivedAsync(member.Id, false);
         Assert.False((await context.Persons.SingleAsync(p => p.Id == member.Id)).Archived);
     }
+
+    [Fact]
+    public async Task LinkLogin_RoundTrips_WithEveryGuard()
+    {
+        var (tenant, _, _) = await SeedAsync();
+        await using var context = fixture.CreateContext(tenant);
+        var service = new PersonService(context);
+
+        var person = new Person { Id = Guid.NewGuid(), FirstName = "Lia", LastName = "Chen", JoinedOn = new DateOnly(2026, 1, 1) };
+        context.Persons.Add(person);
+        await context.SaveChangesAsync();
+
+        var userId = Guid.NewGuid();
+        await service.LinkLoginAsync(person.Id, userId);
+        Assert.Equal(userId, (await context.Persons.SingleAsync(p => p.Id == person.Id)).UserId);
+
+        // Already linked → refuse; unlink → relink round-trips (#191).
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.LinkLoginAsync(person.Id, Guid.NewGuid()));
+        await service.UnlinkLoginAsync(person.Id);
+        Assert.Null((await context.Persons.SingleAsync(p => p.Id == person.Id)).UserId);
+        await service.LinkLoginAsync(person.Id, userId);
+
+        // Same (GymId, UserId) space as graduation's taken-email guard (#92).
+        var second = new Person { Id = Guid.NewGuid(), FirstName = "Rob", LastName = "Chen", JoinedOn = new DateOnly(2026, 1, 1) };
+        context.Persons.Add(second);
+        await context.SaveChangesAsync();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.LinkLoginAsync(second.Id, userId));
+
+        // Staff-only grants no portal (#87 parity).
+        var deskOnly = new Person { Id = Guid.NewGuid(), FirstName = "Pat", LastName = "Desk", Roles = PersonRoles.Staff, JoinedOn = new DateOnly(2026, 1, 1) };
+        context.Persons.Add(deskOnly);
+        await context.SaveChangesAsync();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.LinkLoginAsync(deskOnly.Id, Guid.NewGuid()));
+    }
 }

@@ -191,6 +191,70 @@ public class FamilyService(GymStationDbContext db)
         await db.SaveChangesAsync(ct);
     }
 
+    /// <summary>
+    /// Connects a guardian LOGIN to a roster Person (#191) — the missing half of
+    /// the Sarah-and-Tom shape: a guardian may train too, and the family plan
+    /// bills nothing until the PRIMARY has a roster Person. Optionally adds that
+    /// Person to the family as a billing-only ADULT member in the same stroke
+    /// (covered-primary doctrine, #91): already a member of THIS family is a
+    /// no-op (the goal state holds); a different family refuses.
+    /// </summary>
+    public async Task LinkGuardianPersonAsync(
+        FamilyActor actor, Guid familyId, Guid guardianId, Guid personId, bool alsoAddAsAdultMember,
+        CancellationToken ct = default)
+    {
+        if (!actor.IsStaff)
+        {
+            throw new InvalidOperationException("Only staff link roster records to guardian logins.");
+        }
+
+        _ = await RequireFamilyAsync(familyId, ct);
+        var guardian = await db.FamilyGuardians.SingleOrDefaultAsync(g => g.FamilyId == familyId && g.Id == guardianId, ct)
+            ?? throw new InvalidOperationException("That guardian isn't on this family.");
+
+        var person = await db.Persons.SingleOrDefaultAsync(p => p.Id == personId && !p.Archived, ct)
+            ?? throw new InvalidOperationException("Person not found in the active gym.");
+
+        if (person.UserId is not null)
+        {
+            throw new InvalidOperationException("That person already holds a login — pick a login-less roster record.");
+        }
+
+        // #87 parity: the Staff role grants no portal, so a Staff-only record
+        // must not acquire one through this path either.
+        if (person.Roles == PersonRoles.Staff)
+        {
+            throw new InvalidOperationException("Staff-only can't hold a login — the Staff role grants no portal. Add another role first.");
+        }
+
+        // Friendly pre-check ahead of the (GymId, UserId) unique index: one
+        // roster record per login per gym.
+        if (await db.Persons.AnyAsync(p => p.UserId == guardian.GuardianUserId, ct))
+        {
+            throw new InvalidOperationException("That guardian already has a roster record in this gym.");
+        }
+
+        // This-family-or-none, with or without the membership stroke: linking a
+        // guardian to a person parked in ANOTHER family would tangle two
+        // households' identities. The general cross-family case (a guardian
+        // whose own training home is elsewhere) stays on PersonDetail's
+        // link-by-email, which carries no family context.
+        var membership = await db.FamilyMembers.SingleOrDefaultAsync(m => m.PersonId == personId, ct);
+        if (membership is not null && membership.FamilyId != familyId)
+        {
+            throw new InvalidOperationException("That person already belongs to a family — one family per person.");
+        }
+
+        person.UserId = guardian.GuardianUserId;
+
+        if (alsoAddAsAdultMember && membership is null)
+        {
+            db.FamilyMembers.Add(new FamilyMember { Id = Guid.NewGuid(), FamilyId = familyId, PersonId = personId, IsWard = false });
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
     /// <summary>Assigns (or clears) the family's plan — staff-only structure, like
     /// creation. The plan must be Family-scope and unarchived; the cycle then bills
     /// the primary's Person once per month (#91).</summary>

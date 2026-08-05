@@ -23,6 +23,11 @@ else
         <p class="auth-error" role="alert">That action was rejected — it didn't pass validation. Check the values and try again.</p>
     }
 
+    @if (LinkFailed == 1)
+    {
+        <p class="auth-error" role="alert">Link refused — no login exists for that email, or it already belongs to another member of this gym, or this record can't hold one (Staff-only grants no portal; already-linked records unlink first).</p>
+    }
+
     <header class="patch" style="display:flex;gap:1.125rem;align-items:center">
         <label for="portrait-file" class="media-edit" style="position:relative;z-index:1" title="Click to upload a new portrait">
             <span class="avatar avatar--l" style="display:block" role="img"
@@ -70,6 +75,32 @@ else
                     <text> · ARCHIVED</text>
                 }
             </p>
+            @* #191: post-hoc login link/unlink — create-time-only no more. *@
+            @if (_person.UserId is null)
+            {
+                @if (!_person.Archived)
+                {
+                    <form method="post" action="/admin/actions/link-login" class="row-form" style="margin:0 0 0.625rem">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="personId" value="@PersonId" />
+                        <span class="cap">LINK LOGIN</span>
+                        <input type="email" name="email" placeholder="registered email" aria-label="Link login by email" required style="width:13rem" />
+                        <button class="btn btn--ghost btn--xs" type="submit">LINK</button>
+                    </form>
+                }
+            }
+            else
+            {
+                <div class="row-form" style="margin:0 0 0.625rem">
+                    <span class="cap" style="margin:0">LOGIN: @(_loginEmail?.ToUpperInvariant() ?? "UNKNOWN")</span>
+                    <form method="post" action="/admin/actions/unlink-login" style="margin:0">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="personId" value="@PersonId" />
+                        <button class="btn btn--ghost btn--xs" type="submit"
+                                onclick="return confirm('Unlink this login? The account keeps its access and any guardianship — but if this person is a primary guardian, family billing stops until a roster record is linked again.')">UNLINK</button>
+                    </form>
+                </div>
+            }
             @if (_current is not null)
             {
                 <BeltBar Size="l" BandColorHex="@_current.Rank.BandColorHex" BarColorHex="@_current.Rank.BarColorHex"
@@ -312,6 +343,7 @@ else
     [Parameter] public Guid PersonId { get; set; }
 
     [SupplyParameterFromQuery(Name = "failed")] public int? FailedFlag { get; set; }
+    [SupplyParameterFromQuery(Name = "linkfailed")] public int? LinkFailed { get; set; }
     private bool Failed => FailedFlag == 1;
 
     [CascadingParameter] public HttpContext? HttpContext { get; set; }
@@ -339,6 +371,7 @@ else
     }
 
     private Person? _person;
+    private string? _loginEmail;
     private CurrentRank? _current;
     private List<RankAward> _awards = [];
     private List<RankSystem> _systems = [];
@@ -412,6 +445,10 @@ else
         {
             return;
         }
+
+        _loginEmail = _person.UserId is { } linkedUserId
+            ? await db.Users.Where(u => u.Id == linkedUserId).Select(u => u.Email ?? u.UserName).FirstOrDefaultAsync()
+            : null;
 
         _ageGroup = IbjjfAgeGroup.FromBirthDate(_person.DateOfBirth, Today);
         (_avgPerWeek, _verifiedHours, _weeklyCounts) = await Attendance.StatsAsync(PersonId, Today);
