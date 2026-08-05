@@ -253,6 +253,52 @@ public class LedgerTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task WardAndLoginlessCharges_NotifyBillingGuardiansOnly()
+    {
+        var (tenant, adult, _, plan) = await SeedAsync();
+
+        await using var context = fixture.CreateContext(tenant);
+        var primaryUserId = Guid.NewGuid();
+        var viewBillingUserId = Guid.NewGuid();
+        var flaglessUserId = Guid.NewGuid();
+
+        // Leo's shape: a ward on an individual plan, no login, family has NO family plan.
+        var ward = new Person { Id = Guid.NewGuid(), FirstName = "Leo", LastName = "Park", MembershipPlanId = plan.Id, JoinedOn = new DateOnly(2026, 1, 1) };
+        context.Persons.Add(ward);
+        var family = new Family { Id = Guid.NewGuid(), Name = "PARK FAMILY" };
+        context.Families.Add(family);
+        context.FamilyMembers.Add(new FamilyMember { Id = Guid.NewGuid(), FamilyId = family.Id, PersonId = ward.Id, IsWard = true });
+        context.FamilyGuardians.AddRange(
+            new FamilyGuardian { Id = Guid.NewGuid(), FamilyId = family.Id, GuardianUserId = primaryUserId, IsPrimary = true, ActForWards = true, ViewBilling = true },
+            new FamilyGuardian { Id = Guid.NewGuid(), FamilyId = family.Id, GuardianUserId = viewBillingUserId, ViewBilling = true },
+            new FamilyGuardian { Id = Guid.NewGuid(), FamilyId = family.Id, GuardianUserId = flaglessUserId, ActForWards = true });
+
+        // A family-less, login-less person with a plan: billed, but silent by design.
+        var orphanCharge = new Person { Id = Guid.NewGuid(), FirstName = "No", LastName = "Family", MembershipPlanId = plan.Id, JoinedOn = new DateOnly(2026, 1, 1) };
+        context.Persons.Add(orphanCharge);
+        await context.SaveChangesAsync();
+
+        var ledger = new LedgerService(context, new NotificationService(context));
+        await ledger.RaiseMonthlyChargesAsync(new DateOnly(2026, 8, 1));
+
+        // Ward charge → primary + VIEW BILLING only, named per member.
+        var wardNotices = await context.Notifications.Where(n => n.Title.Contains("Leo Park")).ToListAsync();
+        Assert.Equal(2, wardNotices.Count);
+        Assert.Contains(wardNotices, n => n.RecipientUserId == primaryUserId);
+        Assert.Contains(wardNotices, n => n.RecipientUserId == viewBillingUserId);
+        Assert.DoesNotContain(wardNotices, n => n.RecipientUserId == flaglessUserId);
+
+        // The adult with a login (outside any family) keeps the self-notification.
+        Assert.Single(await context.Notifications
+            .Where(n => n.RecipientUserId == adult.UserId!.Value && n.Title.StartsWith("Dues raised:"))
+            .ToListAsync());
+
+        // Family-less + login-less: charged, but no notification names them.
+        Assert.Single(await context.Charges.Where(c => c.PersonId == orphanCharge.Id).ToListAsync());
+        Assert.Empty(await context.Notifications.Where(n => n.Title.Contains("No Family")).ToListAsync());
+    }
+
+    [Fact]
     public async Task PersonHeldFamilyScopePlan_NeverBillsIndividually()
     {
         var (tenant, _, unplanned, _) = await SeedAsync();

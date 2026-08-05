@@ -47,6 +47,20 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
                 .ToListAsync(ct))
             .ToHashSet();
 
+        // #198: ward and login-less charges route to the family's billing eyes
+        // (primary + VIEW BILLING) — the member either can't be told (no login)
+        // or shouldn't carry it (wards don't pay). Batch the lookups up front.
+        var plannedIds = planned.Select(x => x.Person.Id).ToList();
+        var membershipByPerson = await db.FamilyMembers
+            .Where(m => plannedIds.Contains(m.PersonId))
+            .ToDictionaryAsync(m => m.PersonId, ct);
+        var notifyFamilyIds = membershipByPerson.Values.Select(m => m.FamilyId).Distinct().ToList();
+        var billingGuardiansByFamily = (await db.FamilyGuardians
+                .Where(g => notifyFamilyIds.Contains(g.FamilyId) && (g.IsPrimary || g.ViewBilling))
+                .ToListAsync(ct))
+            .GroupBy(g => g.FamilyId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.GuardianUserId).Distinct().ToList());
+
         var raised = 0;
 
         // Zero-price plans are comped (instructors, staff) — no charges, no notifications.
@@ -63,7 +77,24 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
                 CycleKey = cycleKey,
             });
 
-            if (row.Person.UserId is { } userId)
+            var membership = membershipByPerson.GetValueOrDefault(row.Person.Id);
+            if (membership is not null && (membership.IsWard || row.Person.UserId is null))
+            {
+                // Ward or login-less family member: the billing eyes hear it,
+                // named per member. A family-less login-less person stays silent
+                // (nobody exists to tell — the staff dues page is the backstop).
+                if (billingGuardiansByFamily.TryGetValue(membership.FamilyId, out var guardianUserIds))
+                {
+                    notifications.Notify(
+                        guardianUserIds,
+                        NotificationCategory.ChargeRaised,
+                        $"Dues raised: {row.Person.DisplayName} · {row.Plan.Name} · {cycleKey}",
+                        $"{row.Person.DisplayName}'s {row.Plan.Name} dues of {row.Plan.Price:C} for {cycleMonth:MMMM yyyy} were raised. Pay however your gym collects — the ledger updates when staff record it.",
+                        "/family",
+                        email: false);
+                }
+            }
+            else if (row.Person.UserId is { } userId)
             {
                 notifications.Notify(
                     [userId],
