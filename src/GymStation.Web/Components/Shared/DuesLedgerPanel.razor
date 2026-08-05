@@ -1,0 +1,66 @@
+@using GymStation.Domain.Money
+@inject IDbContextFactory<GymStationDbContext> DbFactory
+
+@* #199: the read-only member ledger — PersonDetail's presentation without any
+   write actions (recording money is staff work; the ledger only ever tracks). *@
+<div class="form-card">
+    @foreach (var line in _lines)
+    {
+        <div class="head-row" style="border-bottom:1px dashed #2c3440;padding:0.3125rem 0;@(line.Voided ? "opacity:.55" : null)">
+            <span class="mono" style="@(line.Voided ? "text-decoration:line-through" : null)">@line.When.ToString("dd MMM yy").ToUpperInvariant() · @line.Label</span>
+            <span class="mono" style="color:@(line.IsCharge ? "var(--ink)" : "var(--ok)");@(line.Voided ? "text-decoration:line-through" : null)">@(line.IsCharge ? "+" : "−")$@line.Amount.ToString("N2")</span>
+        </div>
+    }
+    @if (_lines.Count == 0)
+    {
+        <p class="cap">NOTHING ON THE LEDGER YET.</p>
+    }
+    <div class="head-row" style="padding:0.5rem 0 0.25rem">
+        <span class="cap">BALANCE · DERIVED, NEVER EDITED</span>
+        <span style="display:flex;gap:0.5rem;align-items:center">
+            <span class="stamp @(_balance > 0 ? "stamp--bad" : "stamp--ok")">@(_balance > 0 ? $"DUE ${_balance:N0}" : "PAID UP")</span>
+            <b class="mono" style="color:@(_balance > 0 ? "var(--bad)" : "var(--ink)")">$@_balance.ToString("N2")</b>
+        </span>
+    </div>
+    <p class="cap" style="margin:0.25rem 0 0">GYMSTATION TRACKS MONEY, IT DOES NOT MOVE IT — PAY HOWEVER YOUR GYM COLLECTS; STAFF RECORD IT.</p>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Guid PersonId { get; set; }
+
+    private sealed record Line(DateOnly When, string Label, decimal Amount, bool IsCharge, bool Voided);
+
+    private List<Line> _lines = [];
+    private decimal _balance;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var charges = await db.Charges.Where(c => c.PersonId == PersonId).ToListAsync();
+        var payments = await db.Payments.Where(p => p.PersonId == PersonId).ToListAsync();
+        _balance = LedgerMath.Balance(charges, payments);
+        _lines = charges
+            .Select(c => new Line(c.RaisedOn, "CHARGE · " + c.Description.ToUpperInvariant() + FamilyBreakdownSuffix(c), c.Amount, true, false))
+            .Concat(payments.Select(p => new Line(
+                p.ReceivedOn,
+                p.Voided ? $"PAYMENT · VOID: {p.VoidReason?.ToUpperInvariant()}" : "PAYMENT",
+                p.Amount, false, p.Voided)))
+            .OrderByDescending(l => l.When)
+            .Take(60)
+            .ToList();
+    }
+
+    /// <summary>#181: family charges carry their size breakdown as columns —
+    /// rendered from the stamped facts, never re-derived from today's roster.
+    /// Shared with the staff ledger view.</summary>
+    public static string FamilyBreakdownSuffix(Charge c)
+    {
+        if (c.FamilyAdults is not { } adults || c.FamilyKids is not { } kids)
+        {
+            return "";
+        }
+
+        var extras = c.FamilyExtraAmount is { } extra && extra > 0 ? $" (+${extra:N0} EXTRAS)" : "";
+        return $" · {adults}A+{kids}K{extras}";
+    }
+}

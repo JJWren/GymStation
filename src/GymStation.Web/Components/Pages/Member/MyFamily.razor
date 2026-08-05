@@ -115,13 +115,20 @@
                     <span class="mono">@billing.PlanName · $@billing.Total.ToString("N0")/MO ON @billing.PrimaryName.ToUpperInvariant()</span>
                     @if (billing.Balance > 0)
                     {
-                        <span class="stamp stamp--bad">DUE $@billing.Balance.ToString("N0")</span>
+                        @* #199: the honest label — this is the PRIMARY'S whole balance,
+                           not just the family plan's slice (payments are person-level
+                           and unattributable by design). *@
+                        <span class="stamp stamp--bad">DUE $@billing.Balance.ToString("N0") · PRIMARY'S TOTAL</span>
                     }
                     else
                     {
                         <span class="stamp stamp--ok">PAID UP</span>
                     }
                 </div>
+                <p class="cap" style="margin:0.125rem 0 0">
+                    THE TOTAL INCLUDES ANY PERSONAL DUES ON @billing.PrimaryName.ToUpperInvariant()'S OWN RECORD ·
+                    <a href="@(view.MyGuardian.IsPrimary ? "/dues" : $"/dues/child/{billing.PrimaryPersonId}")">OPEN THE LEDGER</a>
+                </p>
                 @if (billing.Extra > 0)
                 {
                     @* #181: size-priced plan — show the math for today's roster. *@
@@ -233,7 +240,7 @@
 
     private sealed record BillingView(
         string PlanName, decimal Price, decimal Total, decimal Extra, int Adults, int Kids,
-        string PrimaryName, decimal Balance);
+        string PrimaryName, Guid PrimaryPersonId, decimal Balance);
 
     private sealed record FamilyView(
         Family Family,
@@ -327,7 +334,7 @@
                     var adults = f.Members.Count(m => m.Person is { Archived: false } && !m.IsWard);
                     var kids = f.Members.Count(m => m.Person is { Archived: false } && m.IsWard);
                     var (total, extra) = GymStation.Domain.Money.FamilyPlanMath.Compute(plan, adults, kids);
-                    billing = new BillingView(plan.Name, plan.Price, total, extra, adults, kids, primaryPerson.DisplayName, arrears.Balance);
+                    billing = new BillingView(plan.Name, plan.Price, total, extra, adults, kids, primaryPerson.DisplayName, primaryPerson.Id, arrears.Balance);
                 }
             }
 

@@ -1,0 +1,70 @@
+@page "/dues"
+@attribute [Authorize]
+@layout MemberLayout
+@using System.Security.Claims
+@using GymStation.Domain.Money
+@inject IDbContextFactory<GymStationDbContext> DbFactory
+
+<PageTitle>Dues · GymStation</PageTitle>
+
+<main class="member-shell" style="padding-top:0.375rem">
+    <h1 class="page-title" style="font-size:1.25rem">DUES</h1>
+    @if (_me is null)
+    {
+        <p class="cap" style="margin-top:0.625rem">
+            NO ROSTER RECORD ON THIS ACCOUNT — A GUARDIAN-ONLY LOGIN HAS NO LEDGER OF ITS OWN.
+            YOUR PEOPLE'S DUES LIVE ON <a href="/family">MY FAMILY</a>.
+        </p>
+    }
+    else
+    {
+        @if (_planName is not null)
+        {
+            <p class="cap" style="margin:0.25rem 0 0">PLAN: @_planName.ToUpperInvariant()</p>
+        }
+        @if (_covered)
+        {
+            <p class="cap" style="margin:0.25rem 0 0">COVERED BY YOUR FAMILY'S PLAN — FAMILY DUES BILL THE PRIMARY GUARDIAN'S LEDGER.</p>
+        }
+        <div style="margin-top:0.75rem">
+            <DuesLedgerPanel PersonId="@_me.Id" />
+        </div>
+    }
+</main>
+
+@code {
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+
+    private Person? _me;
+    private string? _planName;
+    private bool _covered;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(raw, out var userId))
+        {
+            return;
+        }
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _me = await db.Persons.SingleOrDefaultAsync(p => p.UserId == userId && !p.Archived);
+        if (_me is null)
+        {
+            return;
+        }
+
+        _planName = _me.MembershipPlanId is { } planId
+            ? await db.MembershipPlans.Where(p => p.Id == planId).Select(p => p.Name).FirstOrDefaultAsync()
+            : null;
+
+        // #197's covered predicate, self-shaped: the family points at an active
+        // family-scope plan, so the individual cycle skips this person.
+        var personId = _me.Id;
+        _covered = await db.FamilyMembers
+            .Where(m => m.PersonId == personId)
+            .Join(db.Families.Where(f => f.MembershipPlanId != null), m => m.FamilyId, f => f.Id, (m, f) => f.MembershipPlanId)
+            .Join(db.MembershipPlans.Where(pl => !pl.Archived && pl.Scope == PlanScope.Family), id => id, pl => pl.Id, (id, pl) => pl.Id)
+            .AnyAsync();
+    }
+}

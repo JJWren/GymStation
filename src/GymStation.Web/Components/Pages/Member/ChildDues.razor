@@ -1,0 +1,53 @@
+@page "/dues/child/{PersonId:guid}"
+@attribute [Authorize]
+@layout MemberLayout
+@using System.Security.Claims
+@inject IDbContextFactory<GymStationDbContext> DbFactory
+@inject GymStation.Infrastructure.People.FamilyService Families
+
+<PageTitle>@(_child?.DisplayName ?? "Dues") · GymStation</PageTitle>
+
+<main class="member-shell" style="padding-top:0.375rem">
+    @if (!_authorized || _child is null)
+    {
+        <h1 class="page-title" style="font-size:1.25rem">DUES</h1>
+        <p class="cap" style="margin-top:0.625rem">THIS ISN'T ONE OF YOUR PEOPLE'S LEDGERS. <a href="/family">BACK TO MY FAMILY</a></p>
+    }
+    else
+    {
+        <p class="cap" style="margin:0 0 0.25rem"><a href="/family">MY FAMILY</a> → @_child.DisplayName.ToUpperInvariant()</p>
+        <h1 class="page-title" style="font-size:1.25rem">@_child.DisplayName.ToUpperInvariant() · DUES</h1>
+        <div style="margin-top:0.75rem">
+            <DuesLedgerPanel PersonId="@_child.Id" />
+        </div>
+    }
+</main>
+
+@code {
+    [Parameter] public Guid PersonId { get; set; }
+
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+
+    private bool _authorized;
+    private Person? _child;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(raw, out var userId))
+        {
+            return;
+        }
+
+        // Billing eyes only (#199): the primary or a VIEW BILLING guardian of the
+        // family this person belongs to — the rule lives in FamilyService.
+        _authorized = await Families.CanViewBillingForAsync(userId, PersonId);
+        if (!_authorized)
+        {
+            return;
+        }
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _child = await db.Persons.SingleOrDefaultAsync(p => p.Id == PersonId);
+    }
+}

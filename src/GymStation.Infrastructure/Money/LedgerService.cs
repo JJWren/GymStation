@@ -98,7 +98,7 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
                         NotificationCategory.ChargeRaised,
                         $"Dues raised: {row.Person.DisplayName} · {row.Plan.Name} · {cycleKey}",
                         $"{row.Person.DisplayName}'s {row.Plan.Name} dues of {row.Plan.Price:C} for {cycleMonth:MMMM yyyy} were raised. Pay however your gym collects — the ledger updates when staff record it.",
-                        "/family",
+                        $"/dues/child/{row.Person.Id}",
                         email: false);
                 }
             }
@@ -109,7 +109,7 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
                     NotificationCategory.ChargeRaised,
                     $"Dues raised: {row.Plan.Name} · {cycleKey}",
                     $"Your {row.Plan.Name} dues of {row.Plan.Price:C} for {cycleMonth:MMMM yyyy} were raised. Pay however your gym collects — the ledger updates when staff record it.",
-                    "/schedule",
+                    "/dues",
                     email: false);
             }
 
@@ -230,7 +230,7 @@ public class LedgerService(GymStationDbContext db, NotificationService notificat
                 NotificationCategory.ChargeRaised,
                 $"Family dues raised: {row.Plan.Name} · {cycleMonth:yyyy-MM}",
                 $"{row.Family.Name}'s {row.Plan.Name} dues of {total:C} for {cycleMonth:MMMM yyyy} were raised on your account. Pay however your gym collects — the ledger updates when staff record it.",
-                "/family",
+                "/dues",
                 email: false);
 
             raised++;

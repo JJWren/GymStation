@@ -259,6 +259,29 @@ public class FamilyServiceTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task CanViewBillingFor_FollowsTheMatrix()
+    {
+        var cast = await SeedAsync();
+        await using var context = fixture.CreateContext(cast.Tenant);
+        var service = new FamilyService(context);
+
+        // Father (primary) and mother? — mother holds ActForWards + ManageGuardians,
+        // NOT ViewBilling; grandparent holds ActForWards only. Kid1 is a ward member.
+        Assert.True(await service.CanViewBillingForAsync(cast.Father, cast.Kid1));
+        Assert.False(await service.CanViewBillingForAsync(cast.Mother, cast.Kid1));
+        Assert.False(await service.CanViewBillingForAsync(cast.Grandparent, cast.Kid1));
+
+        // Adult members are family business too — grant mother ViewBilling and the
+        // ward AND any adult member open up; strangers and non-members never do.
+        await service.SetGuardianFlagsAsync(FamilyActor.Staff, cast.FamilyId, cast.MotherGuardianId,
+            actForWards: true, manageGuardians: true, manageMembers: false, viewBilling: true);
+        Assert.True(await service.CanViewBillingForAsync(cast.Mother, cast.Kid1));
+
+        Assert.False(await service.CanViewBillingForAsync(Guid.NewGuid(), cast.Kid1));
+        Assert.False(await service.CanViewBillingForAsync(cast.Father, cast.AdultUncle)); // uncle isn't a member
+    }
+
+    [Fact]
     public async Task LinkGuardianPerson_OneStroke_LinksAndAddsAdultMember()
     {
         var cast = await SeedAsync();
