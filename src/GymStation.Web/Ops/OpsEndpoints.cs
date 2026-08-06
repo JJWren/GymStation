@@ -162,6 +162,7 @@ public static class OpsEndpoints
             HttpContext http,
             IConfiguration config,
             GymStation.Infrastructure.Seeding.StandardSeeder seeder,
+            GymStationDbContext db,
             UserManager<AppUser> users) =>
         {
             var opsKey = config["Ops:ApiKey"];
@@ -188,6 +189,11 @@ public static class OpsEndpoints
                 return Results.BadRequest(new { error = "slug must be 3–60 chars of [a-z0-9-]; name must be 2–120 chars." });
             }
 
+            // One transaction across seed + password activation: a failure at any
+            // point leaves NO half-seeded tenant behind (review round 1). The
+            // UserManager rides the same scoped context, so its writes enlist.
+            await using var transaction = await db.Database.BeginTransactionAsync();
+
             Guid gymId;
             try
             {
@@ -211,6 +217,7 @@ public static class OpsEndpoints
                 }
             }
 
+            await transaction.CommitAsync();
             return Results.Created($"/{slug}", new { gymId, slug, logins = seededUsers.Count });
         });
 

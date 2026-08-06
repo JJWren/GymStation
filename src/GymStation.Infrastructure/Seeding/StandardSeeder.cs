@@ -99,23 +99,32 @@ public class StandardSeeder(GymStationDbContext db, TenantContext tenant)
         _slug = slug;
         _today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        await SeedGymAsync(name, ct);
-        SeedPlans();
-        SeedTypesAndTemplates();
-        await db.SaveChangesAsync(ct);
+        // The scoped TenantContext is shared with everything else in this
+        // request scope — never leave it pointed at the new gym, even on a
+        // mid-seed failure (review round 1).
+        try
+        {
+            await SeedGymAsync(name, ct);
+            SeedPlans();
+            SeedTypesAndTemplates();
+            await db.SaveChangesAsync(ct);
 
-        await SeedPeopleAndFamiliesAsync(ct);
-        await SeedRanksAsync(ct);
-        await db.SaveChangesAsync(ct);
+            await SeedPeopleAndFamiliesAsync(ct);
+            await SeedRanksAsync(ct);
+            await db.SaveChangesAsync(ct);
 
-        await SeedScheduleHistoryAsync(ct);
-        await db.SaveChangesAsync(ct);
+            await SeedScheduleHistoryAsync(ct);
+            await db.SaveChangesAsync(ct);
 
-        SeedLedger();
-        SeedComms();
-        await db.SaveChangesAsync(ct);
+            SeedLedger();
+            SeedComms();
+            await db.SaveChangesAsync(ct);
+        }
+        finally
+        {
+            tenant.Clear();
+        }
 
-        tenant.Clear();
         return _gym.Id;
     }
 
@@ -895,11 +904,15 @@ public class StandardSeeder(GymStationDbContext db, TenantContext tenant)
 
     private Guid NewUser(string handle)
     {
-        if (!_usedHandles.Add(handle))
+        // Loop until a candidate wins — a single fallback pass could itself
+        // collide (review round 1).
+        var candidate = handle;
+        var suffix = 2;
+        while (!_usedHandles.Add(candidate))
         {
-            handle = $"{handle}{_usedHandles.Count}";
-            _usedHandles.Add(handle);
+            candidate = $"{handle}{suffix++}";
         }
+        handle = candidate;
 
         var id = Guid.NewGuid();
         db.Users.Add(new Identity.AppUser
