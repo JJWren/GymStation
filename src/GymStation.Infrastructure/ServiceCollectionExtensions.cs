@@ -28,6 +28,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Training.TrainingDiaryService>();
         services.AddScoped<Reports.ReportService>();
         services.AddScoped<Seeding.DemoSeeder>();
+        services.AddScoped<Seeding.StandardSeeder>();
         services.AddScoped<Contact.ContactService>();
         services.AddSingleton<Contact.IMxLookup, Contact.DnsMxLookup>();
         services.AddSingleton<IFileStore>(new LocalFileStore(storageRoot));
