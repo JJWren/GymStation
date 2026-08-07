@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.14.0](https://github.com/JJWren/GymStation/compare/v1.13.0...v1.14.0) (2026-08-07)
+
+
+### Features
+
+* standard test seed with migrate-on-start for disposable stacks ([#209](https://github.com/JJWren/GymStation/issues/209)) ([35dfd84](https://github.com/JJWren/GymStation/commit/35dfd844f1e61c1d724975bf108c0b961aa79acd))
+* test-stack reset scripts and compose template ([#211](https://github.com/JJWren/GymStation/issues/211)) ([bc3b10f](https://github.com/JJWren/GymStation/commit/bc3b10f2f3867a35a3e9e3d4854eaf004a1fa8c3))
+
 ## [1.13.0](https://github.com/JJWren/GymStation/compare/v1.12.0...v1.13.0) (2026-08-05)
 
 
