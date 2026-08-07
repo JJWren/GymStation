@@ -62,6 +62,20 @@ try {
     }
     Log "Safety check passed - target is the test stack."
 
+    # The stack rides an EXTERNAL network so companion containers (pgAdmin)
+    # survive resets. Idempotent - and `network ls` exits zero whether or not
+    # the network exists, so a missing network and an unreachable daemon are
+    # cleanly distinguishable (review round 1).
+    $existingNetwork = docker network ls --filter 'name=^gymstation-test-net$' --format '{{.Name}}'
+    if ($LASTEXITCODE -ne 0) {
+        throw "docker network ls failed - is the Docker daemon running?"
+    }
+    if ($existingNetwork -ne 'gymstation-test-net') {
+        Log "Creating external network gymstation-test-net..."
+        $null = docker network create gymstation-test-net
+        if ($LASTEXITCODE -ne 0) { throw "Could not create the gymstation-test-net network." }
+    }
+
     # --- secrets from the stack .env ---
     if (-not (Test-Path $envPath)) { throw "No .env in $StackDir (needs OPS_API_KEY, SEED_PASSWORD, POSTGRES_PASSWORD)." }
     $envVars = @{}

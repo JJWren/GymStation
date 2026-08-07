@@ -54,3 +54,12 @@ services:
 volumes:
   gymstation-test-media:
   gymstation-test-pgdata:
+
+# EXTERNAL network (the reset script creates it if missing): resets tear
+# containers and volumes down, but the network survives - so companion
+# containers (pgAdmin at Z:\docker\pgadmin) stay attached without blocking
+# `compose down -v`.
+networks:
+  default:
+    name: gymstation-test-net
+    external: true
