@@ -25,7 +25,10 @@ services:
       - "8630:8080"
     healthcheck:
       # The runtime image has no curl/wget; bash's /dev/tcp answers once the
-      # app binds (which happens only after MigrateOnStart completes).
+      # app binds (which happens only after MigrateOnStart completes). bash
+      # ships in the Debian-based aspnet base image; if the base ever changes,
+      # this shows unhealthy while the app still serves - purely informational,
+      # the reset script's readiness check is host-side HTTP and never reads it.
       test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/8080' || exit 1"]
       interval: 10s
       timeout: 5s

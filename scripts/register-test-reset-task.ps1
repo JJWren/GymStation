@@ -33,6 +33,9 @@ if (-not (Test-Path $resetScript)) { throw "reset-test-stack.ps1 not found besid
 # The task runs the STACK's copy of the script, not the repo's - the 4 a.m.
 # run must never depend on whatever branch the repo checkout is sitting on.
 # Re-run this registrar to refresh the copy after script changes.
+if (-not (Test-Path $StackDir)) {
+    throw "Stack directory '$StackDir' does not exist - create it (compose.yaml + .env) before registering the reset task. See docs/test-roster.md."
+}
 $deployedScript = Join-Path $StackDir 'reset-test-stack.ps1'
 Copy-Item $resetScript $deployedScript -Force
 
