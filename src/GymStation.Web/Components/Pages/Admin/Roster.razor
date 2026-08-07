@@ -53,14 +53,17 @@
                         <option value="@system.Id" selected="@(SystemFilter == system.Id)">@_labels.GetValueOrDefault(system.Id)?.ToUpperInvariant()</option>
                     }
                 </select>
-                @if (SystemFilter is { } chosenSystem)
+                @* FirstOrDefault, twice over: the first synchronous SSR render
+                   happens BEFORE OnInitializedAsync fills _systems, and a stale
+                   URL can carry an unknown system id — .First() would 500. *@
+                @if (SystemFilter is { } chosenSystem && _systems.FirstOrDefault(s => s.Id == chosenSystem) is { } chosenLadder)
                 {
                     @* The rank facet exists only inside a discipline — ranks are
                        meaningless unscoped. Empty = anyone ranked in it. *@
                     <select name="rank" aria-label="Rank within discipline">
                         <option value="">RANKED — ANY BELT</option>
                         <option value="none" selected="@(RankRaw == "none")">NO BELT IN THIS DISCIPLINE</option>
-                        @foreach (var rank in _systems.First(s => s.Id == chosenSystem).Ranks.OrderBy(r => r.Order))
+                        @foreach (var rank in chosenLadder.Ranks.OrderBy(r => r.Order))
                         {
                             <option value="@rank.Id" selected="@(RankFilter == rank.Id)">@rank.Name</option>
                         }
@@ -315,7 +318,8 @@
 
         // Discipline facet: rank columns and the rank filter both speak the
         // CHOSEN system's current ranks; without one, the primary rank leads.
-        if (SystemFilter is { } chosenSystemId)
+        // An unknown system id (stale URL) is ignored, never an empty page.
+        if (SystemFilter is { } chosenSystemId && _systems.Any(s => s.Id == chosenSystemId))
         {
             var inSystem = await Ranks.GetCurrentRanksInSystemAsync(_people.Select(p => p.Id).ToList(), chosenSystemId);
             _people = RankRaw switch
