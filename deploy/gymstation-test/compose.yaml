@@ -1,4 +1,4 @@
-# GymStation TEST stack — disposable, resettable, nightly-reseeded (round 4.5).
+# GymStation TEST stack - disposable, resettable, nightly-reseeded (round 4.5).
 # Copy this to Z:\docker\gymstation-test\compose.yaml with a sibling .env holding
 # POSTGRES_PASSWORD, OPS_API_KEY, and SEED_PASSWORD (>=10 chars).
 #
@@ -23,6 +23,17 @@ services:
       - gymstation-test-media:/data/media
     ports:
       - "8630:8080"
+    healthcheck:
+      # The runtime image has no curl/wget; bash's /dev/tcp answers once the
+      # app binds (which happens only after MigrateOnStart completes). bash
+      # ships in the Debian-based aspnet base image; if the base ever changes,
+      # this shows unhealthy while the app still serves - purely informational,
+      # the reset script's readiness check is host-side HTTP and never reads it.
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/8080' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 
   gymstation-test-db:
     image: postgres:17-alpine

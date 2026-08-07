@@ -30,12 +30,21 @@ $taskName = 'GymStation test-stack reset'
 $resetScript = Join-Path $PSScriptRoot 'reset-test-stack.ps1'
 if (-not (Test-Path $resetScript)) { throw "reset-test-stack.ps1 not found beside this script." }
 
+# The task runs the STACK's copy of the script, not the repo's - the 4 a.m.
+# run must never depend on whatever branch the repo checkout is sitting on.
+# Re-run this registrar to refresh the copy after script changes.
+if (-not (Test-Path $StackDir)) {
+    throw "Stack directory '$StackDir' does not exist - create it (compose.yaml + .env) before registering the reset task. See docs/test-roster.md."
+}
+$deployedScript = Join-Path $StackDir 'reset-test-stack.ps1'
+Copy-Item $resetScript $deployedScript -Force
+
 # Prefer pwsh (PowerShell 7); fall back to Windows PowerShell.
 $shell = (Get-Command pwsh -ErrorAction SilentlyContinue).Source
 if (-not $shell) { $shell = (Get-Command powershell).Source }
 
 $action = New-ScheduledTaskAction -Execute $shell `
-    -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$resetScript`" -StackDir `"$StackDir`""
+    -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$deployedScript`" -StackDir `"$StackDir`""
 
 $trigger = if ($Cadence -eq 'Weekly') {
     New-ScheduledTaskTrigger -Weekly -DaysOfWeek Sunday -At $At
@@ -48,6 +57,6 @@ $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -DontStopOnIdleEnd 
 Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings `
     -Description 'Resets the GymStation test stack to a fresh standard seed (round 4.5).' -Force | Out-Null
 
-Write-Host "Registered '$taskName' — $Cadence at $At, targeting $StackDir."
+Write-Host "Registered '$taskName' - $Cadence at $At, targeting $StackDir."
 Write-Host "Run on demand: Start-ScheduledTask -TaskName '$taskName'"
 Write-Host "Change cadence in Task Scheduler, or re-run this script with -Cadence/-At."
