@@ -28,6 +28,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Training.TrainingDiaryService>();
         services.AddScoped<Reports.ReportService>();
         services.AddScoped<Seeding.DemoSeeder>();
+        // Transient: the standard seeder carries per-run instance state (name/
+        // handle dedup sets, pools) — a reused instance would leak it across runs.
+        services.AddTransient<Seeding.StandardSeeder>();
         services.AddScoped<Contact.ContactService>();
         services.AddSingleton<Contact.IMxLookup, Contact.DnsMxLookup>();
         services.AddSingleton<IFileStore>(new LocalFileStore(storageRoot));

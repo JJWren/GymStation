@@ -1,5 +1,6 @@
 using GymStation.Infrastructure;
 using GymStation.Infrastructure.Identity;
+using Microsoft.EntityFrameworkCore;
 using GymStation.Web.Admin;
 using GymStation.Web.Auth;
 using GymStation.Web.Components;
@@ -73,6 +74,16 @@ builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHand
 builder.Services.AddCascadingAuthenticationState();
 
 var app = builder.Build();
+
+// TEST STACKS ONLY (round 4.5): the lab migrates by verified SQL script, never
+// at boot — this flag exists so a disposable stack can rebuild itself from an
+// empty database (schema always matches the running image). Default false;
+// only the gymstation-test compose sets it.
+if (app.Configuration.GetValue<bool>("Database:MigrateOnStart"))
+{
+    using var migrationScope = app.Services.CreateScope();
+    await migrationScope.ServiceProvider.GetRequiredService<GymStation.Infrastructure.GymStationDbContext>().Database.MigrateAsync();
+}
 
 if (!app.Environment.IsDevelopment())
 {

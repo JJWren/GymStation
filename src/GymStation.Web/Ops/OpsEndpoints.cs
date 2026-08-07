@@ -4,6 +4,7 @@ using GymStation.Infrastructure;
 using GymStation.Infrastructure.Identity;
 using GymStation.Infrastructure.Tenancy;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace GymStation.Web.Ops;
 
@@ -22,6 +23,9 @@ public record CreateGymRequest(
 /// </summary>
 public static class OpsEndpoints
 {
+    private static readonly System.Text.RegularExpressions.Regex SlugPattern =
+        new("^[a-z0-9-]{3,60}$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
     public static IEndpointRouteBuilder MapOpsEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapPost("/ops/gyms", async (
@@ -153,8 +157,78 @@ public static class OpsEndpoints
             return Results.Created($"/{slug}", new { gymId, slug });
         });
 
+        // Round 4.5: the standard TEST tenant — 300 people, every archetype.
+        // Unlike the pitch demo's five walkthrough logins, EVERY seeded account
+        // gets the password: the whole point is signing in as anyone.
+        app.MapPost("/ops/seed-standard", async (
+            SeedStandardRequest request,
+            HttpContext http,
+            IConfiguration config,
+            GymStation.Infrastructure.Seeding.StandardSeeder seeder,
+            GymStationDbContext db,
+            UserManager<AppUser> users,
+            CancellationToken ct) =>
+        {
+            var opsKey = config["Ops:ApiKey"];
+            if (string.IsNullOrWhiteSpace(opsKey))
+            {
+                return Results.NotFound();
+            }
+
+            if (http.Request.Headers["X-Ops-Key"] != opsKey)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (string.IsNullOrWhiteSpace(request.SeedPassword) || request.SeedPassword.Length < 10)
+            {
+                return Results.BadRequest(new { error = "seedPassword is required (min 10 chars) — it activates every seeded login." });
+            }
+
+            var slug = (request.Slug ?? "testworks").ToLowerInvariant();
+            var name = request.Name ?? "Testworks Combat Club";
+
+            if (!SlugPattern.IsMatch(slug) || name.Length is < 2 or > 120)
+            {
+                return Results.BadRequest(new { error = "slug must be 3–60 chars of [a-z0-9-]; name must be 2–120 chars." });
+            }
+
+            // One transaction across seed + password activation: a failure at any
+            // point leaves NO half-seeded tenant behind (review round 1). The
+            // UserManager rides the same scoped context, so its writes enlist.
+            await using var transaction = await db.Database.BeginTransactionAsync(ct);
+
+            Guid gymId;
+            try
+            {
+                gymId = await seeder.SeedAsync(slug, name, ct);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { error = ex.Message });
+            }
+
+            var suffix = $"@{slug}.demo";
+            var seededUsers = await users.Users
+                .Where(u => u.Email != null && u.Email.EndsWith(suffix))
+                .ToListAsync(ct);
+            foreach (var user in seededUsers)
+            {
+                var added = await users.AddPasswordAsync(user, request.SeedPassword);
+                if (!added.Succeeded)
+                {
+                    return Results.BadRequest(new { error = $"Password rejected for {user.Email}: {string.Join("; ", added.Errors.Select(e => e.Description))}" });
+                }
+            }
+
+            await transaction.CommitAsync(ct);
+            return Results.Created($"/{slug}", new { gymId, slug, logins = seededUsers.Count });
+        });
+
         return app;
     }
 }
 
 public record SeedDemoRequest(string? Slug, string? Name, string DemoPassword);
+
+public record SeedStandardRequest(string? Slug, string? Name, string SeedPassword);
