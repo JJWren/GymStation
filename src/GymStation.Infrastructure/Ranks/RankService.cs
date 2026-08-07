@@ -180,12 +180,40 @@ public class RankService(GymStationDbContext db)
             ?? throw new InvalidOperationException("Rank not found in a ladder visible to this gym.");
         await LoadEditableSystemAsync(rank.RankSystemId, ct);
 
-        if (await db.RankAwards.AnyAsync(a => a.RankId == rankId, ct))
+        // IgnoreQueryFilters: soft-deleted awards still reference the rank (the
+        // FK is Restrict) — a "successful" delete would fail at SaveChanges.
+        // RankId is globally unique, so dropping the tenant filter is exact.
+        if (await db.RankAwards.IgnoreQueryFilters().AnyAsync(a => a.RankId == rankId, ct))
         {
-            throw new InvalidOperationException("That rank has awards on record — history stays. Archive the ladder instead.");
+            throw new InvalidOperationException("That rank has awards on record — history stays. Retire it instead (#220): it leaves pickers, history keeps rendering.");
         }
 
         db.Ranks.Remove(rank);
+        await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>Retire/unretire a rank (#220): held ranks can't be deleted, so
+    /// they leave the pickers instead while every display keeps rendering them.
+    /// Editable (custom, unseeded) ladders only, like every ladder mutation.</summary>
+    public async Task SetRankRetiredAsync(Guid rankId, bool retired, CancellationToken ct = default)
+    {
+        var rank = await db.Ranks.SingleOrDefaultAsync(r => r.Id == rankId, ct)
+            ?? throw new InvalidOperationException("Rank not found in a ladder visible to this gym.");
+        await LoadEditableSystemAsync(rank.RankSystemId, ct);
+
+        rank.Retired = retired;
+        await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>Soft-deletes one award (#220) — a data-entry correction. Current
+    /// rank recomputes from what remains; the row stays as the audit trail.</summary>
+    public async Task DeleteAwardAsync(Guid awardId, Guid? deletedByPersonId, CancellationToken ct = default)
+    {
+        var award = await db.RankAwards.SingleOrDefaultAsync(a => a.Id == awardId, ct)
+            ?? throw new InvalidOperationException("Award not found in the active gym (or already removed).");
+
+        award.DeletedUtc = DateTimeOffset.UtcNow;
+        award.DeletedByPersonId = deletedByPersonId;
         await db.SaveChangesAsync(ct);
     }
 
@@ -363,6 +391,11 @@ public class RankService(GymStationDbContext db)
 
         var rank = await db.Ranks.SingleOrDefaultAsync(r => r.Id == rankId, ct)
             ?? throw new InvalidOperationException("Rank not found in a ladder visible to this gym.");
+
+        if (rank.Retired)
+        {
+            throw new InvalidOperationException($"{rank.Name} is retired — it takes no new awards (existing history stands).");
+        }
 
         if (stripes < 0 || stripes > rank.MaxStripes)
         {

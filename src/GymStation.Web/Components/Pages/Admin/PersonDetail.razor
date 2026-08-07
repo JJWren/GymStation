@@ -178,7 +178,23 @@ else
                                 @(award.SelfReported ? "SELF-REPORTED" : _names.GetValueOrDefault(award.AwardedByPersonId ?? Guid.Empty, "STAFF").ToUpperInvariant())
                             </div>
                         </div>
-                        <span></span>
+                        @if (_viewerCanManageRanks)
+                        {
+                            @* Soft delete (#220): the entry leaves every view and
+                               current rank recomputes; the row stays as audit. *@
+                            <form method="post" action="/admin/actions/delete-award" style="margin:0">
+                                <AntiforgeryToken />
+                                <input type="hidden" name="awardId" value="@award.Id" />
+                                <input type="hidden" name="personId" value="@PersonId" />
+                                <button class="btn btn--icon btn--del btn--xs" type="submit"
+                                        aria-label="Remove this award" title="Remove this award (current rank recomputes)"
+                                        onclick="return confirm('Remove this award from the record? The current rank recomputes from what remains.')"><Glyph Name="trash" /></button>
+                            </form>
+                        }
+                        else
+                        {
+                            <span></span>
+                        }
                     </div>
                 }
             </div>
@@ -191,7 +207,8 @@ else
                     @foreach (var system in _systems)
                     {
                         <optgroup label="@(_labels.GetValueOrDefault(system.Id) == system.Name ? system.Name : $"{_labels.GetValueOrDefault(system.Id)} — {system.Name}")">
-                            @foreach (var rank in system.Ranks)
+                            @* Retired ranks take no NEW awards (#220) — history renders them, pickers don't. *@
+                            @foreach (var rank in system.Ranks.Where(r => !r.Retired))
                             {
                                 <option value="@rank.Id">@rank.Name</option>
                             }
@@ -449,6 +466,7 @@ else
     private Dictionary<Guid, string> _labels = [];
     private List<Guid> _heldSystems = [];
     private bool _viewerIsOwner;
+    private bool _viewerCanManageRanks;
     private HashSet<GymCapability> _grantedCaps = [];
 
     private static string CapabilityLabel(GymCapability capability) => capability switch
@@ -549,6 +567,9 @@ else
             await using var viewerDb = await DbFactory.CreateDbContextAsync();
             var viewer = await viewerDb.Persons.SingleOrDefaultAsync(p => p.UserId == viewerUserId && !p.Archived);
             _viewerIsOwner = viewer?.HasRole(PersonRoles.Owner) == true;
+            // The delete-award button renders only for holders of ManageRanks —
+            // the endpoint's policy is the boundary; this is honest chrome (#220).
+            _viewerCanManageRanks = (await Permissions.GetForUserAsync(viewerUserId)).Contains(GymCapability.ManageRanks);
         }
 
         if (_viewerIsOwner)

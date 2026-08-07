@@ -164,6 +164,70 @@ public class RankLadderTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task DeleteAward_RecomputesCurrentAndKeepsAuditRow()
+    {
+        var tenant = await SeedGymAsync();
+        await using var context = fixture.CreateContext(tenant);
+        var service = new RankService(context);
+
+        var person = new Person { Id = Guid.NewGuid(), FirstName = "Del", LastName = "R", Roles = PersonRoles.Member, JoinedOn = new DateOnly(2024, 1, 1) };
+        var staff = new Person { Id = Guid.NewGuid(), FirstName = "Staff", LastName = "R", Roles = PersonRoles.Admin, JoinedOn = new DateOnly(2020, 1, 1) };
+        context.Persons.AddRange(person, staff);
+        await context.SaveChangesAsync();
+
+        var seeded = await context.RankSystems.FirstAsync(s => s.IsSeeded && s.Name.Contains("Adult"));
+        var white = await context.Ranks.FirstAsync(r => r.RankSystemId == seeded.Id && r.Name == "White");
+        var blue = await context.Ranks.FirstAsync(r => r.RankSystemId == seeded.Id && r.Name == "Blue");
+        await service.RecordAwardAsync(person.Id, white.Id, 0, new DateOnly(2024, 2, 1), null, false, null);
+        var blueAward = await service.RecordAwardAsync(person.Id, blue.Id, 0, new DateOnly(2026, 3, 1), null, false, null);
+
+        // Wrong entry removed: current falls back to the earlier belt...
+        await service.DeleteAwardAsync(blueAward.Id, staff.Id);
+        var current = (await service.GetPrimaryRanksAsync([person.Id]))[person.Id];
+        Assert.Equal(white.Id, current.Rank.Id);
+        Assert.DoesNotContain(await service.GetAwardsForPersonAsync(person.Id), a => a.Id == blueAward.Id);
+
+        // ...the audit row persists (who + when), invisible except past the filter...
+        var audit = await context.RankAwards.IgnoreQueryFilters().SingleAsync(a => a.Id == blueAward.Id);
+        Assert.NotNull(audit.DeletedUtc);
+        Assert.Equal(staff.Id, audit.DeletedByPersonId);
+
+        // ...and a second delete of the same award refuses (already removed).
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.DeleteAwardAsync(blueAward.Id, staff.Id));
+    }
+
+    [Fact]
+    public async Task RetiredRank_LeavesPickersButKeepsHistory()
+    {
+        var tenant = await SeedGymAsync();
+        await using var context = fixture.CreateContext(tenant);
+        var service = new RankService(context);
+
+        var person = new Person { Id = Guid.NewGuid(), FirstName = "Ret", LastName = "R", Roles = PersonRoles.Member, JoinedOn = new DateOnly(2024, 1, 1) };
+        context.Persons.Add(person);
+        await context.SaveChangesAsync();
+
+        var system = await service.CreateSystemAsync("House Ladder");
+        await service.AddRankAsync(system.Id, "Green Sash", "#3E8E5A", "#141416", 0);
+        var sash = await context.Ranks.SingleAsync(r => r.RankSystemId == system.Id);
+        await service.RecordAwardAsync(person.Id, sash.Id, 0, new DateOnly(2026, 1, 5), null, false, null);
+
+        // Held ranks refuse deletion — soft-deleted history counts too — and
+        // retire instead: no NEW awards, history intact.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.RemoveRankAsync(sash.Id));
+        await service.SetRankRetiredAsync(sash.Id, true);
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.RecordAwardAsync(person.Id, sash.Id, 0, new DateOnly(2026, 2, 1), null, false, null));
+        Assert.Single(await service.GetAwardsForPersonAsync(person.Id));
+
+        // Unretire restores awardability; seeded ladders refuse rank retirement.
+        await service.SetRankRetiredAsync(sash.Id, false);
+        await service.RecordAwardAsync(person.Id, sash.Id, 0, new DateOnly(2026, 2, 1), null, false, null);
+        var seededRank = await context.Ranks.FirstAsync(r => context.RankSystems.Any(s => s.Id == r.RankSystemId && s.IsSeeded));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.SetRankRetiredAsync(seededRank.Id, true));
+    }
+
+    [Fact]
     public async Task CustomLadders_AreInvisibleToOtherGyms()
     {
         var tenant = await SeedGymAsync();

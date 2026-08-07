@@ -19,4 +19,9 @@ public class Rank
 
     /// <summary>Rank-bar color: black on colored belts, red on black belts.</summary>
     public required string BarColorHex { get; set; }
+
+    /// <summary>Retired ranks (#220) take no NEW awards and leave pickers, but
+    /// keep rendering everywhere history shows them. The delete path is only
+    /// for unheld ranks — held ones retire instead.</summary>
+    public bool Retired { get; set; }
 }

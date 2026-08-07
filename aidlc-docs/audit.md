@@ -360,3 +360,11 @@ For a family plan, there should be a standard flate rate with an optional increa
 **Context**: Round-5 backlog, issue #219, branch feat/219-roster-filter-panel
 
 ---
+
+## Round 5 — Issue #220 remediation (rank deletion & retirement)
+**Timestamp**: 2026-08-07T00:00:00Z
+**User Input**: "/remediate each issue in order (214 -> 221)" (continuing)
+**AI Response**: "Implemented #220. Award soft delete: RankAward gains DeletedUtc/DeletedByPersonId; the GLOBAL query filter composes deletion with tenancy so every reader (roster, boards, progress, reports-to-come) excludes deleted awards with no per-site filtering; current rank recomputes by construction; the row persists as the audit trail; delete-award endpoint (Cap:ManageRanks) resolves the deleting staff person from claims; PersonDetail history rows get a confirm-guarded trash rendered only for ManageRanks holders. Rank retirement: Rank.Retired — retired ranks take no NEW awards (RecordAwardAsync refuses), leave the award picker, keep rendering everywhere; RETIRE/UNRETIRE on the ladders page (editable ladders only); RemoveRankAsync now counts soft-deleted awards via IgnoreQueryFilters (the FK is Restrict — a 'successful' delete would die at SaveChanges) and its refusal message offers retirement. Migration AddRankSoftDeleteAndRetire. Two new integration tests pin recompute+audit and retire semantics."
+**Context**: Round-5 backlog, issue #220, branch feat/220-rank-deletion
+
+---

@@ -33,4 +33,12 @@ public class RankAward : ITenantOwned
 
     /// <summary>Stable tiebreaker for same-day awards (belt then stripe on promotion day).</summary>
     public DateTimeOffset RecordedUtc { get; set; } = DateTimeOffset.UtcNow;
+
+    /// <summary>Soft delete (#220): a data-entry correction, not history editing.
+    /// The global query filter hides deleted awards from every reader and current
+    /// rank recomputes; the row itself stays as the audit trail of who removed
+    /// what, when.</summary>
+    public DateTimeOffset? DeletedUtc { get; set; }
+
+    public Guid? DeletedByPersonId { get; set; }
 }
