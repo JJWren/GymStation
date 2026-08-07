@@ -1,0 +1,75 @@
+@page "/choose-view"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using System.Security.Claims
+@using GymStation.Infrastructure.Tenancy
+@inject GymMembershipService Memberships
+@inject IDbContextFactory<GymStationDbContext> DbFactory
+@inject ITenantContext Tenant
+
+<PageTitle>Choose your view · GymStation</PageTitle>
+
+<main class="auth-shell">
+    <p class="auth-mark"><BrandMark Size="3.25rem" /></p>
+    <h1>WHERE DO YOU WANT TO LAND?</h1>
+    <p class="tagline">YOUR ROLES OPEN @_views.Count VIEWS — PICK YOUR DEFAULT</p>
+
+    @if (Failed)
+    {
+        <p class="auth-error" role="alert">That choice didn't save — the view may not be available to your roles, or the update failed. Pick one below and try again.</p>
+    }
+
+    @foreach (var view in _views)
+    {
+        <form method="post" action="/auth/landing-view" class="gym-choice">
+            <AntiforgeryToken />
+            <input type="hidden" name="view" value="@view" />
+            <button type="submit">
+                @ViewLabel(view)
+                @if (view == _current)
+                {
+                    <text> · CURRENT DEFAULT</text>
+                }
+            </button>
+        </form>
+    }
+
+    @if (_views.Count == 0)
+    {
+        <p class="auth-note">NO ACTIVE GYM ON THIS SESSION — <a href="/pick-gym">PICK YOUR GYM</a> FIRST, OR SIGN IN AGAIN.</p>
+    }
+    else
+    {
+        <p class="auth-note">SAVED AS YOUR DEFAULT FOR NEXT SIGN-IN · CHANGE IT HERE ANY TIME (SWITCH VIEW IN THE HEADER).</p>
+    }
+</main>
+
+@code {
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+
+    [SupplyParameterFromQuery(Name = "failed")] public int? FailedFlag { get; set; }
+
+    private bool Failed => FailedFlag == 1;
+
+    private IReadOnlyList<string> _views = [];
+    private string? _current;
+
+    private static string ViewLabel(string view) => view switch
+    {
+        "admin" => "ADMIN — RUN THE GYM",
+        "teach" => "TEACH — YOUR SESSIONS & COVERS",
+        _ => "MEMBER — TRAIN & TRACK",
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var raw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(raw, out var userId) || Tenant.CurrentGymId is not { } gymId)
+        {
+            return;
+        }
+
+        _views = await Memberships.AvailableViewsAsync(userId, gymId);
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _current = await db.Users.Where(u => u.Id == userId).Select(u => u.PreferredLandingView).FirstOrDefaultAsync();
+    }
+}

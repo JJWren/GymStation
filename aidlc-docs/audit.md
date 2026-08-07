@@ -344,3 +344,11 @@ For a family plan, there should be a standard flate rate with an optional increa
 **Context**: Round-5 backlog, issue #217, branch feat/217-rbac-permissions
 
 ---
+
+## Round 5 — Issue #218 remediation (nav regroup, link gating, member logo, default view)
+**Timestamp**: 2026-08-07T00:00:00Z
+**User Input**: "/remediate each issue in order (214 -> 221)" (continuing)
+**AI Response**: "Implemented #218. AdminLayout rail regrouped — TODAY, PEOPLE (Roster, Families, Ranks), OPERATIONS (Schedule, Events, Swaps), MESSAGES (Inbox, Messages), BUSINESS (Finance, Reports), SITE (Landing, Settings) — with links rendered per #217 capability (layout queries its own factory context, never scoped services, per the v1.0.1 lesson; owner = full set); cross-links gain TEACH VIEW (instructors) and SWITCH VIEW. MemberLayout renders the gym crest (GymSettings.LogoPath) left of the name using the admin rail's pattern, and staff/instructors get a SWITCH VIEW header link. Default landing view: AppUser.PreferredLandingView (migration AddLandingViewPreference); GymMembershipService.AvailableViewsAsync (admin/teach/member — member always available) + LandingPathAsync now routes single-view users directly, honors a valid saved default, and prompts ONCE at /choose-view otherwise (stale prefs re-prompt); /auth/landing-view validates the choice against live roles. LandingPath test rewritten to the new spec (owner with no preference now prompts — deliberate)."
+**Context**: Round-5 backlog, issue #218, branch feat/218-nav-and-views
+
+---
