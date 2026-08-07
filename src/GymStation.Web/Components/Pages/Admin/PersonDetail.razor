@@ -249,9 +249,11 @@ else
                 </EditForm>
             }
 
-            @* Capability grants (#217): OWNER-ONLY controls; Owners themselves
-               hold everything implicitly and never take grants. *@
-            @if (_viewerIsOwner && (_person.Roles & StaffishRoles) != 0 && !_person.HasRole(PersonRoles.Owner))
+            @* Capability grants (#217): OWNER-ONLY controls. Only Admins and
+               Instructors can take grants (matches PermissionService) — the
+               Staff role is payable-with-zero-portal by definition, and Owners
+               hold everything implicitly. *@
+            @if (_viewerIsOwner && (_person.HasRole(PersonRoles.Admin) || _person.HasRole(PersonRoles.Instructor)) && !_person.HasRole(PersonRoles.Owner))
             {
                 <h2 class="section-h">Access</h2>
                 <div class="form-card">
@@ -280,7 +282,7 @@ else
                             </form>
                         }
                     </div>
-                    <p class="cap" style="margin-top:0.375rem">WHAT THIS PERSON CAN OPEN AND CHANGE IN THE ADMIN SHELL · LINKS HIDE WITHOUT ACCESS AND DIRECT URLS ARE REFUSED · OWNERS ALWAYS HOLD EVERYTHING.</p>
+                    <p class="cap" style="margin-top:0.375rem">WHAT THIS PERSON CAN OPEN AND CHANGE IN THE ADMIN SHELL · PAGES AND ACTIONS REFUSE WITHOUT ACCESS · OWNERS ALWAYS HOLD EVERYTHING.</p>
                 </div>
             }
 
