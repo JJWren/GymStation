@@ -70,6 +70,15 @@ a { color: var(--ink); }
 .rail .tab.active::before { content: ""; position: absolute; left: 0; top: 0.5625rem; bottom: 0.5625rem; width: 0.1875rem; border-radius: 2px; background: var(--tenant); }
 .rail .tab--soon { opacity: .38; cursor: default; }
 .rail .rail-group { display: block; font: 600 0.5rem/1 var(--font-mono); letter-spacing: .2em; color: var(--ink-faint); padding: 0.875rem 0.75rem 0.25rem; }
+
+/* Roster filter panel (#219): a <details> chip that opens a grouped GET form. */
+.filter-panel { position: relative; }
+.filter-panel > summary { list-style: none; cursor: pointer; }
+.filter-panel > summary::-webkit-details-marker { display: none; }
+.filter-panel-body { position: absolute; z-index: 30; margin-top: 0.375rem; min-width: 17rem; padding: 0.75rem; display: flex; flex-direction: column; gap: 0.625rem; background: var(--panel, var(--bg)); border: 1px solid var(--edge); border-radius: 0.625rem; box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / .35); }
+.filter-panel-body fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 0.375rem 0.75rem; }
+.filter-panel-body legend { font: 600 0.5rem/1 var(--font-mono); letter-spacing: .18em; color: var(--ink-faint); padding: 0 0 0.25rem; }
+.filter-panel-body label { font: 600 0.625rem/1.4 var(--font-mono); letter-spacing: .08em; color: var(--ink-dim); display: inline-flex; align-items: center; gap: 0.3125rem; }
 .rail .tab--cross { color: var(--ink-faint); font-size: 0.625rem; }
 .signed-in-as a { color: var(--ink-dim); }
 .rail .foot { margin-top: auto; padding: 0.625rem 0.75rem; font: 0.5625rem/1.6 var(--font-mono); color: var(--ink-faint); letter-spacing: .08em; }

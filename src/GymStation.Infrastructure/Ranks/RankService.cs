@@ -306,6 +306,22 @@ public class RankService(GymStationDbContext db)
             .ToDictionary(x => x.Key, x => x.current!);
     }
 
+    /// <summary>Current rank per person WITHIN one system — the roster's
+    /// discipline-scoped filter (#219). Absent key = no rank in that discipline.</summary>
+    public async Task<Dictionary<Guid, CurrentRank>> GetCurrentRanksInSystemAsync(IReadOnlyCollection<Guid> personIds, Guid rankSystemId, CancellationToken ct = default)
+    {
+        var awards = await db.RankAwards
+            .Where(a => personIds.Contains(a.PersonId) && a.Rank.RankSystemId == rankSystemId)
+            .Include(a => a.Rank)
+            .ToListAsync(ct);
+
+        return awards
+            .GroupBy(a => a.PersonId)
+            .Select(g => (g.Key, Current: RankProgress.Current(g)))
+            .Where(x => x.Current is not null)
+            .ToDictionary(x => x.Key, x => x.Current!);
+    }
+
     /// <summary>Sets (or clears, with null) a person's primary discipline. Authority
     /// — self on the member portal, staff on the admin side — is the endpoint's job.</summary>
     public async Task SetPrimaryRankSystemAsync(Guid personId, Guid? rankSystemId, CancellationToken ct = default)
