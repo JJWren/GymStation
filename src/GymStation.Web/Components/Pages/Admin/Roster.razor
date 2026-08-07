@@ -20,38 +20,67 @@
         <input type="search" name="q" value="@Q" placeholder="SEARCH NAME…" aria-label="Search name" />
         <button class="btn btn--ghost" type="submit">SEARCH</button>
     </form>
-    <a class="chip @(Role is null ? "active" : null)" href="/admin/roster?size=@_size">ALL</a>
-    <a class="chip @(Role == "member" ? "active" : null)" href="/admin/roster?role=member&size=@_size">MEMBERS</a>
-    <a class="chip @(Role == "visitors" ? "active" : null)" href="/admin/roster?role=visitors&size=@_size">VISITORS</a>
-    <a class="chip @(Role == "instructor" ? "active" : null)" href="/admin/roster?role=instructor&size=@_size">INSTRUCTORS</a>
-    <a class="chip @(Role == "staff" ? "active" : null)" href="/admin/roster?role=staff&size=@_size">STAFF</a>
-    <a class="chip @(Role == "kids" ? "active" : null)" href="/admin/roster?role=kids&size=@_size">KIDS</a>
-    <a class="chip @(Role == "adult" ? "active" : null)" href="/admin/roster?role=adult&size=@_size">ADULTS</a>
-    <form method="get" style="display:contents">
-        @if (!string.IsNullOrEmpty(Q))
-        {
-            <input type="hidden" name="q" value="@Q" />
-        }
-        @if (!string.IsNullOrEmpty(Role))
-        {
-            <input type="hidden" name="role" value="@Role" />
-        }
-        <input type="hidden" name="size" value="@_size" />
-        <select name="rank" aria-label="Filter by rank">
-            <option value="">ANY RANK</option>
-            <option value="none" selected="@(RankRaw == "none")">NO BELT</option>
-            @foreach (var system in _systems)
+    @* Grouped filter panel (#219) replaces the chip row: types multi-select,
+       age, and a rank facet scoped to a chosen discipline. Plain <details> +
+       GET form — SSR, shareable URLs, filters applied before paging. *@
+    <details class="filter-panel" open="@(ActiveFilterCount > 0)">
+        <summary class="chip">FILTERS@(ActiveFilterCount > 0 ? $" ({ActiveFilterCount})" : null)</summary>
+        <form method="get" class="filter-panel-body">
+            @if (!string.IsNullOrEmpty(Q))
             {
-                <optgroup label="@system.Name">
-                    @foreach (var rank in system.Ranks.OrderBy(r => r.Order))
-                    {
-                        <option value="@rank.Id" selected="@(RankFilter == rank.Id)">@rank.Name</option>
-                    }
-                </optgroup>
+                <input type="hidden" name="q" value="@Q" />
             }
-        </select>
-        <button class="btn btn--ghost" type="submit">FILTER</button>
-    </form>
+            <input type="hidden" name="size" value="@_size" />
+            <fieldset>
+                <legend>PERSON TYPE — ANY CHECKED</legend>
+                <label><input type="checkbox" name="tm" value="1" checked="@(TypeMember == 1)" /> MEMBERS</label>
+                <label><input type="checkbox" name="tv" value="1" checked="@(TypeVisitor == 1)" /> VISITORS</label>
+                <label><input type="checkbox" name="ti" value="1" checked="@(TypeInstructor == 1)" /> INSTRUCTORS</label>
+                <label><input type="checkbox" name="ts" value="1" checked="@(TypeStaff == 1)" /> STAFF</label>
+            </fieldset>
+            <fieldset>
+                <legend>AGE GROUP</legend>
+                <label><input type="radio" name="age" value="" checked="@(string.IsNullOrEmpty(Age))" /> ALL</label>
+                <label><input type="radio" name="age" value="kids" checked="@(Age == "kids")" /> KIDS</label>
+                <label><input type="radio" name="age" value="adults" checked="@(Age == "adults")" /> ADULTS</label>
+            </fieldset>
+            <fieldset>
+                <legend>DISCIPLINE &amp; RANK</legend>
+                <select name="system" aria-label="Discipline">
+                    <option value="">— ANY DISCIPLINE —</option>
+                    @foreach (var system in _systems)
+                    {
+                        <option value="@system.Id" selected="@(SystemFilter == system.Id)">@_labels.GetValueOrDefault(system.Id)?.ToUpperInvariant()</option>
+                    }
+                </select>
+                @* FirstOrDefault, twice over: the first synchronous SSR render
+                   happens BEFORE OnInitializedAsync fills _systems, and a stale
+                   URL can carry an unknown system id — .First() would 500. *@
+                @if (SystemFilter is { } chosenSystem && _systems.FirstOrDefault(s => s.Id == chosenSystem) is { } chosenLadder)
+                {
+                    @* The rank facet exists only inside a discipline — ranks are
+                       meaningless unscoped. Empty = anyone ranked in it. *@
+                    <select name="rank" aria-label="Rank within discipline">
+                        <option value="">RANKED — ANY BELT</option>
+                        <option value="none" selected="@(RankRaw == "none")">NO BELT IN THIS DISCIPLINE</option>
+                        @foreach (var rank in chosenLadder.Ranks.OrderBy(r => r.Order))
+                        {
+                            <option value="@rank.Id" selected="@(RankFilter == rank.Id)">@rank.Name</option>
+                        }
+                    </select>
+                }
+                else
+                {
+                    <span class="cap">PICK A DISCIPLINE, APPLY, THEN PICK A RANK.</span>
+                }
+            </fieldset>
+            <button class="btn btn--ghost" type="submit">APPLY</button>
+        </form>
+    </details>
+    @foreach (var (label, href) in AppliedPills)
+    {
+        <a class="chip active" href="@href" title="Remove this filter">@label ✕</a>
+    }
 </div>
 
 <table class="ledger-table">
@@ -135,12 +164,62 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
-    [SupplyParameterFromQuery(Name = "role")] public string? Role { get; set; }
+    [SupplyParameterFromQuery(Name = "tm")] public int? TypeMember { get; set; }
+    [SupplyParameterFromQuery(Name = "tv")] public int? TypeVisitor { get; set; }
+    [SupplyParameterFromQuery(Name = "ti")] public int? TypeInstructor { get; set; }
+    [SupplyParameterFromQuery(Name = "ts")] public int? TypeStaff { get; set; }
+    [SupplyParameterFromQuery(Name = "age")] public string? Age { get; set; }
+    [SupplyParameterFromQuery(Name = "system")] public string? SystemRaw { get; set; }
     [SupplyParameterFromQuery(Name = "rank")] public string? RankRaw { get; set; }
     [SupplyParameterFromQuery(Name = "sort")] public string? Sort { get; set; }
     [SupplyParameterFromQuery(Name = "dir")] public string? Dir { get; set; }
     [SupplyParameterFromQuery(Name = "page")] public int? PageRaw { get; set; }
     [SupplyParameterFromQuery(Name = "size")] public int? SizeRaw { get; set; }
+
+    private Guid? SystemFilter => Guid.TryParse(SystemRaw, out var id) ? id : null;
+
+    private int ActiveFilterCount =>
+        (TypeMember == 1 ? 1 : 0) + (TypeVisitor == 1 ? 1 : 0) + (TypeInstructor == 1 ? 1 : 0) + (TypeStaff == 1 ? 1 : 0)
+        + (string.IsNullOrEmpty(Age) ? 0 : 1)
+        + (SystemFilter is null ? 0 : 1)
+        + (string.IsNullOrEmpty(RankRaw) ? 0 : 1);
+
+    /// <summary>One removable pill per applied filter: the link is the same URL
+    /// minus that filter (rank rides along with its discipline).</summary>
+    private IEnumerable<(string Label, string Href)> AppliedPills
+    {
+        get
+        {
+            if (TypeMember == 1) { yield return ("MEMBERS", Without("tm")); }
+            if (TypeVisitor == 1) { yield return ("VISITORS", Without("tv")); }
+            if (TypeInstructor == 1) { yield return ("INSTRUCTORS", Without("ti")); }
+            if (TypeStaff == 1) { yield return ("STAFF", Without("ts")); }
+            if (Age is "kids" or "adults") { yield return (Age.ToUpperInvariant(), Without("age")); }
+            if (SystemFilter is { } systemId)
+            {
+                yield return ((_labels.GetValueOrDefault(systemId) ?? "DISCIPLINE").ToUpperInvariant(), Without("system", "rank"));
+                if (RankRaw == "none")
+                {
+                    yield return ("NO BELT", Without("rank"));
+                }
+                else if (RankFilter is { } rankId)
+                {
+                    var rankName = _systems.FirstOrDefault(s => s.Id == systemId)?.Ranks.FirstOrDefault(r => r.Id == rankId)?.Name;
+                    yield return ((rankName ?? "RANK").ToUpperInvariant(), Without("rank"));
+                }
+            }
+        }
+    }
+
+    private string Without(params string[] dropKeys)
+    {
+        var kept = PreservedQuery
+            .Where(kv => !string.IsNullOrEmpty(kv.Value) && !dropKeys.Contains(kv.Key))
+            .Select(kv => $"{kv.Key}={Uri.EscapeDataString(kv.Value!)}")
+            .ToList();
+        kept.Add($"size={_size}");
+        return $"/admin/roster?{string.Join('&', kept)}";
+    }
 
     private int _page = 1;
     private int _pageCount = 1;
@@ -152,14 +231,18 @@
     private Dictionary<string, string?> PreservedQuery => new()
     {
         ["q"] = Q,
-        ["role"] = Role,
+        ["tm"] = TypeMember == 1 ? "1" : null,
+        ["tv"] = TypeVisitor == 1 ? "1" : null,
+        ["ti"] = TypeInstructor == 1 ? "1" : null,
+        ["ts"] = TypeStaff == 1 ? "1" : null,
+        ["age"] = string.IsNullOrEmpty(Age) ? null : Age,
+        ["system"] = SystemFilter?.ToString(),
         ["rank"] = RankRaw,
         ["sort"] = Sort,
         ["dir"] = Dir,
     };
 
     private Guid? RankFilter => Guid.TryParse(RankRaw, out var id) ? id : null;
-    private bool NoBeltFilter => RankRaw == "none";
 
     [SupplyParameterFromForm(FormName = "add-person")]
     public AddPersonForm? Form { get; set; }
@@ -204,16 +287,27 @@
             query = query.Where(p => EF.Functions.ILike(p.FirstName + " " + p.LastName, pattern, @"\"));
         }
 
-        query = Role switch
+        // Person types union WITHIN the group (#219), then AND with the rest.
+        // Visitors carry the Member role for portal purposes but are not members
+        // of record — MEMBERS excludes them so the filter means something (#29).
+        var anyType = TypeMember == 1 || TypeVisitor == 1 || TypeInstructor == 1 || TypeStaff == 1;
+        if (anyType)
         {
-            // Visitors carry the Member role for portal purposes but are not members
-            // of record — MEMBERS excludes them so the chip means something (#29).
-            "member" => query.Where(p => p.Roles.HasFlag(PersonRoles.Member) && !p.Visitor),
-            "visitors" => query.Where(p => p.Visitor),
-            "instructor" => query.Where(p => p.Roles.HasFlag(PersonRoles.Instructor)),
-            "staff" => query.Where(p => p.Roles.HasFlag(PersonRoles.Staff)),
+            var wantMember = TypeMember == 1;
+            var wantVisitor = TypeVisitor == 1;
+            var wantInstructor = TypeInstructor == 1;
+            var wantStaff = TypeStaff == 1;
+            query = query.Where(p =>
+                (wantMember && p.Roles.HasFlag(PersonRoles.Member) && !p.Visitor)
+                || (wantVisitor && p.Visitor)
+                || (wantInstructor && p.Roles.HasFlag(PersonRoles.Instructor))
+                || (wantStaff && p.Roles.HasFlag(PersonRoles.Staff)));
+        }
+
+        query = Age switch
+        {
             "kids" => query.Where(p => p.DateOfBirth != null && p.DateOfBirth > Today.AddYears(-16)),
-            "adult" => query.Where(p => p.DateOfBirth == null || p.DateOfBirth <= Today.AddYears(-16)),
+            "adults" => query.Where(p => p.DateOfBirth == null || p.DateOfBirth <= Today.AddYears(-16)),
             _ => query,
         };
 
@@ -222,13 +316,19 @@
         _systems = await Ranks.GetVisibleSystemsAsync();
         _labels = await Ranks.GetDisciplineLabelsAsync();
 
-        if (NoBeltFilter)
+        // Discipline facet: rank columns and the rank filter both speak the
+        // CHOSEN system's current ranks; without one, the primary rank leads.
+        // An unknown system id (stale URL) is ignored, never an empty page.
+        if (SystemFilter is { } chosenSystemId && _systems.Any(s => s.Id == chosenSystemId))
         {
-            _people = _people.Where(p => !_ranks.ContainsKey(p.Id)).ToList();
-        }
-        else if (RankFilter is { } rankId)
-        {
-            _people = _people.Where(p => _ranks.GetValueOrDefault(p.Id)?.Rank.Id == rankId).ToList();
+            var inSystem = await Ranks.GetCurrentRanksInSystemAsync(_people.Select(p => p.Id).ToList(), chosenSystemId);
+            _people = RankRaw switch
+            {
+                "none" => [.. _people.Where(p => !inSystem.ContainsKey(p.Id))],
+                _ when RankFilter is { } rankId => [.. _people.Where(p => inSystem.GetValueOrDefault(p.Id)?.Rank.Id == rankId)],
+                _ => [.. _people.Where(p => inSystem.ContainsKey(p.Id))],
+            };
+            _ranks = inSystem;
         }
 
         ApplySort();
@@ -267,19 +367,12 @@
     {
         var dir = Sort == key && Dir != "desc" ? "desc" : "asc";
         var parts = new List<string> { $"sort={key}", $"dir={dir}" };
-        if (!string.IsNullOrEmpty(Q))
+        foreach (var (paramKey, value) in PreservedQuery)
         {
-            parts.Add($"q={Uri.EscapeDataString(Q)}");
-        }
-
-        if (!string.IsNullOrEmpty(Role))
-        {
-            parts.Add($"role={Uri.EscapeDataString(Role)}");
-        }
-
-        if (!string.IsNullOrEmpty(RankRaw))
-        {
-            parts.Add($"rank={Uri.EscapeDataString(RankRaw)}");
+            if (paramKey is not ("sort" or "dir") && !string.IsNullOrEmpty(value))
+            {
+                parts.Add($"{paramKey}={Uri.EscapeDataString(value)}");
+            }
         }
 
         // Re-sorting resets to page 1 on purpose but keeps the chosen page size.

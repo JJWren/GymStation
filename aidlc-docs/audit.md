@@ -352,3 +352,11 @@ For a family plan, there should be a standard flate rate with an optional increa
 **Context**: Round-5 backlog, issue #218, branch feat/218-nav-and-views
 
 ---
+
+## Round 5 — Issue #219 remediation (roster filter panel)
+**Timestamp**: 2026-08-07T00:00:00Z
+**User Input**: "/remediate each issue in order (214 -> 221)" (continuing)
+**AI Response**: "Implemented #219. Chip row replaced by a grouped <details> filter panel (SSR GET form, URL-driven, applied before paging): person types as a multi-select union (tm/tv/ti/ts params — dictionary-friendly for Pager preserve), age radio, and a discipline select (labeled via #214 links) whose rank facet appears only once a discipline is applied (RANKED-ANY / NO BELT IN THIS DISCIPLINE / specific rank). With a discipline active, the rank/at-rank columns and sorts switch to that system's current ranks via new RankService.GetCurrentRanksInSystemAsync; otherwise the primary rank leads. Applied filters render as individually removable pills (discipline pill removal also drops its rank). SortHref now round-trips the whole preserved query."
+**Context**: Round-5 backlog, issue #219, branch feat/219-roster-filter-panel
+
+---
