@@ -27,22 +27,35 @@ $ErrorActionPreference = 'Stop'
 
 $composePath = Join-Path $StackDir 'compose.yaml'
 $envPath = Join-Path $StackDir '.env'
-$logDir = Join-Path $StackDir 'logs'
-if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir | Out-Null }
-$logPath = Join-Path $logDir ("reset-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
+$script:logPath = $null
 
+# Falls back to console-only when the log file never became usable — a bad
+# StackDir must still produce a visible failure and a non-zero exit.
 function Log([string]$msg) {
     $line = "{0:u}  {1}" -f (Get-Date), $msg
-    $line | Tee-Object -FilePath $logPath -Append
+    if ($script:logPath) {
+        try { $line | Tee-Object -FilePath $script:logPath -Append; return } catch { }
+    }
+    Write-Host $line
 }
 
 try {
+    $logDir = Join-Path $StackDir 'logs'
+    if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir | Out-Null }
+    $script:logPath = Join-Path $logDir ("reset-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
+
     if (-not (Test-Path $composePath)) { throw "No compose.yaml in $StackDir." }
 
     # --- SAFETY INTERLOCK: this must be the TEST stack, never the lab ---
+    # The magic name must sit INSIDE the gymstation-test-db service block, and
+    # that block must be a postgres image — a stray matching line elsewhere in
+    # the file is not good enough.
     $composeText = Get-Content $composePath -Raw
-    if ($composeText -notmatch '(?m)^\s*container_name:\s*gymstation-test-db\s*$') {
-        throw "REFUSING: $composePath does not declare 'container_name: gymstation-test-db'. This script only resets the test stack — never the lab."
+    $blockMatch = [regex]::Match($composeText, '(?m)^\s{2}gymstation-test-db:\s*$((?:\r?\n(?!\s{0,2}\S).*)*)')
+    if (-not $blockMatch.Success `
+        -or $blockMatch.Groups[1].Value -notmatch 'container_name:\s*gymstation-test-db' `
+        -or $blockMatch.Groups[1].Value -notmatch 'image:\s*postgres') {
+        throw "REFUSING: $composePath has no postgres service 'gymstation-test-db' declaring that container_name. This script only resets the test stack — never the lab."
     }
     if ($composeText -match '(?m)^\s*container_name:\s*gymstation-db\s*$') {
         throw "REFUSING: $composePath references the LIVE lab container 'gymstation-db'. Aborting."
