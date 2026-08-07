@@ -43,6 +43,7 @@ public class StandardSeederTests(PostgresFixture fixture)
 
         var oneMonthAdult = 85m;
         Assert.Equal(7, behind.Count(kv => kv.Value <= oneMonthAdult));
+        Assert.Equal(5, behind.Count(kv => kv.Value > oneMonthAdult && kv.Value <= 2 * oneMonthAdult));
         Assert.Equal(2, behind.Count(kv => kv.Value > 2 * oneMonthAdult));
 
         // Family charges carry the #181 breakdown; the over-size family bills extras.
@@ -95,7 +96,11 @@ public class StandardSeederTests(PostgresFixture fixture)
         // Archived members keep history but no newest-cycle charge.
         var archived = await db.Persons.Where(p => p.Archived).ToListAsync();
         Assert.Equal(2, archived.Count);
-        var newestCycle = $"{DateOnly.FromDateTime(DateTime.UtcNow):yyyy-MM}";
+        // Derived from the seeded data, not the wall clock — a month rollover
+        // mid-test must not flake this (review round).
+        var newestCycle = await db.Charges
+            .Where(c => c.CycleKey != null && !c.CycleKey.Contains(":family:"))
+            .MaxAsync(c => c.CycleKey);
         foreach (var person in archived)
         {
             Assert.True(await db.Charges.AnyAsync(c => c.PersonId == person.Id));

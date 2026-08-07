@@ -23,6 +23,9 @@ public record CreateGymRequest(
 /// </summary>
 public static class OpsEndpoints
 {
+    private static readonly System.Text.RegularExpressions.Regex SlugPattern =
+        new("^[a-z0-9-]{3,60}$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
     public static IEndpointRouteBuilder MapOpsEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapPost("/ops/gyms", async (
@@ -163,7 +166,8 @@ public static class OpsEndpoints
             IConfiguration config,
             GymStation.Infrastructure.Seeding.StandardSeeder seeder,
             GymStationDbContext db,
-            UserManager<AppUser> users) =>
+            UserManager<AppUser> users,
+            CancellationToken ct) =>
         {
             var opsKey = config["Ops:ApiKey"];
             if (string.IsNullOrWhiteSpace(opsKey))
@@ -184,7 +188,7 @@ public static class OpsEndpoints
             var slug = (request.Slug ?? "testworks").ToLowerInvariant();
             var name = request.Name ?? "Testworks Combat Club";
 
-            if (!System.Text.RegularExpressions.Regex.IsMatch(slug, "^[a-z0-9-]{3,60}$") || name.Length is < 2 or > 120)
+            if (!SlugPattern.IsMatch(slug) || name.Length is < 2 or > 120)
             {
                 return Results.BadRequest(new { error = "slug must be 3–60 chars of [a-z0-9-]; name must be 2–120 chars." });
             }
@@ -192,12 +196,12 @@ public static class OpsEndpoints
             // One transaction across seed + password activation: a failure at any
             // point leaves NO half-seeded tenant behind (review round 1). The
             // UserManager rides the same scoped context, so its writes enlist.
-            await using var transaction = await db.Database.BeginTransactionAsync();
+            await using var transaction = await db.Database.BeginTransactionAsync(ct);
 
             Guid gymId;
             try
             {
-                gymId = await seeder.SeedAsync(slug, name);
+                gymId = await seeder.SeedAsync(slug, name, ct);
             }
             catch (InvalidOperationException ex)
             {
@@ -207,7 +211,7 @@ public static class OpsEndpoints
             var suffix = $"@{slug}.demo";
             var seededUsers = await users.Users
                 .Where(u => u.Email != null && u.Email.EndsWith(suffix))
-                .ToListAsync();
+                .ToListAsync(ct);
             foreach (var user in seededUsers)
             {
                 var added = await users.AddPasswordAsync(user, request.SeedPassword);
@@ -217,7 +221,7 @@ public static class OpsEndpoints
                 }
             }
 
-            await transaction.CommitAsync();
+            await transaction.CommitAsync(ct);
             return Results.Created($"/{slug}", new { gymId, slug, logins = seededUsers.Count });
         });
 
