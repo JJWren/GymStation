@@ -49,8 +49,19 @@ public static class RankSystemEndpoints
             => Run(() => ranks.RemoveRankAsync(rankId)));
 
         // Empty select value = clear the mapping; Guid binding would 400 on "".
+        // Anything non-empty must parse — a garbled id refuses rather than clears.
         group.MapPost("/rank-system-program", ([FromForm] Guid systemId, [FromForm] string? programId, RankService ranks)
-            => Run(() => ranks.SetSystemProgramAsync(systemId, Guid.TryParse(programId, out var id) ? id : null)));
+            => Run(() =>
+            {
+                if (string.IsNullOrEmpty(programId))
+                {
+                    return ranks.SetSystemProgramAsync(systemId, null);
+                }
+
+                return Guid.TryParse(programId, out var id)
+                    ? ranks.SetSystemProgramAsync(systemId, id)
+                    : throw new InvalidOperationException("Program id malformed.");
+            }));
 
         return app;
     }
