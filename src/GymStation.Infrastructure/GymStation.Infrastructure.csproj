@@ -5,6 +5,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Standard-seed media (#216): shipped inside the assembly so the seeder
+         works identically in tests, the local rig, and the container image. -->
+    <EmbeddedResource Include="Seeding\Assets\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="DnsClient" Version="1.8.0" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.10" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />

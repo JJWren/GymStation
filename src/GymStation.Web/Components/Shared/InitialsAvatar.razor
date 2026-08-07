@@ -1,0 +1,50 @@
+@* Deterministic initials tile for people without a portrait (#216). Inline SVG
+   fills whatever .avatar frame wraps it — no stored files, no upload surface,
+   and the same name always renders the same tile (nightly resets included).
+   The hash is a fixed polynomial, NEVER string.GetHashCode (randomized per
+   process, which would reshuffle colors every restart). *@
+
+<svg viewBox="0 0 64 64" role="img" aria-label="@($"Initials avatar for {Name}")"
+     style="display:block;width:100%;height:100%">
+    <rect width="64" height="64" fill="@Background" />
+    <text x="32" y="33" text-anchor="middle" dominant-baseline="central"
+          font-family="var(--font-mono, monospace)" font-size="24" font-weight="600"
+          fill="#F4F1E8" letter-spacing="1">@Initials</text>
+</svg>
+
+@code {
+    // The house discipline hues (class-tag palette) — belts stay sacred, so the
+    // avatar range deliberately avoids reading as any belt color band.
+    private static readonly string[] Palette =
+        ["#C9503B", "#3E8E9E", "#C9A227", "#707886", "#3E8E5A", "#4A6FA5", "#2456A6", "#B0622F"];
+
+    [Parameter, EditorRequired] public required string Name { get; set; }
+
+    private string Initials
+    {
+        get
+        {
+            var parts = Name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            return parts.Length switch
+            {
+                0 => "?",
+                1 => char.ToUpperInvariant(parts[0][0]).ToString(),
+                _ => $"{char.ToUpperInvariant(parts[0][0])}{char.ToUpperInvariant(parts[^1][0])}",
+            };
+        }
+    }
+
+    private string Background
+    {
+        get
+        {
+            var hash = 0;
+            foreach (var ch in Name)
+            {
+                hash = unchecked(hash * 31 + ch);
+            }
+
+            return Palette[(int)((uint)hash % Palette.Length)];
+        }
+    }
+}

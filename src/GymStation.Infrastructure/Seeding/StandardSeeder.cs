@@ -23,7 +23,7 @@ namespace GymStation.Infrastructure.Seeding;
 /// section never reshuffles another. Refuses an existing slug; the test stack
 /// resets by dropping the database, never by re-running in place.
 /// </summary>
-public class StandardSeeder(GymStationDbContext db, TenantContext tenant)
+public class StandardSeeder(GymStationDbContext db, TenantContext tenant, Storage.IFileStore files)
 {
     private static readonly string[] FirstNames =
         ["Ari", "Bea", "Cal", "Dev", "Eli", "Fay", "Gil", "Hal", "Ida", "Jun",
@@ -37,16 +37,18 @@ public class StandardSeeder(GymStationDbContext db, TenantContext tenant)
         ["Abbot", "Birch", "Calder", "Danes", "Eaton", "Farrow", "Gates", "Hobbs", "Irwin", "Jarvis",
          "Keats", "Lowell", "Marsh", "Nolan", "Odell", "Paxton", "Quimby", "Rhodes", "Slater", "Thorne",
          "Usher", "Vance", "Whitley", "Yates", "Zell", "Ames", "Bond", "Corbin", "Dalton", "Eads",
-         "Fisk", "Grantham", "Hale2", "Ingram", "Joyner", "Kerr", "Locke", "Mercer", "North", "Otis",
+         "Fisk", "Grantham", "Hale", "Ingram", "Joyner", "Kerr", "Locke", "Mercer", "North", "Otis",
          "Pryor", "Quill", "Ramsey", "Stroud", "Tilden", "Underhill", "Voss", "Wilder", "Yeats", "Zorn",
-         "Ashby2", "Bellamy", "Croft", "Devlin", "Ferris", "Goode", "Hawthorne", "Iverson", "Justice", "Kane"];
+         "Ashby", "Bellamy", "Croft", "Devlin", "Ferris", "Goode", "Hawthorne", "Iverson", "Justice", "Kane"];
 
     private readonly HashSet<string> _usedNames = [];
     private readonly HashSet<string> _usedHandles = [];
 
     private Gym _gym = null!;
+    private GymSettings _settings = null!;
     private DateOnly _today;
     private string _slug = "";
+    private readonly Dictionary<string, GymStation.Domain.Marketing.GymProgram> _programs = [];
 
     private MembershipPlan _adultPlan = null!;
     private MembershipPlan _mtPlan = null!;
@@ -107,6 +109,7 @@ public class StandardSeeder(GymStationDbContext db, TenantContext tenant)
             await SeedGymAsync(name, ct);
             SeedPlans();
             SeedTypesAndTemplates();
+            await SeedMarketingAsync(ct);
             await db.SaveChangesAsync(ct);
 
             await SeedPeopleAndFamiliesAsync(ct);
@@ -136,16 +139,18 @@ public class StandardSeeder(GymStationDbContext db, TenantContext tenant)
         tenant.SetGym(_gym.Id);
 
         // Distinct accent on purpose — one glance says "this is the TEST stack".
-        db.GymSettings.Add(new GymSettings
+        // Copy never states a count (#216): programs change, prose shouldn't rot.
+        _settings = new GymSettings
         {
             GymId = _gym.Id,
             AccentColorHex = "#3E8E9E",
             SubstitutionMode = SubstitutionMode.AdminGate,
             OpenTime = new TimeOnly(6, 0),
             CloseTime = new TimeOnly(22, 0),
-            AboutText = $"**{name}** is the standard test tenant: four disciplines, three hundred people, and every edge case on purpose. Nothing here is real; everything here resets.",
-            ProgramsIntro = "Four programs, one resettable room.",
-        });
+            AboutText = $"**{name}** trains grapplers, strikers, and everyday athletes under one roof. Beginners start any week of the year — your first class is a walk-in, no call required.",
+            ProgramsIntro = "Every discipline under one roof — pick a mat, we'll meet you there.",
+        };
+        db.GymSettings.Add(_settings);
 
         foreach (var categoryName in new[] { "RENT", "INSURANCE", "SOFTWARE", "UTILITIES", "MARKETING" })
         {
@@ -249,6 +254,55 @@ public class StandardSeeder(GymStationDbContext db, TenantContext tenant)
             db.ClassTemplates.Add(template);
             _templates.Add(template);
             return template;
+        }
+    }
+
+    private async Task SeedMarketingAsync(CancellationToken ct)
+    {
+        // Landing media + Programs (#216): committed samples ship as embedded
+        // resources and land in the file store exactly where the upload
+        // endpoints would put them, so serving paths need no special cases.
+        _settings.LogoPath = await CopyAssetAsync("logo.png", $"gyms/{_gym.Id}/logo.png", ct);
+        _settings.HeroPath = await CopyAssetAsync("hero.jpg", $"gyms/{_gym.Id}/hero.jpg", ct);
+
+        await ProgramAsync("BJJ", "program-bjj.jpg", 1,
+            "Brazilian Jiu-Jitsu for every level, gi and no-gi. Fundamentals run twice a week so new "
+            + "students always have a door in; advanced classes build toward competition for those who want it.");
+        await ProgramAsync("Judo", "program-judo.jpg", 2,
+            "Classical judo with live randori every Saturday. Throws, grips, and groundwork that sharpen "
+            + "any grappling game — many of our BJJ students cross-train here for exactly that reason.");
+        await ProgramAsync("Muay Thai", "program-muay-thai.jpg", 3,
+            "Authentic Muay Thai: footwork, clinch, and pad rounds under a coach who has fought at every "
+            + "level. Conditioning comes with the territory — no fight ambitions required.");
+        await ProgramAsync("Kids", "program-kids.webp", 4,
+            "BJJ and judo classes for ages five and up, split by age and size. Discipline, coordination, "
+            + "and confidence first; medals only if they want them. Belt progress is tracked in the app.");
+        await ProgramAsync("Fitness", "program-fitness.jpg", 5,
+            "Strength and conditioning built around the fight sports next door — kettlebells, circuits, "
+            + "and morning classes that fit before work. No mat experience needed, ever.");
+
+        async Task ProgramAsync(string title, string asset, int order, string description)
+        {
+            var program = new GymStation.Domain.Marketing.GymProgram
+            {
+                Id = Guid.NewGuid(),
+                GymId = _gym.Id,
+                Title = title,
+                Description = description,
+                SortOrder = order,
+            };
+            program.ImagePath = await CopyAssetAsync(asset, $"gyms/{_gym.Id}/programs/{program.Id}{Path.GetExtension(asset)}", ct);
+            db.GymPrograms.Add(program);
+            _programs[title] = program;
+        }
+
+        async Task<string> CopyAssetAsync(string asset, string storePath, CancellationToken token)
+        {
+            var assembly = typeof(StandardSeeder).Assembly;
+            var resourceName = assembly.GetManifestResourceNames()
+                .Single(n => n.EndsWith($".{asset}", StringComparison.Ordinal));
+            await using var stream = assembly.GetManifestResourceStream(resourceName)!;
+            return await files.SaveAsync(stream, storePath, token);
         }
     }
 
@@ -465,7 +519,12 @@ public class StandardSeeder(GymStationDbContext db, TenantContext tenant)
         Award(reds[2], adultLadder[5], 0, new DateOnly(2019, 1, 5), selfReported: true);
 
         // Bulk BJJ adults spread White→Black; every rank ends up populated.
-        var bulkBjj = _bjjAdults.Where(p => p.LastName is not ("Pinto" or "Lobo" or "Sato")).ToList();
+        // EVERY hand-awarded belt above is excluded — a bulk award dated newer
+        // than a coach's authored belt silently becomes their current rank
+        // (latest-award-wins), which is how the head coach showed up as a
+        // white belt (#216).
+        var handAwarded = new HashSet<Guid>([_coachBjjHead.Id, _coachBjjSecond.Id, .. reds.Select(r => r.Id)]);
+        var bulkBjj = _bjjAdults.Where(p => !handAwarded.Contains(p.Id)).ToList();
         foreach (var (person, index) in bulkBjj.Select((p, i) => (p, i)))
         {
             var rank = adultLadder[Math.Min(index % 15 == 0 ? 4 : index / 34, 4)];
@@ -491,6 +550,25 @@ public class StandardSeeder(GymStationDbContext db, TenantContext tenant)
             {
                 person.PrimaryRankSystemId = IbjjfSeed.AdultSystemId;
             }
+        }
+
+        // Discipline labels (#214, ADR 0006): the gym maps each ladder to the
+        // Program it belongs to — the platform IBJJF ladders included.
+        foreach (var (systemId, programTitle) in new[]
+        {
+            (IbjjfSeed.AdultSystemId, "BJJ"),
+            (IbjjfSeed.KidsSystemId, "Kids"),
+            (prajioud[0].RankSystemId, "Muay Thai"),
+            (judoLadder[0].RankSystemId, "Judo"),
+        })
+        {
+            db.RankSystemProgramLinks.Add(new RankSystemProgramLink
+            {
+                Id = Guid.NewGuid(),
+                GymId = _gym.Id,
+                RankSystemId = systemId,
+                GymProgramId = _programs[programTitle].Id,
+            });
         }
 
         // Kids across all 13 IBJJF kids ranks; kids-judo kids across the Judo ladder.

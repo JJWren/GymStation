@@ -1,6 +1,7 @@
 using GymStation.Domain.Money;
 using GymStation.Domain.People;
 using GymStation.Infrastructure.Seeding;
+using GymStation.Infrastructure.Storage;
 using GymStation.Infrastructure.Tenancy;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,11 +14,13 @@ namespace GymStation.Integration.Tests;
 [Collection(PostgresCollection.Name)]
 public class StandardSeederTests(PostgresFixture fixture)
 {
+    private readonly LocalFileStore _files = new(Path.Combine(Path.GetTempPath(), $"gymstation-seed-tests-{Guid.NewGuid():N}"));
+
     private async Task<Guid> SeedAsync(string slug)
     {
         var tenant = new TenantContext();
         await using var context = fixture.CreateContext(tenant);
-        return await new StandardSeeder(context, tenant).SeedAsync(slug, "Testworks Combat Club");
+        return await new StandardSeeder(context, tenant, _files).SeedAsync(slug, "Testworks Combat Club");
     }
 
     [Fact]
@@ -174,6 +177,50 @@ public class StandardSeederTests(PostgresFixture fixture)
         var tenant = new TenantContext();
         await using var context = fixture.CreateContext(tenant);
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => new StandardSeeder(context, tenant).SeedAsync(slugA, "Again"));
+            () => new StandardSeeder(context, tenant, _files).SeedAsync(slugA, "Again"));
+    }
+
+    [Fact]
+    public async Task MarketingSeed_ShipsImagesProgramsAndDisciplineLinks()
+    {
+        var slug = $"std-{Guid.NewGuid():N}"[..20];
+        var gymId = await SeedAsync(slug);
+
+        var reader = new TenantContext();
+        reader.SetGym(gymId);
+        await using var db = fixture.CreateContext(reader);
+
+        // Landing media landed in the store on the same paths uploads would use.
+        var settings = await db.GymSettings.SingleAsync();
+        Assert.Equal($"gyms/{gymId}/logo.png", settings.LogoPath);
+        Assert.Equal($"gyms/{gymId}/hero.jpg", settings.HeroPath);
+        Assert.True(_files.Exists(settings.LogoPath!));
+        Assert.True(_files.Exists(settings.HeroPath!));
+        Assert.DoesNotContain("Four programs", settings.ProgramsIntro); // the stale-count copy is dead
+
+        // Five programs — correct spelling, described, imaged, image present.
+        var programs = await db.GymPrograms.OrderBy(p => p.SortOrder).ToListAsync();
+        Assert.Equal(["BJJ", "Judo", "Muay Thai", "Kids", "Fitness"], programs.Select(p => p.Title).ToList());
+        Assert.All(programs, p =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(p.Description));
+            Assert.NotNull(p.ImagePath);
+            Assert.True(_files.Exists(p.ImagePath!));
+        });
+
+        // Every ladder with a belt system carries its discipline label (#214).
+        var links = await db.RankSystemProgramLinks.ToListAsync();
+        Assert.Equal(4, links.Count);
+
+        // The head coach wears the authored belt — the bulk loop no longer
+        // clobbers hand-awarded coaches with a newer low-belt award (#216).
+        var mateus = await db.Persons.SingleAsync(p => p.LastName == "Rocha");
+        var mateusAwards = await db.RankAwards.Where(a => a.PersonId == mateus.Id).Include(a => a.Rank).ToListAsync();
+        var mateusCurrent = GymStation.Domain.Ranks.RankProgress.Current(mateusAwards);
+        Assert.Equal("Black", mateusCurrent!.Rank.Name);
+        Assert.Equal(3, mateusCurrent.Stripes);
+
+        // Name pools are clean — no dedupe-suffix debris like "Hale2".
+        Assert.Equal(0, await db.Persons.CountAsync(p => p.LastName.EndsWith("2")));
     }
 }
