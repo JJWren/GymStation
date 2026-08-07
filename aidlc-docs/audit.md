@@ -328,3 +328,11 @@ For a family plan, there should be a standard flate rate with an optional increa
 **Context**: Round-5 backlog, issue #215, branch feat/215-primary-discipline
 
 ---
+
+## Round 5 — Issue #216 remediation (seeder overhaul)
+**Timestamp**: 2026-08-07T00:00:00Z
+**User Input**: "/remediate each issue in order (214 -> 221)" (continuing)
+**AI Response**: "Implemented #216. ROOT CAUSE of the Mateus Rocha white-belt: the bulk BJJ award loop excluded only the red-belt cameos, so hand-awarded coaches (Rocha Black 3°, Nunes Black) received a second, newer bulk award that won latest-award-wins; the loop now excludes every hand-awarded belt. Testworks images committed as embedded resources (Infrastructure/Seeding/Assets — renamed program-muay-thai on copy-in) and seeded through IFileStore onto the exact paths uploads use: logo, hero, five programs (BJJ/Judo/Muay Thai/Kids/Fitness) with 2–3 sentence descriptions. Stale 'Four programs' ProgramsIntro replaced with count-free copy; About text de-tested. Rank ladders mapped to programs (#214 links) for the testworks gym. Name-pool debris Hale2/Ashby2 fixed. Placeholder avatars: deliberate DEVIATION from 'SVG files in the media store' — the media pipeline forbids SVG (XSS surface) and there is no server-side rasterizer, so avatars are a deterministic inline-SVG InitialsAvatar component rendered wherever a portrait is missing (PersonDetail, public instructor cards); zero files, identical across resets, also covers real members. StandardSeeder ctor gains IFileStore (DI-transparent); tests updated + new MarketingSeed contract test."
+**Context**: Round-5 backlog, issue #216, branch feat/216-seeder-overhaul
+
+---

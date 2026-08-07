@@ -139,7 +139,7 @@ else
                         }
                         else
                         {
-                            <span class="avatar" style="display:block" role="img" aria-label="Portrait placeholder"></span>
+                            <span class="avatar" style="display:block"><InitialsAvatar Name="@coach.Person.DisplayName" /></span>
                         }
                         <b style="display:block;margin-top:0.5rem">@coach.Person.DisplayName</b>
                         @if (coach.Profile?.ExperienceSummary is { } experience)
