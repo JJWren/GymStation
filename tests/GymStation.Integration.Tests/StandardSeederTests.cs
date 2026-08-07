@@ -12,15 +12,29 @@ namespace GymStation.Integration.Tests;
 /// flows are tested against this seed, so its shape must never drift silently.
 /// </summary>
 [Collection(PostgresCollection.Name)]
-public class StandardSeederTests(PostgresFixture fixture)
+public sealed class StandardSeederTests(PostgresFixture fixture) : IDisposable
 {
-    private readonly LocalFileStore _files = new(Path.Combine(Path.GetTempPath(), $"gymstation-seed-tests-{Guid.NewGuid():N}"));
+    private readonly string _filesRoot = Path.Combine(Path.GetTempPath(), $"gymstation-seed-tests-{Guid.NewGuid():N}");
+    private LocalFileStore Files => new(_filesRoot);
+
+    public void Dispose()
+    {
+        // xUnit disposes per test — the media the seeder wrote never outlives the run.
+        try
+        {
+            Directory.Delete(_filesRoot, recursive: true);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            // A test that never seeded wrote nothing.
+        }
+    }
 
     private async Task<Guid> SeedAsync(string slug)
     {
         var tenant = new TenantContext();
         await using var context = fixture.CreateContext(tenant);
-        return await new StandardSeeder(context, tenant, _files).SeedAsync(slug, "Testworks Combat Club");
+        return await new StandardSeeder(context, tenant, Files).SeedAsync(slug, "Testworks Combat Club");
     }
 
     [Fact]
@@ -177,7 +191,7 @@ public class StandardSeederTests(PostgresFixture fixture)
         var tenant = new TenantContext();
         await using var context = fixture.CreateContext(tenant);
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => new StandardSeeder(context, tenant, _files).SeedAsync(slugA, "Again"));
+            () => new StandardSeeder(context, tenant, Files).SeedAsync(slugA, "Again"));
     }
 
     [Fact]
@@ -194,8 +208,8 @@ public class StandardSeederTests(PostgresFixture fixture)
         var settings = await db.GymSettings.SingleAsync();
         Assert.Equal($"gyms/{gymId}/logo.png", settings.LogoPath);
         Assert.Equal($"gyms/{gymId}/hero.jpg", settings.HeroPath);
-        Assert.True(_files.Exists(settings.LogoPath!));
-        Assert.True(_files.Exists(settings.HeroPath!));
+        Assert.True(Files.Exists(settings.LogoPath!));
+        Assert.True(Files.Exists(settings.HeroPath!));
         Assert.DoesNotContain("Four programs", settings.ProgramsIntro); // the stale-count copy is dead
 
         // Five programs — correct spelling, described, imaged, image present.
@@ -205,7 +219,7 @@ public class StandardSeederTests(PostgresFixture fixture)
         {
             Assert.False(string.IsNullOrWhiteSpace(p.Description));
             Assert.NotNull(p.ImagePath);
-            Assert.True(_files.Exists(p.ImagePath!));
+            Assert.True(Files.Exists(p.ImagePath!));
         });
 
         // Every ladder with a belt system carries its discipline label (#214).
@@ -220,7 +234,8 @@ public class StandardSeederTests(PostgresFixture fixture)
         Assert.Equal("Black", mateusCurrent!.Rank.Name);
         Assert.Equal(3, mateusCurrent.Stripes);
 
-        // Name pools are clean — no dedupe-suffix debris like "Hale2".
-        Assert.Equal(0, await db.Persons.CountAsync(p => p.LastName.EndsWith("2")));
+        // Name pools are clean — no dedupe-suffix debris like "Hale2" (any digit).
+        var lastNames = await db.Persons.Select(p => p.LastName).Distinct().ToListAsync();
+        Assert.DoesNotContain(lastNames, n => char.IsDigit(n[^1]));
     }
 }
