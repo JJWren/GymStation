@@ -368,3 +368,11 @@ For a family plan, there should be a standard flate rate with an optional increa
 **Context**: Round-5 backlog, issue #220, branch feat/220-rank-deletion
 
 ---
+
+## Round 5 — Issue #221 remediation (reports + pricing what-if)
+**Timestamp**: 2026-08-07T00:00:00Z
+**User Input**: "/remediate each issue in order (214 -> 221)" (continuing)
+**AI Response**: "Implemented #221 (final round-5 slice). ReportService gains UtilizationAsync (turnout per class slot / class type / instructor over 12 weeks; confirmed attendance only; cancelled sessions excluded; sessions' own ClassTypes so one-offs count; overlap by design), PromotionPipelineAsync (time-at-rank per person per discipline via RankProgress + #214 labels, longest first; page threshold chips 12/18/24mo flag DUE A LOOK — a conversation, never an automatic promotion), DuesAgingAsync (payments applied oldest-first per the #199 unattributability doctrine; buckets 0-30/31-60/61-90/90+), and PricingWhatIfPrefillAsync (live levers: billing per-person plans with cycle-rule head counts; family plans as live computed totals). New Domain PricingWhatIfMath composes the break-even cost model — a test pins that both calculators produce the identical revenue break-even. AdminReports gains three report sections + the what-if form (SSR collection binding; _handler-aware prefill so the two forms don't clobber each other)."
+**Context**: Round-5 backlog, issue #221, branch feat/221-reports-calculator
+
+---

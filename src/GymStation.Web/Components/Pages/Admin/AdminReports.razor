@@ -119,11 +119,190 @@
     </section>
 </div>
 
+<div class="detail-cols" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.125rem;align-items:start">
+    <section>
+        <h2 class="section-h">Turnout by class — 12 weeks</h2>
+        <div class="form-card">
+            <table class="ledger-table" style="margin:0">
+                <thead><tr><th>Class</th><th>Held</th><th>Check-ins</th><th>Avg</th></tr></thead>
+                <tbody>
+                @foreach (var slot in _slots.Take(12))
+                {
+                    <tr><td class="nm">@slot.Name</td><td class="mono">@slot.Sessions</td><td class="mono">@slot.CheckIns</td><td class="mono">@slot.AvgPerSession</td></tr>
+                }
+                </tbody>
+            </table>
+            <p class="cap">CONFIRMED ATTENDANCE · CANCELLED SESSIONS EXCLUDED@(_slots.Count > 12 ? $" · TOP 12 OF {_slots.Count}" : null)</p>
+        </div>
+    </section>
+    <section>
+        <h2 class="section-h">Turnout by class type</h2>
+        <div class="form-card">
+            <table class="ledger-table" style="margin:0">
+                <thead><tr><th>Type</th><th>Check-ins</th></tr></thead>
+                <tbody>
+                @foreach (var type in _types)
+                {
+                    <tr><td class="nm"><span class="chip" style="border-color:@type.ColorHex;color:@type.ColorHex">@type.TypeName.ToUpperInvariant()</span></td><td class="mono">@type.CheckIns</td></tr>
+                }
+                </tbody>
+            </table>
+            <p class="cap">A SESSION WITH TWO TAGS COUNTS TOWARD BOTH — TYPES OVERLAP BY DESIGN.</p>
+        </div>
+    </section>
+    <section>
+        <h2 class="section-h">Instructor load</h2>
+        <div class="form-card">
+            <table class="ledger-table" style="margin:0">
+                <thead><tr><th>Instructor</th><th>Sessions</th><th>Check-ins</th></tr></thead>
+                <tbody>
+                @foreach (var instructor in _instructors)
+                {
+                    <tr><td class="nm">@instructor.Name</td><td class="mono">@instructor.Sessions</td><td class="mono">@instructor.CheckIns</td></tr>
+                }
+                </tbody>
+            </table>
+            <p class="cap">SESSIONS TAUGHT IN THE WINDOW, SUBS INCLUDED (THE SESSION'S INSTRUCTOR OF RECORD).</p>
+        </div>
+    </section>
+</div>
+
+<div class="detail-cols" style="display:grid;grid-template-columns:1.15fr 1fr;gap:1.125rem;align-items:start">
+    <section>
+        <h2 class="section-h">Promotion pipeline — longest at rank first</h2>
+        <div class="form-card">
+            <div class="filters" style="margin-bottom:0.5rem">
+                @foreach (var months in new[] { 12, 18, 24 })
+                {
+                    <a class="chip @(_thresholdMonths == months ? "active" : null)" href="/admin/reports?overdue=@months">@months MO</a>
+                }
+            </div>
+            <table class="ledger-table" style="margin:0">
+                <thead><tr><th>Member</th><th>Discipline</th><th>Rank</th><th>At rank</th></tr></thead>
+                <tbody>
+                @foreach (var row in _pipeline.Take(25))
+                {
+                    var months = row.MonthsAtRank(Today);
+                    <tr>
+                        <td class="nm"><a href="/admin/people/@row.PersonId">@row.PersonName</a></td>
+                        <td class="mono">@row.Discipline.ToUpperInvariant()</td>
+                        <td class="mono">@row.RankName.ToUpperInvariant()@(row.Stripes > 0 ? $" · {row.Stripes}S" : null)</td>
+                        <td class="mono" style="color:@(months >= _thresholdMonths ? "var(--warn)" : "var(--ink-dim)")">@months MO@(months >= _thresholdMonths ? " · DUE A LOOK" : null)</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+            <p class="cap">@_pipeline.Count(r => r.MonthsAtRank(Today) >= _thresholdMonths) OF @_pipeline.Count STANDINGS AT @_thresholdMonths+ MONTHS · TOP 25 SHOWN · THE THRESHOLD FLAGS A CONVERSATION, NEVER AN AUTOMATIC PROMOTION.</p>
+        </div>
+    </section>
+    <section>
+        <h2 class="section-h">Dues aging</h2>
+        <div class="form-card">
+            <div class="filters" style="margin-bottom:0.5rem">
+                @foreach (var (label, from, to) in AgingBuckets)
+                {
+                    var bucketRows = _aging.Where(r => r.DaysOverdue(Today) >= from && (to is null || r.DaysOverdue(Today) <= to)).ToList();
+                    <span class="chip @(bucketRows.Count > 0 ? "chip--bad" : null)">@label · @bucketRows.Count · $@bucketRows.Sum(r => r.Balance).ToString("N0")</span>
+                }
+            </div>
+            <table class="ledger-table" style="margin:0">
+                <thead><tr><th>Member</th><th>Owes</th><th>Oldest unpaid</th><th>Days</th></tr></thead>
+                <tbody>
+                @foreach (var row in _aging.Take(20))
+                {
+                    <tr>
+                        <td class="nm"><a href="/admin/people/@row.PersonId">@row.PersonName</a></td>
+                        <td class="mono">$@row.Balance.ToString("N0")</td>
+                        <td class="mono">@row.OldestUnpaidOn.ToString("dd MMM yy").ToUpperInvariant()</td>
+                        <td class="mono" style="color:@(row.DaysOverdue(Today) > 60 ? "var(--bad)" : row.DaysOverdue(Today) > 30 ? "var(--warn)" : "var(--ink-dim)")">@row.DaysOverdue(Today)</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+            <p class="cap">PAYMENTS APPLY OLDEST-FIRST — PERSON-LEVEL MONEY IS NEVER ALLOCATED TO A SPECIFIC CHARGE (#199 PRINCIPLE). ARCHIVED PEOPLE EXCLUDED.</p>
+        </div>
+    </section>
+</div>
+
+<h2 class="section-h">Pricing what-if — compose your next price list</h2>
+<EditForm class="form-card" FormName="what-if" Model="WhatIf" OnValidSubmit="CalculateWhatIf" style="max-width:56rem">
+    <p class="cap" style="margin:0 0 0.625rem">
+        LEVERS PREFILL FROM YOUR LIVE PLANS AND HEAD COUNTS — CHANGE PRICES OR COUNTS AND PRESS PROJECT.
+        COSTS SHARE THE BREAK-EVEN MODEL, SO THE TWO CALCULATORS ALWAYS AGREE.
+    </p>
+    @for (var i = 0; i < WhatIf!.Rows.Count; i++)
+    {
+        var index = i;
+        <div class="row-form" style="margin-bottom:0.375rem">
+            <InputText @bind-Value="WhatIf.Rows[index].Name" aria-label="Plan name" style="flex:2;min-width:10rem" />
+            <span class="cap">$</span>
+            <InputNumber @bind-Value="WhatIf.Rows[index].Price" aria-label="Monthly price" style="width:6rem" />
+            <span class="cap">×</span>
+            <InputNumber @bind-Value="WhatIf.Rows[index].Members" aria-label="Members" style="width:5rem" />
+            <span class="mono" style="margin-left:auto">= $@((WhatIf.Rows[index].Price * WhatIf.Rows[index].Members).ToString("N0"))</span>
+        </div>
+    }
+    <div class="form-grid" style="margin-top:0.625rem">
+        <div>
+            <label for="wif">Monthly fixed costs</label>
+            <InputNumber id="wif" @bind-Value="WhatIf.MonthlyFixedCosts" />
+        </div>
+        <div>
+            <label for="wip">Processing rate %</label>
+            <InputNumber id="wip" @bind-Value="WhatIf.ProcessingRatePercent" />
+        </div>
+        <div>
+            <label for="wis">Staffing % of revenue</label>
+            <InputNumber id="wis" @bind-Value="WhatIf.StaffingPercentOfRevenue" />
+        </div>
+        <div>
+            <label for="wit">Target owner salary /mo</label>
+            <InputNumber id="wit" @bind-Value="WhatIf.TargetOwnerSalary" />
+        </div>
+    </div>
+    @if (_whatIfError is not null)
+    {
+        <p class="validation-message">@_whatIfError</p>
+    }
+    <p style="margin-top:0.75rem"><button class="btn" type="submit">PROJECT</button></p>
+    @if (_whatIf is not null)
+    {
+        <div style="border-top:1px solid var(--edge);margin-top:0.75rem;padding-top:0.375rem">
+            <div class="head-row" style="padding:0.4375rem 0;border-bottom:1px dashed #2c3440">
+                <span class="cap">PROJECTED MONTHLY DUES REVENUE</span>
+                <b class="mono" style="font-size:1.25rem">$@_whatIf.MonthlyRevenue.ToString("N0")</b>
+            </div>
+            <div class="head-row" style="padding:0.4375rem 0;border-bottom:1px dashed #2c3440">
+                <span class="cap">VS REVENUE BREAK-EVEN</span>
+                <b class="mono" style="color:@(_whatIf.MonthlyRevenue >= _whatIf.MonthlyRevenueBreakEven ? "var(--ok)" : "var(--bad)")">$@_whatIf.MonthlyRevenueBreakEven.ToString("N0") · @(_whatIf.MonthlyRevenue >= _whatIf.MonthlyRevenueBreakEven ? "CLEAR" : "SHORT")</b>
+            </div>
+            <div class="head-row" style="padding:0.4375rem 0;border-bottom:1px dashed #2c3440">
+                <span class="cap">NET AFTER FIXED COSTS · BEFORE OWNER PAY</span>
+                <b class="mono" style="color:@(_whatIf.NetAfterFixedCosts >= 0 ? "var(--ok)" : "var(--bad)")">@(_whatIf.NetAfterFixedCosts >= 0 ? "+" : "−")$@Math.Abs(_whatIf.NetAfterFixedCosts).ToString("N0")</b>
+            </div>
+            <div class="head-row" style="padding:0.4375rem 0">
+                <span class="cap">NET AFTER TARGET SALARY</span>
+                <b class="mono" style="color:@(_whatIf.NetAfterTargetSalary >= 0 ? "var(--ok)" : "var(--bad)")">@(_whatIf.NetAfterTargetSalary >= 0 ? "+" : "−")$@Math.Abs(_whatIf.NetAfterTargetSalary).ToString("N0")</b>
+            </div>
+            <p class="cap">CONTRIBUTION = REVENUE × (1 − PROCESSING − STAFFING) = $@_whatIf.Contribution.ToString("N0") · FAMILY LINES CARRY LIVE COMPUTED TOTALS (COMPOSITION PRICING RE-COUNTS EACH CYCLE).</p>
+        </div>
+    }
+</EditForm>
+
 @code {
     [SupplyParameterFromForm(FormName = "break-even")]
     public BreakEvenForm? Form { get; set; }
 
-    protected override void OnInitialized() => Form ??= new();
+    protected override void OnInitialized()
+    {
+        Form ??= new();
+        WhatIf ??= new();
+    }
+
+    [SupplyParameterFromForm(FormName = "what-if")]
+    public WhatIfForm? WhatIf { get; set; }
+
+    [SupplyParameterFromQuery(Name = "overdue")] public int? OverdueRaw { get; set; }
 
     private List<MonthMoney> _money = [];
     private decimal _moneyMax;
@@ -131,6 +310,34 @@
     private int _weeklyMax;
     private BreakEvenResult? _result;
     private string? _error;
+    private List<SlotUtilization> _slots = [];
+    private List<TypeUtilization> _types = [];
+    private List<InstructorLoad> _instructors = [];
+    private List<PipelineRow> _pipeline = [];
+    private List<AgingRow> _aging = [];
+    private int _thresholdMonths = 18;
+    private PricingWhatIfResult? _whatIf;
+    private string? _whatIfError;
+    private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
+
+    private static readonly (string Label, int From, int? To)[] AgingBuckets =
+        [("0–30D", 0, 30), ("31–60D", 31, 60), ("61–90D", 61, 90), ("90D+", 91, null)];
+
+    public class WhatIfForm
+    {
+        public List<WhatIfRow> Rows { get; set; } = [];
+        public decimal MonthlyFixedCosts { get; set; }
+        public decimal ProcessingRatePercent { get; set; } = 2.9m;
+        public decimal StaffingPercentOfRevenue { get; set; } = 20m;
+        public decimal TargetOwnerSalary { get; set; }
+    }
+
+    public class WhatIfRow
+    {
+        public string Name { get; set; } = "";
+        public decimal Price { get; set; }
+        public int Members { get; set; }
+    }
 
     [CascadingParameter] public HttpContext? HttpContext { get; set; }
 
@@ -152,7 +359,18 @@
         _weekly = await Reports.WeeklyCheckinsAsync(today);
         _weeklyMax = _weekly.Count == 0 ? 0 : _weekly.Max(w => w.Count);
 
-        if (HttpContext?.Request.Method != "POST")
+        (_slots, _types, _instructors) = await Reports.UtilizationAsync(today);
+        _pipeline = await Reports.PromotionPipelineAsync();
+        _aging = await Reports.DuesAgingAsync();
+        _thresholdMonths = OverdueRaw is 12 or 18 or 24 ? OverdueRaw.Value : 18;
+
+        // Which of the page's two forms posted decides which prefill to skip —
+        // a failed submit must keep the binder's values (the Progress idiom).
+        var postedHandler = HttpContext?.Request.Method == "POST"
+            ? HttpContext.Request.Form["_handler"].ToString()
+            : null;
+
+        if (postedHandler != "break-even")
         {
             var prefill = await Reports.BreakEvenPrefillAsync(today);
             Form!.ActiveMembers = prefill.ActiveMembers;
@@ -162,6 +380,35 @@
         else
         {
             Calculate();
+        }
+
+        if (postedHandler != "what-if")
+        {
+            var rows = await Reports.PricingWhatIfPrefillAsync();
+            WhatIf!.Rows = [.. rows.Select(r => new WhatIfRow { Name = r.Name, Price = r.Price, Members = r.Members })];
+            var overhead = await Reports.BreakEvenPrefillAsync(today);
+            WhatIf.MonthlyFixedCosts = overhead.MonthlyFixedCosts;
+        }
+        else
+        {
+            CalculateWhatIf();
+        }
+    }
+
+    private void CalculateWhatIf()
+    {
+        var form = WhatIf!;
+        try
+        {
+            _whatIf = PricingWhatIfMath.Calculate(
+                [.. form.Rows.Select(r => new PlanWhatIfRow(r.Name, r.Price, r.Members))],
+                form.MonthlyFixedCosts, form.ProcessingRatePercent, form.StaffingPercentOfRevenue, form.TargetOwnerSalary);
+            _whatIfError = null;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _whatIf = null;
+            _whatIfError = ex.Message;
         }
     }
 
