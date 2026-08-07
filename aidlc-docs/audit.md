@@ -320,3 +320,11 @@ For a family plan, there should be a standard flate rate with an optional increa
 **Context**: Round-5 backlog, issue #214, branch feat/214-rank-discipline-links
 
 ---
+
+## Round 5 — Issue #215 remediation (primary discipline)
+**Timestamp**: 2026-08-07T00:00:00Z
+**User Input**: "/remediate each issue in order (214 -> 221)" (continuing)
+**AI Response**: "Implemented #215. Person.PrimaryRankSystemId (nullable, SetNull on ladder delete; migration AddPrimaryDiscipline). GetPrimaryRanksAsync honors the preference when the person holds a rank in the chosen system, else falls back to latest-award. Member self-service select on /progress (shown only with 2+ disciplines; AUTOMATIC option), staff override on PersonDetail, both with empty-clears/garbage-refuses endpoints. StandardSeeder's #140 back-dating trick removed: secondary-discipline awards use natural dates and mixed members pin BJJ primary explicitly. CONTEXT.md gains Primary Discipline."
+**Context**: Round-5 backlog, issue #215, branch feat/215-primary-discipline
+
+---

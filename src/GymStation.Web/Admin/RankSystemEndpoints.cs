@@ -63,6 +63,33 @@ public static class RankSystemEndpoints
                     : throw new InvalidOperationException("Program id malformed.");
             }));
 
+        // Staff override of a person's primary discipline (#215) — same
+        // empty-clears / garbage-refuses contract as the mapping above.
+        group.MapPost("/set-primary-discipline", async ([FromForm] Guid personId, [FromForm] string? systemId, RankService ranks) =>
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(systemId))
+                {
+                    await ranks.SetPrimaryRankSystemAsync(personId, null);
+                }
+                else if (Guid.TryParse(systemId, out var id))
+                {
+                    await ranks.SetPrimaryRankSystemAsync(personId, id);
+                }
+                else
+                {
+                    throw new InvalidOperationException("Ladder id malformed.");
+                }
+
+                return Results.Redirect($"/admin/people/{personId}");
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Redirect($"/admin/people/{personId}?failed=1");
+            }
+        });
+
         return app;
     }
 }

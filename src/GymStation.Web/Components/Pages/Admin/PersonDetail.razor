@@ -107,6 +107,21 @@ else
                          Stripes="@_current.Stripes" Label="@($"{_current.Rank.Name}, {_current.Stripes} stripes")" />
                 <p class="cap" style="margin-top:0.375rem">@_labels.GetValueOrDefault(_current.Rank.RankSystemId)?.ToUpperInvariant() · @_current.Rank.Name.ToUpperInvariant() · @_current.Stripes STRIPES · @RankProgress.FormatDuration(Today.ToDateTime(TimeOnly.MinValue) - _current.AtRankSince.ToDateTime(TimeOnly.MinValue)) AT RANK</p>
             }
+            @if (_heldSystems.Count > 1)
+            {
+                <form method="post" action="/admin/actions/set-primary-discipline" class="row-form" style="margin-top:0.375rem">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="personId" value="@PersonId" />
+                    <select name="systemId" aria-label="Primary discipline" title="Primary discipline — which belt leads compact views">
+                        <option value="">AUTOMATIC — LATEST PROMOTION</option>
+                        @foreach (var systemId in _heldSystems)
+                        {
+                            <option value="@systemId" selected="@(_person.PrimaryRankSystemId == systemId)">@_labels.GetValueOrDefault(systemId)?.ToUpperInvariant()</option>
+                        }
+                    </select>
+                    <button class="btn btn--icon btn--save btn--xs" type="submit" aria-label="Save primary discipline" title="Save primary discipline"><Glyph Name="save" /></button>
+                </form>
+            }
         </div>
     </header>
 
@@ -390,6 +405,7 @@ else
     private string? _loginEmail;
     private CurrentRank? _current;
     private Dictionary<Guid, string> _labels = [];
+    private List<Guid> _heldSystems = [];
     private List<RankAward> _awards = [];
     private List<RankSystem> _systems = [];
     private Dictionary<Guid, string> _names = [];
@@ -466,6 +482,7 @@ else
         _systems = await Ranks.GetVisibleSystemsAsync();
         _labels = await Ranks.GetDisciplineLabelsAsync();
         _awards = await Ranks.GetAwardsForPersonAsync(PersonId);
+        _heldSystems = _awards.Select(a => a.Rank.RankSystemId).Distinct().ToList();
         _current = (await Ranks.GetPrimaryRanksAsync([PersonId])).GetValueOrDefault(PersonId);
 
         var awarderIds = _awards.Where(a => a.AwardedByPersonId is not null).Select(a => a.AwardedByPersonId!.Value).Distinct().ToList();

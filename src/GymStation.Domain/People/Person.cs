@@ -38,6 +38,11 @@ public class Person : ITenantOwned
     /// <summary>The MembershipPlan this Person is on; null = no automatic charges.</summary>
     public Guid? MembershipPlanId { get; set; }
 
+    /// <summary>The RankSystem whose current rank leads compact views (roster bar,
+    /// headers) — the person's primary discipline (#215). Null, or a system they
+    /// hold no rank in, falls back to the most recently awarded system.</summary>
+    public Guid? PrimaryRankSystemId { get; set; }
+
     public bool Archived { get; set; }
 
     /// <summary>Ad-hoc drop-in added from the live roll: no plan, no cycle charges.

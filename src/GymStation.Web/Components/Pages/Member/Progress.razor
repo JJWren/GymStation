@@ -30,6 +30,21 @@
                 @RankProgress.FormatDuration(Today.ToDateTime(TimeOnly.MinValue) - _current.AtRankSince.ToDateTime(TimeOnly.MinValue)) AT BELT
                 @(_ageGroup is null ? null : $" · IBJJF: {_ageGroup.ToUpperInvariant()}")
             </p>
+            @if (_heldSystems.Count > 1)
+            {
+                <form method="post" action="/member/actions/primary-discipline" class="row-form" style="margin-top:0.5rem">
+                    <AntiforgeryToken />
+                    <select name="systemId" aria-label="Primary discipline" title="Primary discipline — which belt leads your views">
+                        <option value="">AUTOMATIC — LATEST PROMOTION</option>
+                        @foreach (var systemId in _heldSystems)
+                        {
+                            <option value="@systemId" selected="@(_primarySystemId == systemId)">@_labels.GetValueOrDefault(systemId)?.ToUpperInvariant()</option>
+                        }
+                    </select>
+                    <button class="btn btn--icon btn--save btn--xs" type="submit" aria-label="Save primary discipline" title="Save primary discipline"><Glyph Name="save" /></button>
+                </form>
+                <p class="cap" style="margin-top:0.25rem">PRIMARY DISCIPLINE — WHICH BELT LEADS YOUR CARD AND THE ROSTER.</p>
+            }
         </div>
     }
 
@@ -192,6 +207,8 @@
     }
 
     private Guid? _mePersonId;
+    private Guid? _primarySystemId;
+    private List<Guid> _heldSystems = [];
     private string? _contactError;
 
     [SupplyParameterFromQuery(Name = "range")] public string? RangeRaw { get; set; }
@@ -254,6 +271,7 @@
         }
 
         _mePersonId = me.Id;
+        _primarySystemId = me.PrimaryRankSystemId;
 
         // Prefill unless THIS form posted (a failed submit keeps the binder's values).
         var postedHandler = HttpContext?.Request.Method == "POST"
@@ -269,6 +287,7 @@
         _current = (await Ranks.GetPrimaryRanksAsync([me.Id])).GetValueOrDefault(me.Id);
         _awards = await Ranks.GetAwardsForPersonAsync(me.Id);
         _labels = await Ranks.GetDisciplineLabelsAsync();
+        _heldSystems = _awards.Select(a => a.Rank.RankSystemId).Distinct().ToList();
         _hours = await Diary.HoursAsync(userId);
         (_avg, _, _weekly) = await Attendance.StatsAsync(me.Id, Today);
         _weeklyPeak = _weekly.Count == 0 ? 0 : _weekly.Max(w => w.Count);

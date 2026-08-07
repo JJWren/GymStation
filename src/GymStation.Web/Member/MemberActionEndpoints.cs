@@ -136,6 +136,49 @@ public static class MemberActionEndpoints
             return Results.Redirect(destination);
         });
 
+        // A member picks which of their disciplines leads compact views (#215).
+        // Self only: the person is resolved from the signed-in user, never a form id.
+        group.MapPost("/primary-discipline", async (
+            [FromForm] string? systemId,
+            ClaimsPrincipal user,
+            GymStationDbContext db,
+            GymStation.Infrastructure.Ranks.RankService ranks) =>
+        {
+            var raw = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(raw, out var userId))
+            {
+                return Results.Redirect("/progress?failed=1");
+            }
+
+            var me = await db.Persons.SingleOrDefaultAsync(p => p.UserId == userId && !p.Archived);
+            if (me is null)
+            {
+                return Results.Redirect("/progress?failed=1");
+            }
+
+            try
+            {
+                if (string.IsNullOrEmpty(systemId))
+                {
+                    await ranks.SetPrimaryRankSystemAsync(me.Id, null);
+                }
+                else if (Guid.TryParse(systemId, out var id))
+                {
+                    await ranks.SetPrimaryRankSystemAsync(me.Id, id);
+                }
+                else
+                {
+                    throw new InvalidOperationException("Ladder id malformed.");
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Redirect("/progress?failed=1");
+            }
+
+            return Results.Redirect("/progress");
+        });
+
         return app;
     }
 }

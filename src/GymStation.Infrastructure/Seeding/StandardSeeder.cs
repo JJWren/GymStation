@@ -472,15 +472,25 @@ public class StandardSeeder(GymStationDbContext db, TenantContext tenant)
             Award(person, rank, random.Next(rank.MaxStripes + 1), _today.AddDays(-random.Next(60, 1200)));
         }
 
-        // Secondary-discipline ranks, back-dated so BJJ stays each mixed member's
-        // primary (roster bar) belt — the #140 back-dating trick.
+        // Secondary-discipline ranks on natural dates. Mixed members pin BJJ as
+        // their primary discipline explicitly (#215) — the old #140 back-dating
+        // trick (dates forced older so BJJ won the latest-award race) is gone.
         foreach (var (person, index) in _mtAdults.Where(p => p.Id != _coachMt.Id).Select((p, i) => (p, i)))
         {
-            Award(person, prajioud[index % 5], 0, _today.AddDays(-random.Next(500, 1400)));
+            Award(person, prajioud[index % 5], 0, _today.AddDays(-random.Next(60, 1200)));
+            if (_bjjAdults.Contains(person))
+            {
+                person.PrimaryRankSystemId = IbjjfSeed.AdultSystemId;
+            }
         }
+
         foreach (var (person, index) in _judoAdults.Where(p => p.Id != _coachJudo.Id).Select((p, i) => (p, i)))
         {
-            Award(person, judoLadder[index % 6], 0, _today.AddDays(-random.Next(500, 1400)));
+            Award(person, judoLadder[index % 6], 0, _today.AddDays(-random.Next(60, 1200)));
+            if (_bjjAdults.Contains(person))
+            {
+                person.PrimaryRankSystemId = IbjjfSeed.AdultSystemId;
+            }
         }
 
         // Kids across all 13 IBJJF kids ranks; kids-judo kids across the Judo ladder.

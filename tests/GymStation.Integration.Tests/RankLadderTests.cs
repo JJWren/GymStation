@@ -121,6 +121,49 @@ public class RankLadderTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task PrimaryDiscipline_LeadsCompactRank_WithFallbacks()
+    {
+        var tenant = await SeedGymAsync();
+        await using var context = fixture.CreateContext(tenant);
+        var service = new RankService(context);
+
+        var person = new Person { Id = Guid.NewGuid(), FirstName = "Ada", LastName = "M", Roles = PersonRoles.Member, JoinedOn = new DateOnly(2024, 1, 1) };
+        context.Persons.Add(person);
+        await context.SaveChangesAsync();
+
+        // Two disciplines: an older BJJ blue, then a newer Judo yellow.
+        var seeded = await context.RankSystems.FirstAsync(s => s.IsSeeded && s.Name.Contains("Adult"));
+        var blue = await context.Ranks.FirstAsync(r => r.RankSystemId == seeded.Id && r.Name == "Blue");
+        var judo = await service.CreateSystemAsync("Judo");
+        await service.AddRankAsync(judo.Id, "Yellow", "#D9A62E", "#141416", 0);
+        var yellow = await context.Ranks.SingleAsync(r => r.RankSystemId == judo.Id);
+        await service.RecordAwardAsync(person.Id, blue.Id, 2, new DateOnly(2024, 5, 1), null, false, null);
+        await service.RecordAwardAsync(person.Id, yellow.Id, 0, new DateOnly(2026, 2, 1), null, false, null);
+
+        // Default: latest award wins.
+        var current = (await service.GetPrimaryRanksAsync([person.Id]))[person.Id];
+        Assert.Equal(yellow.Id, current.Rank.Id);
+
+        // Explicit primary overrides recency; clearing restores it.
+        await service.SetPrimaryRankSystemAsync(person.Id, seeded.Id);
+        current = (await service.GetPrimaryRanksAsync([person.Id]))[person.Id];
+        Assert.Equal(blue.Id, current.Rank.Id);
+
+        await service.SetPrimaryRankSystemAsync(person.Id, null);
+        current = (await service.GetPrimaryRanksAsync([person.Id]))[person.Id];
+        Assert.Equal(yellow.Id, current.Rank.Id);
+
+        // A primary the person holds no rank in falls back rather than blanking.
+        var empty = await service.CreateSystemAsync("Empty Ladder");
+        await service.SetPrimaryRankSystemAsync(person.Id, empty.Id);
+        current = (await service.GetPrimaryRanksAsync([person.Id]))[person.Id];
+        Assert.Equal(yellow.Id, current.Rank.Id);
+
+        // Unknown ladders refuse.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.SetPrimaryRankSystemAsync(person.Id, Guid.NewGuid()));
+    }
+
+    [Fact]
     public async Task CustomLadders_AreInvisibleToOtherGyms()
     {
         var tenant = await SeedGymAsync();
