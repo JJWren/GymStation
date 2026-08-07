@@ -189,6 +189,92 @@ public class RankService(GymStationDbContext db)
         await db.SaveChangesAsync(ct);
     }
 
+    // ---- Discipline mapping (#214, ADR 0006). A gym labels any visible ladder —
+    // platform IBJJF or its own — with one of its Programs. The link is gym-owned,
+    // so mapping a SEEDED ladder is fine: nothing on the ladder itself changes. ----
+
+    /// <summary>RankSystemId → discipline label for every system visible to the
+    /// active gym: the linked Program's title, or the ladder's own name when the
+    /// gym hasn't mapped it. One dictionary labels any rank display.</summary>
+    public async Task<Dictionary<Guid, string>> GetDisciplineLabelsAsync(CancellationToken ct = default)
+    {
+        var labels = await db.RankSystems
+            .Select(s => new { s.Id, s.Name })
+            .ToDictionaryAsync(x => x.Id, x => x.Name, ct);
+
+        var linked = await db.RankSystemProgramLinks
+            .Join(db.GymPrograms, l => l.GymProgramId, p => p.Id, (l, p) => new { l.RankSystemId, p.Title })
+            .ToListAsync(ct);
+        foreach (var link in linked)
+        {
+            labels[link.RankSystemId] = link.Title;
+        }
+
+        return labels;
+    }
+
+    /// <summary>RankSystemId → linked GymProgramId, for the mapping picker.</summary>
+    public Task<Dictionary<Guid, Guid>> GetProgramLinksAsync(CancellationToken ct = default)
+    {
+        return db.RankSystemProgramLinks.ToDictionaryAsync(l => l.RankSystemId, l => l.GymProgramId, ct);
+    }
+
+    /// <summary>Unarchived Programs of the active gym, for the mapping picker.</summary>
+    public Task<List<GymStation.Domain.Marketing.GymProgram>> GetMappableProgramsAsync(CancellationToken ct = default)
+    {
+        return db.GymPrograms
+            .Where(p => !p.Archived)
+            .OrderBy(p => p.SortOrder).ThenBy(p => p.Title)
+            .ToListAsync(ct);
+    }
+
+    public async Task SetSystemProgramAsync(Guid systemId, Guid? programId, CancellationToken ct = default)
+    {
+        var gymId = db.CurrentGymId
+            ?? throw new InvalidOperationException("No active gym.");
+
+        // Visibility, not editability: the tenant filter admits platform ladders
+        // and this gym's own — exactly the set a gym may label.
+        _ = await db.RankSystems.SingleOrDefaultAsync(s => s.Id == systemId, ct)
+            ?? throw new InvalidOperationException("Ladder not found in the active gym.");
+
+        var link = await db.RankSystemProgramLinks.SingleOrDefaultAsync(l => l.RankSystemId == systemId, ct);
+        if (programId is null)
+        {
+            if (link is not null)
+            {
+                db.RankSystemProgramLinks.Remove(link);
+                await db.SaveChangesAsync(ct);
+            }
+
+            return;
+        }
+
+        var program = await db.GymPrograms.SingleOrDefaultAsync(p => p.Id == programId, ct)
+            ?? throw new InvalidOperationException("Program not found in the active gym.");
+        if (program.Archived)
+        {
+            throw new InvalidOperationException("Archived programs can't label a ladder — unarchive it first.");
+        }
+
+        if (link is null)
+        {
+            db.RankSystemProgramLinks.Add(new RankSystemProgramLink
+            {
+                Id = Guid.NewGuid(),
+                GymId = gymId,
+                RankSystemId = systemId,
+                GymProgramId = program.Id,
+            });
+        }
+        else
+        {
+            link.GymProgramId = program.Id;
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
     /// <summary>
     /// Primary (most recently awarded) current rank per person, for roster belt bars.
     /// A person's full per-system history lives on their profile.

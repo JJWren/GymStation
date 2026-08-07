@@ -82,7 +82,8 @@
                 @if (rank is not null)
                 {
                     <BeltBar Size="s" BandColorHex="@rank.Rank.BandColorHex" BarColorHex="@rank.Rank.BarColorHex"
-                             Stripes="@rank.Stripes" Label="@($"{rank.Rank.Name}, {rank.Stripes} stripes")" />
+                             Stripes="@rank.Stripes" Label="@($"{rank.Rank.Name}, {rank.Stripes} stripes — {_labels.GetValueOrDefault(rank.Rank.RankSystemId)}")" />
+                    <span class="cap">@_labels.GetValueOrDefault(rank.Rank.RankSystemId)?.ToUpperInvariant()</span>
                 }
                 else
                 {
@@ -168,6 +169,7 @@
     private List<Person> _people = [];
     private Dictionary<Guid, CurrentRank> _ranks = [];
     private List<RankSystem> _systems = [];
+    private Dictionary<Guid, string> _labels = [];
     private string? _formError;
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
 
@@ -218,6 +220,7 @@
         _people = await query.OrderBy(p => p.FirstName).ThenBy(p => p.LastName).ToListAsync();
         _ranks = await Ranks.GetPrimaryRanksAsync(_people.Select(p => p.Id).ToList());
         _systems = await Ranks.GetVisibleSystemsAsync();
+        _labels = await Ranks.GetDisciplineLabelsAsync();
 
         if (NoBeltFilter)
         {

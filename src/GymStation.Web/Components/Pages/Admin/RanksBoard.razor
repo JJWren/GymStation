@@ -11,8 +11,9 @@
     <div class="filters" style="margin:0">
         @foreach (var system in _systems)
         {
+            var label = _labels.GetValueOrDefault(system.Id);
             <a class="chip @(system.Id == _selected?.Id ? "active" : null)" href="/admin/ranks?system=@system.Id">
-                @system.Name.ToUpperInvariant() · @_countsBySystem.GetValueOrDefault(system.Id)
+                @(label == system.Name ? system.Name.ToUpperInvariant() : $"{label?.ToUpperInvariant()} · {system.Name.ToUpperInvariant()}") · @_countsBySystem.GetValueOrDefault(system.Id)
             </a>
         }
     </div>
@@ -55,11 +56,13 @@
     private RankSystem? _selected;
     private Dictionary<Guid, List<(Person Person, CurrentRank Current)>> _holdersByRank = [];
     private Dictionary<Guid, int> _countsBySystem = [];
+    private Dictionary<Guid, string> _labels = [];
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
 
     protected override async Task OnInitializedAsync()
     {
         _systems = await Ranks.GetVisibleSystemsAsync();
+        _labels = await Ranks.GetDisciplineLabelsAsync();
         _selected = _systems.FirstOrDefault(s => s.Id == SystemId) ?? _systems.FirstOrDefault();
 
         await using var db = await DbFactory.CreateDbContextAsync();

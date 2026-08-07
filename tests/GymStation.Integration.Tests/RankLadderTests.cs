@@ -79,6 +79,48 @@ public class RankLadderTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task DisciplineMapping_LabelsAnyVisibleLadder_PerGym()
+    {
+        var tenant = await SeedGymAsync();
+        var otherTenant = await SeedGymAsync();
+
+        await using var context = fixture.CreateContext(tenant);
+        var service = new RankService(context);
+
+        var bjj = new GymStation.Domain.Marketing.GymProgram { Id = Guid.NewGuid(), Title = "BJJ" };
+        var retired = new GymStation.Domain.Marketing.GymProgram { Id = Guid.NewGuid(), Title = "Old", Archived = true };
+        context.GymPrograms.AddRange(bjj, retired);
+        await context.SaveChangesAsync();
+
+        // A SEEDED (platform-shared) ladder takes this gym's label — mapping is
+        // gym-owned, so seeded immutability doesn't apply (ADR 0006).
+        var seeded = await context.RankSystems.FirstAsync(s => s.IsSeeded);
+        await service.SetSystemProgramAsync(seeded.Id, bjj.Id);
+
+        var custom = await service.CreateSystemAsync("House Ladder");
+        var labels = await service.GetDisciplineLabelsAsync();
+        Assert.Equal("BJJ", labels[seeded.Id]);
+        Assert.Equal("House Ladder", labels[custom.Id]); // unmapped → falls back to the ladder name
+
+        // Re-map is an upsert; clearing restores the fallback.
+        await service.SetSystemProgramAsync(seeded.Id, bjj.Id);
+        await service.SetSystemProgramAsync(seeded.Id, null);
+        labels = await service.GetDisciplineLabelsAsync();
+        Assert.Equal(seeded.Name, labels[seeded.Id]);
+
+        // Archived programs can't take new links.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.SetSystemProgramAsync(custom.Id, retired.Id));
+
+        // Another gym neither sees this mapping nor can borrow this gym's program.
+        await service.SetSystemProgramAsync(seeded.Id, bjj.Id);
+        await using var foreign = fixture.CreateContext(otherTenant);
+        var foreignService = new RankService(foreign);
+        var foreignLabels = await foreignService.GetDisciplineLabelsAsync();
+        Assert.Equal(seeded.Name, foreignLabels[seeded.Id]);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => foreignService.SetSystemProgramAsync(seeded.Id, bjj.Id));
+    }
+
+    [Fact]
     public async Task CustomLadders_AreInvisibleToOtherGyms()
     {
         var tenant = await SeedGymAsync();
