@@ -1,0 +1,45 @@
+# GymStation TEST stack — disposable, resettable, nightly-reseeded (round 4.5).
+# Copy this to Z:\docker\gymstation-test\compose.yaml with a sibling .env holding
+# POSTGRES_PASSWORD, OPS_API_KEY, and SEED_PASSWORD (>=10 chars).
+#
+# This stack migrates ITSELF on boot (Database__MigrateOnStart) and is reset by
+# scripts/reset-test-stack.ps1 (down -v -> up -> seed). NEVER point this at lab
+# data: the postgres container_name below is the reset script's safety key.
+services:
+  gymstation-test-web:
+    image: ghcr.io/jjwren/gymstation-web:latest
+    container_name: gymstation-test-web
+    restart: unless-stopped
+    depends_on:
+      gymstation-test-db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_URLS: http://0.0.0.0:8080
+      ConnectionStrings__Default: Host=gymstation-test-db;Port=5432;Database=gymstation;Username=gymstation;Password=${POSTGRES_PASSWORD:?set in .env}
+      Database__MigrateOnStart: "true"
+      Ops__ApiKey: ${OPS_API_KEY:?set in .env}
+      Storage__Root: /data/media
+    volumes:
+      - gymstation-test-media:/data/media
+    ports:
+      - "8630:8080"
+
+  gymstation-test-db:
+    image: postgres:17-alpine
+    container_name: gymstation-test-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gymstation
+      POSTGRES_USER: gymstation
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+    volumes:
+      - gymstation-test-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gymstation -d gymstation"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  gymstation-test-media:
+  gymstation-test-pgdata:
