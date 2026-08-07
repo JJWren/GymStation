@@ -276,8 +276,10 @@ public class RankService(GymStationDbContext db)
     }
 
     /// <summary>
-    /// Primary (most recently awarded) current rank per person, for roster belt bars.
-    /// A person's full per-system history lives on their profile.
+    /// Primary current rank per person, for roster belt bars: the person's chosen
+    /// primary discipline (#215) when they hold a rank there, else the most
+    /// recently awarded system. A person's full per-system history lives on
+    /// their profile.
     /// </summary>
     public async Task<Dictionary<Guid, CurrentRank>> GetPrimaryRanksAsync(IReadOnlyCollection<Guid> personIds, CancellationToken ct = default)
     {
@@ -286,18 +288,39 @@ public class RankService(GymStationDbContext db)
             .Include(a => a.Rank)
             .ToListAsync(ct);
 
+        var preferred = await db.Persons
+            .Where(p => personIds.Contains(p.Id) && p.PrimaryRankSystemId != null)
+            .ToDictionaryAsync(p => p.Id, p => p.PrimaryRankSystemId!.Value, ct);
+
         return awards
             .GroupBy(a => a.PersonId)
             .Select(g =>
             {
-                var latestSystem = g
-                    .OrderBy(a => a.AwardedOn).ThenBy(a => a.RecordedUtc)
-                    .Last().Rank.RankSystemId;
-                var current = RankProgress.Current(g.Where(a => a.Rank.RankSystemId == latestSystem));
+                var system = preferred.TryGetValue(g.Key, out var chosen) && g.Any(a => a.Rank.RankSystemId == chosen)
+                    ? chosen
+                    : g.OrderBy(a => a.AwardedOn).ThenBy(a => a.RecordedUtc).Last().Rank.RankSystemId;
+                var current = RankProgress.Current(g.Where(a => a.Rank.RankSystemId == system));
                 return (g.Key, current);
             })
             .Where(x => x.current is not null)
             .ToDictionary(x => x.Key, x => x.current!);
+    }
+
+    /// <summary>Sets (or clears, with null) a person's primary discipline. Authority
+    /// — self on the member portal, staff on the admin side — is the endpoint's job.</summary>
+    public async Task SetPrimaryRankSystemAsync(Guid personId, Guid? rankSystemId, CancellationToken ct = default)
+    {
+        var person = await db.Persons.SingleOrDefaultAsync(p => p.Id == personId && !p.Archived, ct)
+            ?? throw new InvalidOperationException("Person not found in the active gym.");
+
+        if (rankSystemId is { } systemId
+            && !await db.RankSystems.AnyAsync(s => s.Id == systemId, ct))
+        {
+            throw new InvalidOperationException("Ladder not found in the active gym.");
+        }
+
+        person.PrimaryRankSystemId = rankSystemId;
+        await db.SaveChangesAsync(ct);
     }
 
     public async Task<List<RankAward>> GetAwardsForPersonAsync(Guid personId, CancellationToken ct = default)

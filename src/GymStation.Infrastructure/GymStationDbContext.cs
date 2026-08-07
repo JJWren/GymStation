@@ -113,6 +113,8 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
             e.Property(p => p.FirstName).HasMaxLength(80);
             e.Property(p => p.LastName).HasMaxLength(80);
             e.Property(p => p.PhoneNumber).HasMaxLength(30);
+            // Primary-discipline preference survives ladder deletion as "automatic".
+            e.HasOne<RankSystem>().WithMany().HasForeignKey(p => p.PrimaryRankSystemId).OnDelete(DeleteBehavior.SetNull);
             // One roster record per User per gym; unlimited login-less Persons.
             e.HasIndex(p => new { p.GymId, p.UserId }).IsUnique().HasFilter("\"UserId\" IS NOT NULL");
             e.HasQueryFilter(p => CurrentGymId != null && p.GymId == CurrentGymId);
