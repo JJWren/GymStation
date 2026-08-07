@@ -312,7 +312,7 @@ public class StandardSeeder(GymStationDbContext db, TenantContext tenant, Storag
 
         // ---- named archetypes (docs/test-roster.md is the human index) ----
         _owner = Cast("Val", "Moreau", PersonRoles.Owner | PersonRoles.Admin, new DateOnly(1979, 2, 11), null, 2014);
-        Cast("Quinn", "Barlow", PersonRoles.Admin, new DateOnly(1991, 6, 30), null, 2019);
+        var quinnBarlow = Cast("Quinn", "Barlow", PersonRoles.Admin, new DateOnly(1991, 6, 30), null, 2019);
         var renIto = Cast("Ren", "Ito", PersonRoles.Admin | PersonRoles.Member, new DateOnly(1988, 9, 2), _adultPlan.Id, 2017);
         _coachBjjHead = Cast("Mateus", "Rocha", PersonRoles.Instructor | PersonRoles.Member, new DateOnly(1983, 4, 19), _compedPlan.Id, 2014);
         _coachBjjSecond = Cast("Talia", "Nunes", PersonRoles.Instructor | PersonRoles.Member, new DateOnly(1992, 12, 5), _compedPlan.Id, 2018);
@@ -320,6 +320,32 @@ public class StandardSeeder(GymStationDbContext db, TenantContext tenant, Storag
         _coachJudo = Cast("Hana", "Yoshida", PersonRoles.Instructor | PersonRoles.Member, new DateOnly(1989, 1, 14), _compedPlan.Id, 2020);
         _coachFit = Cast("Dee", "Cross", PersonRoles.Instructor | PersonRoles.Member, new DateOnly(1995, 10, 8), _compedPlan.Id, 2023);
         Cast("Pat", "Winters", PersonRoles.Staff, new DateOnly(1999, 3, 27), null, 2024, hasLogin: false); // #87-clean desk
+
+        // Capability archetypes (#217): Quinn = the full-admin baseline; Ren =
+        // a PARTIAL admin (no finance/reports/settings — the Denied path is
+        // reachable on day one); Mateus = an Instructor holding grants without
+        // the Admin role. Owner Val carries none — owners are implicit.
+        Grant(quinnBarlow, Enum.GetValues<GymCapability>());
+        Grant(renIto,
+        [
+            GymCapability.ManageRoster, GymCapability.ManageRanks, GymCapability.ManageSchedule,
+            GymCapability.ManageEvents, GymCapability.ManageMessaging, GymCapability.EditLanding,
+        ]);
+        Grant(_coachBjjHead, CapabilityPresets.All["coach-plus"]);
+
+        void Grant(Person person, IReadOnlyCollection<GymCapability> capabilities)
+        {
+            foreach (var capability in capabilities)
+            {
+                db.PermissionGrants.Add(new PermissionGrant
+                {
+                    Id = Guid.NewGuid(),
+                    GymId = _gym.Id,
+                    PersonId = person.Id,
+                    Capability = capability,
+                });
+            }
+        }
 
         _behindOneMonth = Cast("Iris", "Vale", PersonRoles.Member, new DateOnly(1994, 5, 21), _adultPlan.Id, 2022);
         _behindThreeMonths = Cast("Cole", "Draper", PersonRoles.Member, new DateOnly(1990, 11, 3), _adultPlan.Id, 2021);

@@ -336,3 +336,11 @@ For a family plan, there should be a standard flate rate with an optional increa
 **Context**: Round-5 backlog, issue #216, branch feat/216-seeder-overhaul
 
 ---
+
+## Round 5 — Issue #217 remediation (granular RBAC)
+**Timestamp**: 2026-08-07T00:00:00Z
+**User Input**: "/remediate each issue in order (214 -> 221)" (continuing)
+**AI Response**: "Implemented #217. GymCapability enum (10 stable-int capabilities) + PermissionGrant (tenant-owned, unique per gym+person+capability, cascade on person) + CapabilityPresets (full-admin/front-desk/coach-plus). PermissionService (staff-ish-only grants incl. Instructors; owners refused rows — implicit; replace semantics; presets). CapabilityRequirement/Handler ('Cap:X' policies — owner implicit pass, staff-ish + grant row otherwise; grant rows on non-staff-ish people are dead weight by re-check). GymOwner policy gates the management endpoints. All 15 admin pages swapped from GymStaff to their capability policy (Inbox stays GymStaff; InstructorSwaps → ManageSchedule); AdminActionEndpoints split into per-capability subgroups; Media/Program/Story/Family/RankSystem endpoint groups gated; owner-only ACCESS card on PersonDetail (checkbox grid + preset buttons). Migration AddPermissionGrants BACKFILLS full capability sets for existing non-owner Admins (lab keeps working); StandardSeeder seeds archetypes: Quinn full-admin, Ren partial (Denied path reachable day one), Mateus coach-plus as a granted Instructor; DemoSeeder untouched (its only admin is the Owner). Nav-link hiding intentionally deferred to #218."
+**Context**: Round-5 backlog, issue #217, branch feat/217-rbac-permissions
+
+---

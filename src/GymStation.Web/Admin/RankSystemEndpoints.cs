@@ -11,7 +11,7 @@ public static class RankSystemEndpoints
     public static IEndpointRouteBuilder MapRankSystemEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/admin/actions")
-            .RequireAuthorization("GymStaff")
+            .RequireAuthorization("Cap:ManageRanks")
             .ValidateAntiforgery();
 
         static async Task<IResult> Run(Func<Task> action)

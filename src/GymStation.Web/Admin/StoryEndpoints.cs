@@ -13,7 +13,7 @@ public static class StoryEndpoints
     public static IEndpointRouteBuilder MapStoryEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/admin/actions")
-            .RequireAuthorization("GymStaff")
+            .RequireAuthorization("Cap:EditLanding")
             .ValidateAntiforgery();
 
         group.MapPost("/add-story", async ([FromForm] string body, [FromForm] string? attributedTo, GymStationDbContext db) =>

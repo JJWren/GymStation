@@ -35,6 +35,7 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
     public DbSet<FamilyMember> FamilyMembers => Set<FamilyMember>();
     public DbSet<FamilyGuardian> FamilyGuardians => Set<FamilyGuardian>();
     public DbSet<StaffProfile> StaffProfiles => Set<StaffProfile>();
+    public DbSet<PermissionGrant> PermissionGrants => Set<PermissionGrant>();
     public DbSet<RankSystem> RankSystems => Set<RankSystem>();
     public DbSet<Rank> Ranks => Set<Rank>();
     public DbSet<RankAward> RankAwards => Set<RankAward>();
@@ -183,6 +184,15 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
             e.HasOne(a => a.Person).WithMany().HasForeignKey(a => a.PersonId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(a => a.Rank).WithMany().HasForeignKey(a => a.RankId).OnDelete(DeleteBehavior.Restrict);
             e.HasQueryFilter(a => CurrentGymId != null && a.GymId == CurrentGymId);
+        });
+
+        builder.Entity<PermissionGrant>(e =>
+        {
+            // One row per capability per person per gym (#217). Owners never
+            // carry rows — the capability handler passes them implicitly.
+            e.HasIndex(g => new { g.GymId, g.PersonId, g.Capability }).IsUnique();
+            e.HasOne<Person>().WithMany().HasForeignKey(g => g.PersonId).OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(g => CurrentGymId != null && g.GymId == CurrentGymId);
         });
 
         builder.Entity<RankSystemProgramLink>(e =>

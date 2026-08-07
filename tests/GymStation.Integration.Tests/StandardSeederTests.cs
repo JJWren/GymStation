@@ -237,5 +237,16 @@ public sealed class StandardSeederTests(PostgresFixture fixture) : IDisposable
         // Name pools are clean — no dedupe-suffix debris like "Hale2" (any digit).
         var lastNames = await db.Persons.Select(p => p.LastName).Distinct().ToListAsync();
         Assert.DoesNotContain(lastNames, n => char.IsDigit(n[^1]));
+
+        // Capability archetypes (#217): full admin, partial admin, granted
+        // instructor — and the owner carries no rows (implicitly all-capable).
+        var grantCounts = await db.PermissionGrants
+            .Join(db.Persons, g => g.PersonId, p => p.Id, (g, p) => p.LastName)
+            .GroupBy(n => n)
+            .ToDictionaryAsync(g => g.Key, g => g.Count());
+        Assert.Equal(10, grantCounts.GetValueOrDefault("Barlow"));
+        Assert.Equal(6, grantCounts.GetValueOrDefault("Ito"));
+        Assert.Equal(3, grantCounts.GetValueOrDefault("Rocha"));
+        Assert.False(grantCounts.ContainsKey("Moreau"));
     }
 }

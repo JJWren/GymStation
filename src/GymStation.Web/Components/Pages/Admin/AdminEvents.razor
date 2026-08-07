@@ -1,5 +1,5 @@
 @page "/admin/events"
-@attribute [Authorize(Policy = "GymStaff")]
+@attribute [Authorize(Policy = "Cap:ManageEvents")]
 @layout AdminLayout
 @using System.Security.Claims
 @using GymStation.Domain.Events

@@ -1,6 +1,6 @@
 @page "/admin/finance"
 @page "/admin/dues"
-@attribute [Authorize(Policy = "GymStaff")]
+@attribute [Authorize(Policy = "Cap:ViewFinances")]
 @layout AdminLayout
 @using GymStation.Domain.Money
 @using GymStation.Infrastructure.Money

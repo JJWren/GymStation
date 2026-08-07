@@ -1,5 +1,5 @@
 @page "/admin/messages"
-@attribute [Authorize(Policy = "GymStaff")]
+@attribute [Authorize(Policy = "Cap:ManageMessaging")]
 @layout AdminLayout
 @using GymStation.Domain.Contact
 @using GymStation.Infrastructure.Contact

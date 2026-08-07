@@ -1,5 +1,5 @@
 @page "/admin/roster"
-@attribute [Authorize(Policy = "GymStaff")]
+@attribute [Authorize(Policy = "Cap:ManageRoster")]
 @layout AdminLayout
 @using GymStation.Infrastructure.Identity
 @using Microsoft.AspNetCore.Identity

@@ -1,11 +1,12 @@
 @page "/admin/people/{PersonId:guid}"
-@attribute [Authorize(Policy = "GymStaff")]
+@attribute [Authorize(Policy = "Cap:ManageRoster")]
 @layout AdminLayout
 @using System.Security.Claims
 @inject IDbContextFactory<GymStationDbContext> DbFactory
 @inject RankService Ranks
 @inject GymStation.Infrastructure.Attendance.AttendanceService Attendance
 @inject GymStation.Infrastructure.People.PersonService People
+@inject GymStation.Infrastructure.People.PermissionService Permissions
 @inject NavigationManager Nav
 
 <PageTitle>@(_person?.DisplayName ?? "Person") · GymStation</PageTitle>
@@ -248,6 +249,41 @@ else
                 </EditForm>
             }
 
+            @* Capability grants (#217): OWNER-ONLY controls; Owners themselves
+               hold everything implicitly and never take grants. *@
+            @if (_viewerIsOwner && (_person.Roles & StaffishRoles) != 0 && !_person.HasRole(PersonRoles.Owner))
+            {
+                <h2 class="section-h">Access</h2>
+                <div class="form-card">
+                    <form method="post" action="/admin/actions/set-permissions" style="margin:0">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="personId" value="@PersonId" />
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.25rem 1rem">
+                            @foreach (var capability in Enum.GetValues<GymCapability>())
+                            {
+                                <label class="check-row" style="margin:0">
+                                    <input type="checkbox" name="caps" value="@((int)capability)" checked="@(_grantedCaps.Contains(capability))" />
+                                    @CapabilityLabel(capability)
+                                </label>
+                            }
+                        </div>
+                        <p style="margin-top:0.625rem"><button class="btn btn--icon btn--save btn--xs" type="submit" aria-label="Save access" title="Save access"><Glyph Name="save" /></button></p>
+                    </form>
+                    <div class="row-form" style="margin-top:0.375rem">
+                        @foreach (var (preset, label) in new[] { ("full-admin", "FULL ADMIN"), ("front-desk", "FRONT DESK"), ("coach-plus", "COACH+") })
+                        {
+                            <form method="post" action="/admin/actions/apply-permission-preset" style="margin:0">
+                                <AntiforgeryToken />
+                                <input type="hidden" name="personId" value="@PersonId" />
+                                <input type="hidden" name="preset" value="@preset" />
+                                <button class="btn btn--ghost btn--xs" type="submit">@label</button>
+                            </form>
+                        }
+                    </div>
+                    <p class="cap" style="margin-top:0.375rem">WHAT THIS PERSON CAN OPEN AND CHANGE IN THE ADMIN SHELL · LINKS HIDE WITHOUT ACCESS AND DIRECT URLS ARE REFUSED · OWNERS ALWAYS HOLD EVERYTHING.</p>
+                </div>
+            }
+
             <h2 class="section-h">Membership &amp; ledger</h2>
             <div class="form-card">
                 <form method="post" action="/admin/actions/assign-plan" class="row-form" style="margin:0 0 0.625rem">
@@ -410,6 +446,23 @@ else
     private CurrentRank? _current;
     private Dictionary<Guid, string> _labels = [];
     private List<Guid> _heldSystems = [];
+    private bool _viewerIsOwner;
+    private HashSet<GymCapability> _grantedCaps = [];
+
+    private static string CapabilityLabel(GymCapability capability) => capability switch
+    {
+        GymCapability.ViewFinances => "VIEW FINANCES",
+        GymCapability.ManageFinances => "MANAGE FINANCES",
+        GymCapability.ViewReports => "VIEW REPORTS",
+        GymCapability.ManageRoster => "MANAGE ROSTER",
+        GymCapability.ManageRanks => "MANAGE RANKS",
+        GymCapability.ManageSchedule => "MANAGE SCHEDULE",
+        GymCapability.ManageEvents => "MANAGE EVENTS",
+        GymCapability.ManageMessaging => "MANAGE MESSAGES",
+        GymCapability.EditLanding => "EDIT LANDING",
+        GymCapability.ManageSettings => "MANAGE SETTINGS",
+        _ => capability.ToString().ToUpperInvariant(),
+    };
     private List<RankAward> _awards = [];
     private List<RankSystem> _systems = [];
     private Dictionary<Guid, string> _names = [];
@@ -487,6 +540,19 @@ else
         _labels = await Ranks.GetDisciplineLabelsAsync();
         _awards = await Ranks.GetAwardsForPersonAsync(PersonId);
         _heldSystems = _awards.Select(a => a.Rank.RankSystemId).Distinct().ToList();
+
+        var viewerRaw = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (Guid.TryParse(viewerRaw, out var viewerUserId))
+        {
+            await using var viewerDb = await DbFactory.CreateDbContextAsync();
+            var viewer = await viewerDb.Persons.SingleOrDefaultAsync(p => p.UserId == viewerUserId && !p.Archived);
+            _viewerIsOwner = viewer?.HasRole(PersonRoles.Owner) == true;
+        }
+
+        if (_viewerIsOwner)
+        {
+            _grantedCaps = await Permissions.GetForPersonAsync(PersonId);
+        }
         _current = (await Ranks.GetPrimaryRanksAsync([PersonId])).GetValueOrDefault(PersonId);
 
         var awarderIds = _awards.Where(a => a.AwardedByPersonId is not null).Select(a => a.AwardedByPersonId!.Value).Distinct().ToList();

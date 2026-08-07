@@ -56,7 +56,7 @@ public static class MediaEndpoints
 
             await db.SaveChangesAsync();
             return Results.Redirect("/admin/settings");
-        }).RequireAuthorization("GymStaff").ValidateAntiforgery();
+        }).RequireAuthorization("Cap:EditLanding").ValidateAntiforgery();
 
         // Member portraits: staff-only on both sides — stored under the gym's folder,
         // never reachable through the anonymous /media/ route below.
@@ -96,7 +96,7 @@ public static class MediaEndpoints
             person.PortraitPath = path;
             await db.SaveChangesAsync();
             return Results.Redirect($"/admin/people/{personId}");
-        }).RequireAuthorization("GymStaff").ValidateAntiforgery();
+        }).RequireAuthorization("Cap:ManageRoster").ValidateAntiforgery();
 
         // Instructor portraits are PUBLIC (#137, ADR 0003): instructors are the
         // gym's public faces. The route carries the gym because this anonymous
@@ -159,7 +159,7 @@ public static class MediaEndpoints
             settings.StoriesImagePath = path;
             await db.SaveChangesAsync();
             return Results.Redirect("/admin/landing/stories");
-        }).RequireAuthorization("GymStaff").ValidateAntiforgery();
+        }).RequireAuthorization("Cap:EditLanding").ValidateAntiforgery();
 
         // Program images (#135): staff upload; PUBLIC serving via the /media
         // allow-list below — programs are marketing content by definition.
@@ -199,7 +199,7 @@ public static class MediaEndpoints
             program.ImagePath = path;
             await db.SaveChangesAsync();
             return Results.Redirect("/admin/landing/programs");
-        }).RequireAuthorization("GymStaff").ValidateAntiforgery();
+        }).RequireAuthorization("Cap:EditLanding").ValidateAntiforgery();
 
         // Event flyers (#130): staff upload; every signed-in person of the gym can view
         // (events are member-facing pages), so serving is authed but not staff-gated.
@@ -239,7 +239,7 @@ public static class MediaEndpoints
             gymEvent.ImagePath = path;
             await db.SaveChangesAsync();
             return Results.Redirect("/admin/events");
-        }).RequireAuthorization("GymStaff").ValidateAntiforgery();
+        }).RequireAuthorization("Cap:ManageEvents").ValidateAntiforgery();
 
         app.MapGet("/media/event/{eventId:guid}", async (Guid eventId, HttpContext http, GymStationDbContext db, IFileStore store) =>
         {
@@ -284,7 +284,7 @@ public static class MediaEndpoints
             // Replacements reuse the same URL — don't let browsers keep the old face.
             http.Response.Headers.CacheControl = "no-store";
             return Results.Stream(stream, contentType);
-        }).RequireAuthorization("GymStaff");
+        }).RequireAuthorization("Cap:ManageRoster");
 
         // Public pages need logos/heroes/program images without auth. ONLY these
         // public MARKETING asset kinds are servable — nothing else that may ever
