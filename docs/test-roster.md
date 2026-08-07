@@ -67,3 +67,10 @@ data:
 3. The script REFUSES to run against any compose file whose postgres isn't
    named `gymstation-test-db` — the live lab (`gymstation-db`) is out of reach
    by construction.
+4. The stack rides the EXTERNAL Docker network `gymstation-test-net` (the
+   reset script creates it if missing) so companion containers survive resets.
+   **pgAdmin** lives at `Z:\docker\pgadmin` on that network (plus the lab's),
+   browsable at `http://localhost:5050` with zero database ports exposed —
+   both servers come pre-registered; database passwords live in each stack's
+   `.env`. If you ever fully `compose down` the LAB stack, stop pgAdmin first
+   (it holds an endpoint on the lab's network).

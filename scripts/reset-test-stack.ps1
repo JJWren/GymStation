@@ -62,6 +62,15 @@ try {
     }
     Log "Safety check passed - target is the test stack."
 
+    # The stack rides an EXTERNAL network so companion containers (pgAdmin)
+    # survive resets. Idempotent: create it only when missing.
+    docker network inspect gymstation-test-net *> $null
+    if ($LASTEXITCODE -ne 0) {
+        Log "Creating external network gymstation-test-net..."
+        docker network create gymstation-test-net | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "Could not create the gymstation-test-net network." }
+    }
+
     # --- secrets from the stack .env ---
     if (-not (Test-Path $envPath)) { throw "No .env in $StackDir (needs OPS_API_KEY, SEED_PASSWORD, POSTGRES_PASSWORD)." }
     $envVars = @{}
