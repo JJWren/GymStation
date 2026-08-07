@@ -71,8 +71,10 @@ public static class RankSystemEndpoints
 
             try
             {
-                await ranks.DeleteAwardAsync(awardId, deletedBy);
-                return Results.Redirect($"/admin/people/{personId}");
+                // The award row names its person — the posted personId is only
+                // the failure fallback, never the trusted redirect source.
+                var ownerPersonId = await ranks.DeleteAwardAsync(awardId, deletedBy);
+                return Results.Redirect($"/admin/people/{ownerPersonId}");
             }
             catch (InvalidOperationException)
             {

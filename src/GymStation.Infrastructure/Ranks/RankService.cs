@@ -185,7 +185,7 @@ public class RankService(GymStationDbContext db)
         // RankId is globally unique, so dropping the tenant filter is exact.
         if (await db.RankAwards.IgnoreQueryFilters().AnyAsync(a => a.RankId == rankId, ct))
         {
-            throw new InvalidOperationException("That rank has awards on record — history stays. Retire it instead (#220): it leaves pickers, history keeps rendering.");
+            throw new InvalidOperationException("That rank has awards on record — history stays. Retire it instead: it leaves the pickers while history keeps rendering.");
         }
 
         db.Ranks.Remove(rank);
@@ -206,8 +206,9 @@ public class RankService(GymStationDbContext db)
     }
 
     /// <summary>Soft-deletes one award (#220) — a data-entry correction. Current
-    /// rank recomputes from what remains; the row stays as the audit trail.</summary>
-    public async Task DeleteAwardAsync(Guid awardId, Guid? deletedByPersonId, CancellationToken ct = default)
+    /// rank recomputes from what remains; the row stays as the audit trail.
+    /// Returns the award's PersonId so callers can land on the right person.</summary>
+    public async Task<Guid> DeleteAwardAsync(Guid awardId, Guid? deletedByPersonId, CancellationToken ct = default)
     {
         var award = await db.RankAwards.SingleOrDefaultAsync(a => a.Id == awardId, ct)
             ?? throw new InvalidOperationException("Award not found in the active gym (or already removed).");
@@ -215,6 +216,7 @@ public class RankService(GymStationDbContext db)
         award.DeletedUtc = DateTimeOffset.UtcNow;
         award.DeletedByPersonId = deletedByPersonId;
         await db.SaveChangesAsync(ct);
+        return award.PersonId;
     }
 
     // ---- Discipline mapping (#214, ADR 0006). A gym labels any visible ladder —
