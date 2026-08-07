@@ -1,5 +1,5 @@
 @page "/admin/reports"
-@attribute [Authorize(Policy = "GymStaff")]
+@attribute [Authorize(Policy = "Cap:ViewReports")]
 @layout AdminLayout
 @using GymStation.Domain.Money
 @using GymStation.Infrastructure.Reports

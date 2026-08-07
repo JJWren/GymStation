@@ -19,6 +19,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<GymMembershipService>();
         services.AddScoped<People.PersonService>();
         services.AddScoped<People.FamilyService>();
+        services.AddScoped<People.PermissionService>();
         services.AddScoped<RankService>();
         services.AddScoped<NotificationService>();
         services.AddScoped<ScheduleService>();

@@ -14,12 +14,17 @@ public static class AdminActionEndpoints
 {
     public static IEndpointRouteBuilder MapAdminActionEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/admin/actions")
-            .RequireAuthorization("GymStaff")
-            .ValidateAntiforgery();
+        // One route space, one capability-gated subgroup per concern (#217).
+        // The policies are the security boundary; nav hiding is just UX.
+        var messaging = app.MapGroup("/admin/actions").RequireAuthorization("Cap:ManageMessaging").ValidateAntiforgery();
+        var landing = app.MapGroup("/admin/actions").RequireAuthorization("Cap:EditLanding").ValidateAntiforgery();
+        var roster = app.MapGroup("/admin/actions").RequireAuthorization("Cap:ManageRoster").ValidateAntiforgery();
+        var schedule = app.MapGroup("/admin/actions").RequireAuthorization("Cap:ManageSchedule").ValidateAntiforgery();
+        var settings = app.MapGroup("/admin/actions").RequireAuthorization("Cap:ManageSettings").ValidateAntiforgery();
+        var finance = app.MapGroup("/admin/actions").RequireAuthorization("Cap:ManageFinances").ValidateAntiforgery();
 
         // Contact-message read state (#138): per-message toggle.
-        group.MapPost("/message-read", async ([FromForm] Guid messageId, [FromForm] bool read, GymStationDbContext db) =>
+        messaging.MapPost("/message-read", async ([FromForm] Guid messageId, [FromForm] bool read, GymStationDbContext db) =>
         {
             var message = await db.ContactMessages.SingleOrDefaultAsync(m => m.Id == messageId);
             if (message is not null)
@@ -34,7 +39,7 @@ public static class AdminActionEndpoints
         // Landing section ordering (#134): one step at a time. Tampered requests
         // are rejected outright — a junk key must not trigger a silent write of
         // the normalized order.
-        group.MapPost("/landing-section-move", async ([FromForm] string key, [FromForm] int direction, GymStationDbContext db) =>
+        landing.MapPost("/landing-section-move", async ([FromForm] string key, [FromForm] int direction, GymStationDbContext db) =>
         {
             if (!LandingSections.Default.Contains(key?.ToLowerInvariant() ?? "") || direction is not (-1 or 1))
             {
@@ -51,7 +56,7 @@ public static class AdminActionEndpoints
             return Results.Redirect("/admin/landing");
         });
 
-        group.MapPost("/rename-person", async (
+        roster.MapPost("/rename-person", async (
             [FromForm] Guid personId, [FromForm] string firstName, [FromForm] string lastName,
             GymStation.Infrastructure.People.PersonService people) =>
         {
@@ -69,7 +74,7 @@ public static class AdminActionEndpoints
         // #191: post-hoc login link/unlink on an existing Person. Email→User
         // resolution stays here at the edge (roster add-form precedent) — the
         // service speaks Guids.
-        group.MapPost("/link-login", async (
+        roster.MapPost("/link-login", async (
             [FromForm] Guid personId, [FromForm] string email,
             Microsoft.AspNetCore.Identity.UserManager<GymStation.Infrastructure.Identity.AppUser> users,
             GymStation.Infrastructure.People.PersonService people) =>
@@ -91,7 +96,7 @@ public static class AdminActionEndpoints
             }
         });
 
-        group.MapPost("/unlink-login", async (
+        roster.MapPost("/unlink-login", async (
             [FromForm] Guid personId, GymStation.Infrastructure.People.PersonService people) =>
         {
             try
@@ -106,13 +111,13 @@ public static class AdminActionEndpoints
             return Results.Redirect($"/admin/people/{personId}");
         });
 
-        group.MapPost("/cancel-session", async ([FromForm] Guid sessionId, [FromForm] string reason, ScheduleService schedule) =>
+        schedule.MapPost("/cancel-session", async ([FromForm] Guid sessionId, [FromForm] string reason, ScheduleService schedule) =>
         {
             await schedule.CancelSessionAsync(sessionId, string.IsNullOrWhiteSpace(reason) ? "No reason given" : reason);
             return Results.Redirect("/admin/schedule");
         });
 
-        group.MapPost("/duplicate-session", async ([FromForm] Guid sessionId, [FromForm] DateOnly date, [FromForm] string start, ScheduleService schedule) =>
+        schedule.MapPost("/duplicate-session", async ([FromForm] Guid sessionId, [FromForm] DateOnly date, [FromForm] string start, ScheduleService schedule) =>
         {
             if (!TimeOnly.TryParseExact(start, "HH\\:mm", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var startTime))
             {
@@ -131,7 +136,7 @@ public static class AdminActionEndpoints
             }
         });
 
-        group.MapPost("/duplicate-template", async (
+        schedule.MapPost("/duplicate-template", async (
             [FromForm] Guid templateId, [FromForm] string day, [FromForm] string start, [FromForm] string week,
             ScheduleService schedule) =>
         {
@@ -161,7 +166,7 @@ public static class AdminActionEndpoints
             }
         });
 
-        group.MapPost("/promote-session", async ([FromForm] Guid sessionId, [FromForm] string? week, ScheduleService schedule) =>
+        schedule.MapPost("/promote-session", async ([FromForm] Guid sessionId, [FromForm] string? week, ScheduleService schedule) =>
         {
             var back = DateOnly.TryParseExact(week, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsed) ? $"start={parsed:yyyy-MM-dd}&" : "";
             try
@@ -177,7 +182,7 @@ public static class AdminActionEndpoints
             }
         });
 
-        group.MapPost("/delete-session", async ([FromForm] Guid sessionId, [FromForm] string? week, ScheduleService schedule) =>
+        schedule.MapPost("/delete-session", async ([FromForm] Guid sessionId, [FromForm] string? week, ScheduleService schedule) =>
         {
             // Only a date the page itself rendered rides back into the redirect.
             var back = DateOnly.TryParseExact(week, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsed) ? $"?start={parsed:yyyy-MM-dd}" : "";
@@ -194,25 +199,25 @@ public static class AdminActionEndpoints
             }
         });
 
-        group.MapPost("/reopen-session", async ([FromForm] Guid sessionId, ScheduleService schedule) =>
+        schedule.MapPost("/reopen-session", async ([FromForm] Guid sessionId, ScheduleService schedule) =>
         {
             await schedule.ReopenSessionAsync(sessionId);
             return Results.Redirect("/admin/schedule");
         });
 
-        group.MapPost("/approve-sub", async ([FromForm] Guid requestId, SubstitutionService subs) =>
+        schedule.MapPost("/approve-sub", async ([FromForm] Guid requestId, SubstitutionService subs) =>
         {
             await subs.ApproveAsync(requestId);
             return Results.Redirect("/admin/schedule");
         });
 
-        group.MapPost("/decline-sub", async ([FromForm] Guid requestId, SubstitutionService subs) =>
+        schedule.MapPost("/decline-sub", async ([FromForm] Guid requestId, SubstitutionService subs) =>
         {
             await subs.DeclineAsync(requestId);
             return Results.Redirect("/admin/schedule");
         });
 
-        group.MapPost("/swap-mode", async ([FromForm] string mode, GymStationDbContext db) =>
+        settings.MapPost("/swap-mode", async ([FromForm] string mode, GymStationDbContext db) =>
         {
             // Only the two known values may flip the setting — a tampered or stale
             // form must not silently land the gym on AutoApply.
@@ -233,7 +238,7 @@ public static class AdminActionEndpoints
             return Results.Redirect("/admin/settings");
         });
 
-        group.MapPost("/open-claims", async ([FromForm] bool enabled, GymStationDbContext db) =>
+        settings.MapPost("/open-claims", async ([FromForm] bool enabled, GymStationDbContext db) =>
         {
             var settings = await db.GymSettings.SingleAsync();
             settings.OpenClaimsEnabled = enabled;
@@ -241,7 +246,7 @@ public static class AdminActionEndpoints
             return Results.Redirect("/admin/settings");
         });
 
-        group.MapPost("/record-payment", async (
+        finance.MapPost("/record-payment", async (
             [FromForm] Guid personId,
             [FromForm] decimal amount,
             [FromForm] string? back,
@@ -280,7 +285,7 @@ public static class AdminActionEndpoints
             return Results.Redirect(destination);
         });
 
-        group.MapPost("/void-payment", async (
+        finance.MapPost("/void-payment", async (
             [FromForm] Guid paymentId,
             [FromForm] Guid personId,
             [FromForm] string reason,
@@ -307,7 +312,7 @@ public static class AdminActionEndpoints
             return Results.Redirect($"/admin/people/{personId}");
         });
 
-        group.MapPost("/update-expense", async (
+        finance.MapPost("/update-expense", async (
             [FromForm] Guid expenseId, [FromForm] Guid categoryId, [FromForm] decimal amount,
             [FromForm] DateOnly spentOn, [FromForm] string? note, LedgerService ledger) =>
         {
@@ -323,7 +328,7 @@ public static class AdminActionEndpoints
             return Results.Redirect("/admin/finance");
         });
 
-        group.MapPost("/delete-expense", async ([FromForm] Guid expenseId, LedgerService ledger) =>
+        finance.MapPost("/delete-expense", async ([FromForm] Guid expenseId, LedgerService ledger) =>
         {
             try
             {
@@ -337,7 +342,7 @@ public static class AdminActionEndpoints
             return Results.Redirect("/admin/finance");
         });
 
-        group.MapPost("/add-income", async (
+        finance.MapPost("/add-income", async (
             [FromForm] string label, [FromForm] decimal amount, [FromForm] DateOnly receivedOn,
             [FromForm] string? note, LedgerService ledger) =>
         {
@@ -353,7 +358,7 @@ public static class AdminActionEndpoints
             return Results.Redirect("/admin/finance");
         });
 
-        group.MapPost("/update-income", async (
+        finance.MapPost("/update-income", async (
             [FromForm] Guid incomeId, [FromForm] string label, [FromForm] decimal amount,
             [FromForm] DateOnly receivedOn, [FromForm] string? note, LedgerService ledger) =>
         {
@@ -369,7 +374,7 @@ public static class AdminActionEndpoints
             return Results.Redirect("/admin/finance");
         });
 
-        group.MapPost("/delete-income", async ([FromForm] Guid incomeId, LedgerService ledger) =>
+        finance.MapPost("/delete-income", async ([FromForm] Guid incomeId, LedgerService ledger) =>
         {
             try
             {
@@ -383,7 +388,7 @@ public static class AdminActionEndpoints
             return Results.Redirect("/admin/finance");
         });
 
-        group.MapPost("/update-plan", async (
+        finance.MapPost("/update-plan", async (
             [FromForm] Guid planId, [FromForm] string name, [FromForm] decimal price,
             [FromForm] int? includedAdults, [FromForm] int? includedKids,
             [FromForm] decimal? extraAdultPrice, [FromForm] decimal? extraKidPrice,
@@ -401,7 +406,7 @@ public static class AdminActionEndpoints
             return Results.Redirect("/admin/finance");
         });
 
-        group.MapPost("/plan-archived", async ([FromForm] Guid planId, [FromForm] bool archived, LedgerService ledger) =>
+        finance.MapPost("/plan-archived", async ([FromForm] Guid planId, [FromForm] bool archived, LedgerService ledger) =>
         {
             try
             {
@@ -415,7 +420,7 @@ public static class AdminActionEndpoints
             return Results.Redirect("/admin/finance");
         });
 
-        group.MapPost("/rename-category", async ([FromForm] Guid categoryId, [FromForm] string name, LedgerService ledger) =>
+        finance.MapPost("/rename-category", async ([FromForm] Guid categoryId, [FromForm] string name, LedgerService ledger) =>
         {
             try
             {
@@ -429,7 +434,7 @@ public static class AdminActionEndpoints
             return Results.Redirect("/admin/finance");
         });
 
-        group.MapPost("/category-archived", async ([FromForm] Guid categoryId, [FromForm] bool archived, LedgerService ledger) =>
+        finance.MapPost("/category-archived", async ([FromForm] Guid categoryId, [FromForm] bool archived, LedgerService ledger) =>
         {
             try
             {
@@ -443,7 +448,7 @@ public static class AdminActionEndpoints
             return Results.Redirect("/admin/finance");
         });
 
-        group.MapPost("/add-recurring", async ([FromForm] Guid categoryId, [FromForm] decimal amount, [FromForm] int dayOfMonth, [FromForm] string? note, LedgerService ledger) =>
+        finance.MapPost("/add-recurring", async ([FromForm] Guid categoryId, [FromForm] decimal amount, [FromForm] int dayOfMonth, [FromForm] string? note, LedgerService ledger) =>
         {
             try
             {
@@ -457,7 +462,7 @@ public static class AdminActionEndpoints
             return Results.Redirect("/admin/finance");
         });
 
-        group.MapPost("/recurring-active", async ([FromForm] Guid recurringId, [FromForm] bool active, LedgerService ledger) =>
+        finance.MapPost("/recurring-active", async ([FromForm] Guid recurringId, [FromForm] bool active, LedgerService ledger) =>
         {
             try
             {
@@ -473,12 +478,60 @@ public static class AdminActionEndpoints
 
         // #196: the person-side guard SetFamilyPlanAsync always had — scope
         // validated, visitors converted by assignment.
-        group.MapPost("/assign-plan", async (
+        roster.MapPost("/assign-plan", async (
             [FromForm] Guid personId, [FromForm] Guid? planId, GymStation.Infrastructure.People.PersonService people) =>
         {
             try
             {
                 await people.AssignPlanAsync(personId, planId);
+                return Results.Redirect($"/admin/people/{personId}");
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Redirect($"/admin/people/{personId}?failed=1");
+            }
+        });
+
+        // Capability management (#217): the OWNER alone grants and revokes.
+        // Checkboxes post as repeated caps values; unchecked simply post nothing,
+        // so an empty selection clears every grant.
+        var owner = app.MapGroup("/admin/actions").RequireAuthorization("GymOwner").ValidateAntiforgery();
+
+        owner.MapPost("/set-permissions", async (
+            HttpRequest request, [FromForm] Guid personId,
+            GymStation.Infrastructure.People.PermissionService permissions) =>
+        {
+            var form = await request.ReadFormAsync();
+            var capabilities = new List<GymStation.Domain.People.GymCapability>();
+            foreach (var value in form["caps"])
+            {
+                if (!int.TryParse(value, out var parsed)
+                    || !Enum.IsDefined((GymStation.Domain.People.GymCapability)parsed))
+                {
+                    return Results.Redirect($"/admin/people/{personId}?failed=1");
+                }
+
+                capabilities.Add((GymStation.Domain.People.GymCapability)parsed);
+            }
+
+            try
+            {
+                await permissions.SetForPersonAsync(personId, capabilities);
+                return Results.Redirect($"/admin/people/{personId}");
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Redirect($"/admin/people/{personId}?failed=1");
+            }
+        });
+
+        owner.MapPost("/apply-permission-preset", async (
+            [FromForm] Guid personId, [FromForm] string preset,
+            GymStation.Infrastructure.People.PermissionService permissions) =>
+        {
+            try
+            {
+                await permissions.ApplyPresetAsync(personId, preset);
                 return Results.Redirect($"/admin/people/{personId}");
             }
             catch (InvalidOperationException)

@@ -13,7 +13,7 @@ public static class ProgramEndpoints
     public static IEndpointRouteBuilder MapProgramEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/admin/actions")
-            .RequireAuthorization("GymStaff")
+            .RequireAuthorization("Cap:EditLanding")
             .ValidateAntiforgery();
 
         group.MapPost("/add-program", async ([FromForm] string title, GymStationDbContext db) =>

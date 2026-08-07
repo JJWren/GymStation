@@ -68,9 +68,18 @@ builder.Services.AddAuthorization(o =>
 {
     o.AddPolicy("GymStaff", p => p.RequireAuthenticatedUser().AddRequirements(new GymStaffRequirement()));
     o.AddPolicy("GymInstructor", p => p.RequireAuthenticatedUser().AddRequirements(new GymInstructorRequirement()));
+    o.AddPolicy("GymOwner", p => p.RequireAuthenticatedUser().AddRequirements(new GymOwnerRequirement()));
+    // One policy per owner-grantable capability (#217): "Cap:ManageRanks" etc.
+    foreach (var capability in Enum.GetValues<GymStation.Domain.People.GymCapability>())
+    {
+        o.AddPolicy(CapabilityRequirement.PolicyName(capability),
+            p => p.RequireAuthenticatedUser().AddRequirements(new CapabilityRequirement(capability)));
+    }
 });
 builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, GymStaffHandler>();
 builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, GymInstructorHandler>();
+builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, GymOwnerHandler>();
+builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, CapabilityHandler>();
 builder.Services.AddCascadingAuthenticationState();
 
 var app = builder.Build();

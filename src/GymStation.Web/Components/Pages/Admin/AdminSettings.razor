@@ -1,5 +1,5 @@
 @page "/admin/settings"
-@attribute [Authorize(Policy = "GymStaff")]
+@attribute [Authorize(Policy = "Cap:ManageSettings")]
 @layout AdminLayout
 @using GymStation.Domain.Tenancy
 @using System.Security.Claims

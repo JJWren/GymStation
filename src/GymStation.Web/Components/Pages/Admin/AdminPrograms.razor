@@ -1,5 +1,5 @@
 @page "/admin/landing/programs"
-@attribute [Authorize(Policy = "GymStaff")]
+@attribute [Authorize(Policy = "Cap:EditLanding")]
 @layout AdminLayout
 @using GymStation.Domain.Marketing
 @inject IDbContextFactory<GymStationDbContext> DbFactory

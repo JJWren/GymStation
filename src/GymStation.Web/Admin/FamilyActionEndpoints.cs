@@ -16,7 +16,7 @@ public static class FamilyActionEndpoints
     public static IEndpointRouteBuilder MapFamilyActionEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/admin/family-actions")
-            .RequireAuthorization("GymStaff")
+            .RequireAuthorization("Cap:ManageRoster")
             .ValidateAntiforgery();
 
         group.MapPost("/create", async ([FromForm] string name, FamilyService families) =>
