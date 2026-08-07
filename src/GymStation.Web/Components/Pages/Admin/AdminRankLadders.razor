@@ -39,6 +39,20 @@
                 <b>@system.Name</b>
                 <span class="stamp stamp--dim">SEEDED · READ-ONLY</span>
             }
+            @* The discipline label is the GYM'S mapping, not part of the ladder —
+               seeded ladders take one too (ADR 0006). *@
+            <form method="post" action="/admin/actions/rank-system-program" class="row-form" style="margin:0 0 0 auto">
+                <AntiforgeryToken />
+                <input type="hidden" name="systemId" value="@system.Id" />
+                <select name="programId" aria-label="Discipline (program) for @system.Name" title="Discipline (program)">
+                    <option value="">— NO DISCIPLINE —</option>
+                    @foreach (var program in _programs)
+                    {
+                        <option value="@program.Id" selected="@(_linkedProgramIds.GetValueOrDefault(system.Id) == program.Id)">@program.Title.ToUpperInvariant()</option>
+                    }
+                </select>
+                <button class="btn btn--icon btn--save btn--xs" type="submit" aria-label="Save discipline for @system.Name" title="Save discipline"><Glyph Name="save" /></button>
+            </form>
         </div>
 
         @foreach (var rank in system.Ranks.OrderBy(r => r.Order))
@@ -107,7 +121,13 @@
     [SupplyParameterFromQuery(Name = "failed")] public int? FailedFlag { get; set; }
 
     private List<RankSystem> _systems = [];
+    private List<GymStation.Domain.Marketing.GymProgram> _programs = [];
+    private Dictionary<Guid, Guid> _linkedProgramIds = [];
 
     protected override async Task OnInitializedAsync()
-        => _systems = await Ranks.GetVisibleSystemsAsync(includeArchived: true);
+    {
+        _systems = await Ranks.GetVisibleSystemsAsync(includeArchived: true);
+        _programs = await Ranks.GetMappableProgramsAsync();
+        _linkedProgramIds = await Ranks.GetProgramLinksAsync();
+    }
 }

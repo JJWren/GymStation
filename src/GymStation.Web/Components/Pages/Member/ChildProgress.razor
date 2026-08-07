@@ -32,7 +32,7 @@
                 <BeltBar Size="l" BandColorHex="@_current.Rank.BandColorHex" BarColorHex="@_current.Rank.BarColorHex"
                          Stripes="@_current.Stripes" Label="@($"{_current.Rank.Name}, {_current.Stripes} stripes")" />
                 <p class="cap" style="margin-top:0.5rem">
-                    @_current.Rank.Name.ToUpperInvariant() · @_current.Stripes STRIPES ·
+                    @_labels.GetValueOrDefault(_current.Rank.RankSystemId)?.ToUpperInvariant() · @_current.Rank.Name.ToUpperInvariant() · @_current.Stripes STRIPES ·
                     @RankProgress.FormatDuration(Today.ToDateTime(TimeOnly.MinValue) - _current.AtRankSince.ToDateTime(TimeOnly.MinValue)) AT BELT
                 </p>
             </div>
@@ -68,7 +68,7 @@
                     <div>
                         <BeltBar Size="s" BandColorHex="@award.Rank.BandColorHex" BarColorHex="@award.Rank.BarColorHex"
                                  Stripes="@award.Stripes" Label="@($"{award.Rank.Name}, {award.Stripes} stripes")" />
-                        <div class="who">@(award.Stripes > 0 ? "STRIPE" : "PROMOTION")@(award.SelfReported ? " · SELF-REPORTED" : null)</div>
+                        <div class="who">@_labels.GetValueOrDefault(award.Rank.RankSystemId)?.ToUpperInvariant() · @(award.Stripes > 0 ? "STRIPE" : "PROMOTION")@(award.SelfReported ? " · SELF-REPORTED" : null)</div>
                     </div>
                     <span></span>
                 </div>
@@ -91,6 +91,7 @@
     private bool _authorized;
     private Person? _child;
     private CurrentRank? _current;
+    private Dictionary<Guid, string> _labels = [];
     private List<RankAward> _awards = [];
     private double _avg;
     private int _verifiedHours;
@@ -126,6 +127,7 @@
         _ageGroup = GymStation.Domain.People.IbjjfAgeGroup.FromBirthDate(_child.DateOfBirth, Today);
         _current = (await Ranks.GetPrimaryRanksAsync([PersonId])).GetValueOrDefault(PersonId);
         _awards = await Ranks.GetAwardsForPersonAsync(PersonId);
+        _labels = await Ranks.GetDisciplineLabelsAsync();
         (_avg, _verifiedHours, _weekly) = await Attendance.StatsAsync(PersonId, Today);
         _weeklyPeak = _weekly.Count == 0 ? 0 : _weekly.Max(w => w.Count);
     }

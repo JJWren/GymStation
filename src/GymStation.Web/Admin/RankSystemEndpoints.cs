@@ -48,6 +48,10 @@ public static class RankSystemEndpoints
         group.MapPost("/remove-rank", ([FromForm] Guid rankId, RankService ranks)
             => Run(() => ranks.RemoveRankAsync(rankId)));
 
+        // Empty select value = clear the mapping; Guid binding would 400 on "".
+        group.MapPost("/rank-system-program", ([FromForm] Guid systemId, [FromForm] string? programId, RankService ranks)
+            => Run(() => ranks.SetSystemProgramAsync(systemId, Guid.TryParse(programId, out var id) ? id : null)));
+
         return app;
     }
 }

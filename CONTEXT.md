@@ -97,6 +97,10 @@ _Avoid_: attendance entry, visit
 An ordered ladder of Ranks with stripe counts for one discipline. IBJJF adult and kids ladders ship seeded; Gyms can define custom systems. A Person holds at most one active Rank per RankSystem.
 _Avoid_: belt system (a RankSystem may have no belts)
 
+**Discipline**:
+The Program a RankSystem is mapped to for a Gym — each Gym labels any ladder it can see (seeded or custom) with one of its Programs, and rank displays carry that label. Programs are the discipline list; an unmapped ladder falls back to its own name. The mapping is per-Gym because seeded ladders are shared.
+_Avoid_: a separate Discipline entity (there isn't one — Programs are the disciplines)
+
 **Rank**:
 One rung of a RankSystem (e.g., Purple). Rank + stripe count locate a Person on the ladder.
 _Avoid_: belt (the physical object; UI may say belt, the domain says Rank)

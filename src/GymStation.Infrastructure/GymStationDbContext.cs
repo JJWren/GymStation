@@ -38,6 +38,7 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
     public DbSet<RankSystem> RankSystems => Set<RankSystem>();
     public DbSet<Rank> Ranks => Set<Rank>();
     public DbSet<RankAward> RankAwards => Set<RankAward>();
+    public DbSet<RankSystemProgramLink> RankSystemProgramLinks => Set<RankSystemProgramLink>();
     public DbSet<ClassType> ClassTypes => Set<ClassType>();
     public DbSet<ClassTemplate> ClassTemplates => Set<ClassTemplate>();
     public DbSet<ClassTemplateWeek> ClassTemplateWeeks => Set<ClassTemplateWeek>();
@@ -180,6 +181,17 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
             e.HasOne(a => a.Person).WithMany().HasForeignKey(a => a.PersonId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(a => a.Rank).WithMany().HasForeignKey(a => a.RankId).OnDelete(DeleteBehavior.Restrict);
             e.HasQueryFilter(a => CurrentGymId != null && a.GymId == CurrentGymId);
+        });
+
+        builder.Entity<RankSystemProgramLink>(e =>
+        {
+            // One discipline label per ladder per gym (ADR 0006). The link may
+            // target a PLATFORM ladder (GymId null on the system), so tenancy
+            // lives here, never on RankSystem.
+            e.HasIndex(l => new { l.GymId, l.RankSystemId }).IsUnique();
+            e.HasOne<RankSystem>().WithMany().HasForeignKey(l => l.RankSystemId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<GymStation.Domain.Marketing.GymProgram>().WithMany().HasForeignKey(l => l.GymProgramId).OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(l => CurrentGymId != null && l.GymId == CurrentGymId);
         });
 
         builder.Entity<ClassType>(e =>

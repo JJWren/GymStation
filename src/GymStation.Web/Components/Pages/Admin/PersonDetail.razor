@@ -105,7 +105,7 @@ else
             {
                 <BeltBar Size="l" BandColorHex="@_current.Rank.BandColorHex" BarColorHex="@_current.Rank.BarColorHex"
                          Stripes="@_current.Stripes" Label="@($"{_current.Rank.Name}, {_current.Stripes} stripes")" />
-                <p class="cap" style="margin-top:0.375rem">@_current.Rank.Name.ToUpperInvariant() · @_current.Stripes STRIPES · @RankProgress.FormatDuration(Today.ToDateTime(TimeOnly.MinValue) - _current.AtRankSince.ToDateTime(TimeOnly.MinValue)) AT RANK</p>
+                <p class="cap" style="margin-top:0.375rem">@_labels.GetValueOrDefault(_current.Rank.RankSystemId)?.ToUpperInvariant() · @_current.Rank.Name.ToUpperInvariant() · @_current.Stripes STRIPES · @RankProgress.FormatDuration(Today.ToDateTime(TimeOnly.MinValue) - _current.AtRankSince.ToDateTime(TimeOnly.MinValue)) AT RANK</p>
             }
         </div>
     </header>
@@ -153,6 +153,7 @@ else
                             <BeltBar Size="s" BandColorHex="@award.Rank.BandColorHex" BarColorHex="@award.Rank.BarColorHex"
                                      Stripes="@award.Stripes" Label="@($"{award.Rank.Name}, {award.Stripes} stripes")" />
                             <div class="who">
+                                @_labels.GetValueOrDefault(award.Rank.RankSystemId)?.ToUpperInvariant() ·
                                 @(award.Stripes > 0 ? "STRIPE" : "PROMOTION") ·
                                 @(award.SelfReported ? "SELF-REPORTED" : _names.GetValueOrDefault(award.AwardedByPersonId ?? Guid.Empty, "STAFF").ToUpperInvariant())
                             </div>
@@ -169,7 +170,7 @@ else
                     <option value="">— pick a rank —</option>
                     @foreach (var system in _systems)
                     {
-                        <optgroup label="@system.Name">
+                        <optgroup label="@(_labels.GetValueOrDefault(system.Id) == system.Name ? system.Name : $"{_labels.GetValueOrDefault(system.Id)} — {system.Name}")">
                             @foreach (var rank in system.Ranks)
                             {
                                 <option value="@rank.Id">@rank.Name</option>
@@ -388,6 +389,7 @@ else
     private Person? _person;
     private string? _loginEmail;
     private CurrentRank? _current;
+    private Dictionary<Guid, string> _labels = [];
     private List<RankAward> _awards = [];
     private List<RankSystem> _systems = [];
     private Dictionary<Guid, string> _names = [];
@@ -462,6 +464,7 @@ else
         (_avgPerWeek, _verifiedHours, _weeklyCounts) = await Attendance.StatsAsync(PersonId, Today);
         _weeklyPeak = _weeklyCounts.Count == 0 ? 0 : _weeklyCounts.Max(w => w.Count);
         _systems = await Ranks.GetVisibleSystemsAsync();
+        _labels = await Ranks.GetDisciplineLabelsAsync();
         _awards = await Ranks.GetAwardsForPersonAsync(PersonId);
         _current = (await Ranks.GetPrimaryRanksAsync([PersonId])).GetValueOrDefault(PersonId);
 
