@@ -15,7 +15,7 @@
 
     @if (Failed)
     {
-        <p class="auth-error" role="alert">That view isn't available to your roles. Pick one below.</p>
+        <p class="auth-error" role="alert">That choice didn't save — the view may not be available to your roles, or the update failed. Pick one below and try again.</p>
     }
 
     @foreach (var view in _views)
@@ -33,7 +33,14 @@
         </form>
     }
 
-    <p class="auth-note">SAVED AS YOUR DEFAULT FOR NEXT SIGN-IN · CHANGE IT HERE ANY TIME (SWITCH VIEW IN THE HEADER).</p>
+    @if (_views.Count == 0)
+    {
+        <p class="auth-note">NO ACTIVE GYM ON THIS SESSION — <a href="/pick-gym">PICK YOUR GYM</a> FIRST, OR SIGN IN AGAIN.</p>
+    }
+    else
+    {
+        <p class="auth-note">SAVED AS YOUR DEFAULT FOR NEXT SIGN-IN · CHANGE IT HERE ANY TIME (SWITCH VIEW IN THE HEADER).</p>
+    }
 </main>
 
 @code {

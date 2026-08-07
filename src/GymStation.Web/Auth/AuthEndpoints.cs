@@ -144,9 +144,16 @@ public static class AuthEndpoints
             GymStation.Infrastructure.Tenancy.ITenantContext tenant) =>
         {
             var user = await users.GetUserAsync(principal);
-            if (user is null || tenant.CurrentGymId is not { } gymId)
+            if (user is null)
             {
                 return Results.Redirect("/login");
+            }
+
+            // Signed in but no active gym (multi-gym user mid-flow): recover
+            // through the gym picker, not a confusing bounce to /login.
+            if (tenant.CurrentGymId is not { } gymId)
+            {
+                return Results.Redirect("/pick-gym");
             }
 
             var views = await memberships.AvailableViewsAsync(user.Id, gymId);
@@ -156,8 +163,10 @@ public static class AuthEndpoints
             }
 
             user.PreferredLandingView = view;
-            await users.UpdateAsync(user);
-            return Results.Redirect(GymMembershipService.ViewPath(view));
+            var saved = await users.UpdateAsync(user);
+            return saved.Succeeded
+                ? Results.Redirect(GymMembershipService.ViewPath(view))
+                : Results.Redirect("/choose-view?failed=1");
         }).RequireAuthorization();
 
         // Opt-in idle sign-out (#86): stored on the account like the theme, so a
