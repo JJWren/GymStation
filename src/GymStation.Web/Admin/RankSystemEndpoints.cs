@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using GymStation.Infrastructure.Ranks;
 using GymStation.Web.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -57,11 +58,11 @@ public static class RankSystemEndpoints
         // from the signed-in user — never a form field.
         group.MapPost("/delete-award", async (
             [FromForm] Guid awardId, [FromForm] Guid personId,
-            System.Security.Claims.ClaimsPrincipal user,
+            ClaimsPrincipal user,
             GymStation.Infrastructure.GymStationDbContext db,
             RankService ranks) =>
         {
-            var raw = user.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+            var raw = user.FindFirstValue(ClaimTypes.NameIdentifier);
             Guid? deletedBy = null;
             if (Guid.TryParse(raw, out var userId))
             {
