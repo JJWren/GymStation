@@ -183,7 +183,9 @@ public class GymStationDbContext(DbContextOptions<GymStationDbContext> options, 
             e.HasIndex(a => new { a.GymId, a.PersonId, a.AwardedOn });
             e.HasOne(a => a.Person).WithMany().HasForeignKey(a => a.PersonId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(a => a.Rank).WithMany().HasForeignKey(a => a.RankId).OnDelete(DeleteBehavior.Restrict);
-            e.HasQueryFilter(a => CurrentGymId != null && a.GymId == CurrentGymId);
+            // Soft-deleted awards (#220) vanish from EVERY reader here rather
+            // than at each call site; audit access goes IgnoreQueryFilters.
+            e.HasQueryFilter(a => CurrentGymId != null && a.GymId == CurrentGymId && a.DeletedUtc == null);
         });
 
         builder.Entity<PermissionGrant>(e =>

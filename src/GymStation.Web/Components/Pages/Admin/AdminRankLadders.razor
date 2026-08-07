@@ -11,7 +11,7 @@
 
 @if (FailedFlag == 1)
 {
-    <p class="auth-error" role="alert">That change was refused — seeded ladders are read-only, ranks with awards can't be removed, and colors must be #rrggbb.</p>
+    <p class="auth-error" role="alert">That change was refused — seeded ladders are read-only, ranks with awards can't be removed (retire them instead), and colors must be #rrggbb.</p>
 }
 
 @foreach (var system in _systems)
@@ -57,8 +57,12 @@
 
         @foreach (var rank in system.Ranks.OrderBy(r => r.Order))
         {
-            <div class="row-form" style="align-items:center;margin-top:0.375rem">
+            <div class="row-form" style="align-items:center;margin-top:0.375rem;@(rank.Retired ? "opacity:.55" : null)">
                 <BeltBar Size="s" BandColorHex="@rank.BandColorHex" BarColorHex="@rank.BarColorHex" Stripes="0" Label="@rank.Name" />
+                @if (rank.Retired)
+                {
+                    <span class="stamp stamp--dim">RETIRED</span>
+                }
                 @if (editable)
                 {
                     <form method="post" action="/admin/actions/update-rank" class="row-form" style="margin:0;flex:1">
@@ -82,10 +86,16 @@
                         <input type="hidden" name="direction" value="1" />
                         <button class="btn btn--ghost btn--xs" type="submit" aria-label="Move @rank.Name down" title="Move down">▼</button>
                     </form>
+                    <form method="post" action="/admin/actions/rank-retired" style="margin:0">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="rankId" value="@rank.Id" />
+                        <input type="hidden" name="retired" value="@((!rank.Retired).ToString())" />
+                        <button class="btn btn--ghost btn--xs" type="submit" title="Retired ranks take no new awards; history keeps rendering">@(rank.Retired ? "UNRETIRE" : "RETIRE")</button>
+                    </form>
                     <form method="post" action="/admin/actions/remove-rank" style="margin:0">
                         <AntiforgeryToken />
                         <input type="hidden" name="rankId" value="@rank.Id" />
-                        <button class="btn btn--icon btn--del btn--xs" type="submit" aria-label="Delete @rank.Name" title="Delete rank (refused once awards exist)"><Glyph Name="trash" /></button>
+                        <button class="btn btn--icon btn--del btn--xs" type="submit" aria-label="Delete @rank.Name" title="Delete rank (refused once awards exist — retire instead)"><Glyph Name="trash" /></button>
                     </form>
                 }
                 else

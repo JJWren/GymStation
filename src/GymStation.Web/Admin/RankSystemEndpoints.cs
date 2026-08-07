@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using GymStation.Infrastructure.Ranks;
 using GymStation.Web.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace GymStation.Web.Admin;
 
@@ -47,6 +49,38 @@ public static class RankSystemEndpoints
 
         group.MapPost("/remove-rank", ([FromForm] Guid rankId, RankService ranks)
             => Run(() => ranks.RemoveRankAsync(rankId)));
+
+        group.MapPost("/rank-retired", ([FromForm] Guid rankId, [FromForm] bool retired, RankService ranks)
+            => Run(() => ranks.SetRankRetiredAsync(rankId, retired)));
+
+        // Award soft delete (#220): lives on the person page, so failure and
+        // success both land back there. The deleting STAFF person is resolved
+        // from the signed-in user — never a form field.
+        group.MapPost("/delete-award", async (
+            [FromForm] Guid awardId, [FromForm] Guid personId,
+            ClaimsPrincipal user,
+            GymStation.Infrastructure.GymStationDbContext db,
+            RankService ranks) =>
+        {
+            var raw = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            Guid? deletedBy = null;
+            if (Guid.TryParse(raw, out var userId))
+            {
+                deletedBy = (await db.Persons.SingleOrDefaultAsync(p => p.UserId == userId && !p.Archived))?.Id;
+            }
+
+            try
+            {
+                // The award row names its person — the posted personId is only
+                // the failure fallback, never the trusted redirect source.
+                var ownerPersonId = await ranks.DeleteAwardAsync(awardId, deletedBy);
+                return Results.Redirect($"/admin/people/{ownerPersonId}");
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Redirect($"/admin/people/{personId}?failed=1");
+            }
+        });
 
         // Empty select value = clear the mapping; Guid binding would 400 on "".
         // Anything non-empty must parse — a garbled id refuses rather than clears.
