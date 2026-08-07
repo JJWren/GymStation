@@ -47,31 +47,62 @@ public class GymMembershipService(GymStationDbContext db)
                 .AnyAsync(p => p.GymId == gymId && !p.Archived, ct);
     }
 
-    /// <summary>
-    /// Post-sign-in landing for a user in a gym. Staff run the gym from the admin
-    /// Today screen; instructors land on /teach (their sessions + covers); members
-    /// and guardian-only accounts live on the member schedule.
-    /// </summary>
-    public async Task<string> LandingPathAsync(Guid userId, Guid gymId, CancellationToken ct = default)
+    /// <summary>The landing views a user's roles open in a gym (#218): "admin"
+    /// for staff, "teach" for instructors, and "member" always (every signed-in
+    /// shape has the member shell — guardians included).</summary>
+    public async Task<IReadOnlyList<string>> AvailableViewsAsync(Guid userId, Guid gymId, CancellationToken ct = default)
     {
         var roles = await db.Persons.IgnoreQueryFilters()
             .Where(p => p.UserId == userId && p.GymId == gymId && !p.Archived)
             .Select(p => (PersonRoles?)p.Roles)
             .FirstOrDefaultAsync(ct);
 
+        var views = new List<string>();
         if (roles is { } r)
         {
             if (r.HasFlag(PersonRoles.Admin) || r.HasFlag(PersonRoles.Owner))
             {
-                return "/";
+                views.Add("admin");
             }
 
             if (r.HasFlag(PersonRoles.Instructor))
             {
-                return "/teach";
+                views.Add("teach");
             }
         }
 
-        return "/schedule";
+        views.Add("member");
+        return views;
+    }
+
+    public static string ViewPath(string view) => view switch
+    {
+        "admin" => "/",
+        "teach" => "/teach",
+        _ => "/schedule",
+    };
+
+    /// <summary>
+    /// Post-sign-in landing for a user in a gym. Single-view users go straight
+    /// in; multi-view users follow their saved default, and are prompted ONCE
+    /// (/choose-view) when they haven't picked one yet (#218).
+    /// </summary>
+    public async Task<string> LandingPathAsync(Guid userId, Guid gymId, CancellationToken ct = default)
+    {
+        var views = await AvailableViewsAsync(userId, gymId, ct);
+        if (views.Count == 1)
+        {
+            return ViewPath(views[0]);
+        }
+
+        var preferred = await db.Users.Where(u => u.Id == userId)
+            .Select(u => u.PreferredLandingView)
+            .FirstOrDefaultAsync(ct);
+
+        // A stale preference (role since revoked) falls through to the prompt
+        // rather than bouncing off a page the policies will refuse.
+        return preferred is not null && views.Contains(preferred)
+            ? ViewPath(preferred)
+            : "/choose-view";
     }
 }

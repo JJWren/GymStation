@@ -10,6 +10,11 @@
 <div class="member-frame @(_dark ? null : "theme-light")" style="--tenant:@_accent" data-idle-minutes="@(_idleMinutes?.ToString(System.Globalization.CultureInfo.InvariantCulture))">
     <header class="member-top">
         <a class="brand-link" href="@(_gymSlug is null ? "/" : $"/{_gymSlug}")" title="Open your gym's public page">
+            @* Gym crest left of the name when set (#218) — the admin rail's pattern. *@
+            @if (_logoPath is { } logo)
+            {
+                <img class="crest" src="/media/@logo" alt="" style="object-fit:cover" />
+            }
             <div><b>@(_gymName ?? "GYMSTATION")</b><i>MEMBER</i></div>
         </a>
         <div class="member-top-side">
@@ -44,6 +49,10 @@
                     @if (_isStaff)
                     {
                         <text> · </text><a href="/" title="Back to the admin portal">ADMIN</a>
+                    }
+                    @if (_isStaff || _isInstructor)
+                    {
+                        <text> · </text><a href="/choose-view" title="Pick your default sign-in view">SWITCH VIEW</a>
                     }
                 </span>
             }
@@ -81,6 +90,7 @@
     private bool _dark = true;
     private bool _isInstructor;
     private bool _isStaff;
+    private string? _logoPath;
     private bool? _userThemePreference;
     private string? _email;
     private int? _idleMinutes;
@@ -129,6 +139,7 @@
                 }
 
                 _dark = settings.DefaultThemeDark;
+                _logoPath = settings.LogoPath;
             }
 
             // A saved per-user choice beats the gym default; null follows the gym.

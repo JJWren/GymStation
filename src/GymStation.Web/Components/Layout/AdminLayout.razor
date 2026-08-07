@@ -27,22 +27,76 @@
         <details class="rail-menu">
             <summary aria-label="Open navigation">☰</summary>
         </details>
+        @* Grouped rail (#218), links per capability (#217) — hiding is UX; the
+           page/endpoint policies remain the security boundary. *@
         <div class="rail-tabs">
             <NavLink class="tab" href="/" Match="NavLinkMatch.All">TODAY</NavLink>
-            <NavLink class="tab" href="/admin/roster">ROSTER</NavLink>
-            <NavLink class="tab" href="/admin/families">FAMILIES</NavLink>
-            <NavLink class="tab" href="/admin/ranks">RANKS</NavLink>
-            <NavLink class="tab" href="/admin/schedule">SCHEDULE</NavLink>
-            <NavLink class="tab" href="/instructor/swaps">SWAPS</NavLink>
+            @if (Can(GymCapability.ManageRoster) || Can(GymCapability.ManageRanks))
+            {
+                <span class="rail-group">PEOPLE</span>
+                @if (Can(GymCapability.ManageRoster))
+                {
+                    <NavLink class="tab" href="/admin/roster">ROSTER</NavLink>
+                    <NavLink class="tab" href="/admin/families">FAMILIES</NavLink>
+                }
+                @if (Can(GymCapability.ManageRanks))
+                {
+                    <NavLink class="tab" href="/admin/ranks">RANKS</NavLink>
+                }
+            }
+            @if (Can(GymCapability.ManageSchedule) || Can(GymCapability.ManageEvents))
+            {
+                <span class="rail-group">OPERATIONS</span>
+                @if (Can(GymCapability.ManageSchedule))
+                {
+                    <NavLink class="tab" href="/admin/schedule">SCHEDULE</NavLink>
+                }
+                @if (Can(GymCapability.ManageEvents))
+                {
+                    <NavLink class="tab" href="/admin/events">EVENTS</NavLink>
+                }
+                @if (Can(GymCapability.ManageSchedule))
+                {
+                    <NavLink class="tab" href="/instructor/swaps">SWAPS</NavLink>
+                }
+            }
+            <span class="rail-group">MESSAGES</span>
             <NavLink class="tab" href="/admin/inbox">INBOX@(_unreadNotifications > 0 ? $" ({_unreadNotifications})" : null)</NavLink>
-            <NavLink class="tab tab--msg" href="/admin/messages"><Glyph Name="envelope" /> MESSAGES@(_unreadMessages > 0 ? $" ({_unreadMessages})" : null)</NavLink>
-            <NavLink class="tab" href="/admin/finance">FINANCE</NavLink>
-            <NavLink class="tab" href="/admin/events">EVENTS</NavLink>
-            <NavLink class="tab" href="/admin/reports">REPORTS</NavLink>
-            <NavLink class="tab" href="/admin/settings">SETTINGS</NavLink>
-            <NavLink class="tab" href="/admin/landing">LANDING</NavLink>
+            @if (Can(GymCapability.ManageMessaging))
+            {
+                <NavLink class="tab tab--msg" href="/admin/messages"><Glyph Name="envelope" /> MESSAGES@(_unreadMessages > 0 ? $" ({_unreadMessages})" : null)</NavLink>
+            }
+            @if (Can(GymCapability.ViewFinances) || Can(GymCapability.ViewReports))
+            {
+                <span class="rail-group">BUSINESS</span>
+                @if (Can(GymCapability.ViewFinances))
+                {
+                    <NavLink class="tab" href="/admin/finance">FINANCE</NavLink>
+                }
+                @if (Can(GymCapability.ViewReports))
+                {
+                    <NavLink class="tab" href="/admin/reports">REPORTS</NavLink>
+                }
+            }
+            @if (Can(GymCapability.EditLanding) || Can(GymCapability.ManageSettings))
+            {
+                <span class="rail-group">SITE</span>
+                @if (Can(GymCapability.EditLanding))
+                {
+                    <NavLink class="tab" href="/admin/landing">LANDING</NavLink>
+                }
+                @if (Can(GymCapability.ManageSettings))
+                {
+                    <NavLink class="tab" href="/admin/settings">SETTINGS</NavLink>
+                }
+            }
             <a class="tab tab--cross" href="/schedule" title="Your own member portal">MEMBER VIEW ▸</a>
+            @if (_isInstructor)
+            {
+                <a class="tab tab--cross" href="/teach" title="Your sessions and covers">TEACH VIEW ▸</a>
+            }
             <a class="tab tab--cross" href="@(_gymSlug is null ? "/" : $"/{_gymSlug}")" title="Your public landing page">VIEW LANDING ▸</a>
+            <a class="tab tab--cross" href="/choose-view" title="Pick your default sign-in view">SWITCH VIEW ▸</a>
             <div class="foot">
                 GYMSTATION · V1
                 <form method="post" action="/auth/theme">
@@ -86,6 +140,10 @@
     private int _unreadMessages;
     private int _unreadNotifications;
     private int? _idleMinutes;
+    private bool _isInstructor;
+    private HashSet<GymStation.Domain.People.GymCapability> _caps = [];
+
+    private bool Can(GymStation.Domain.People.GymCapability capability) => _caps.Contains(capability);
 
     protected override async Task OnInitializedAsync()
     {
@@ -130,6 +188,17 @@
                 }
 
                 _idleMinutes = account?.IdleSignOutMinutes;
+
+                // Capability set drives which links render (#218). Layouts query
+                // their own factory context — never scoped services (v1.0.1).
+                var me = await db.Persons.SingleOrDefaultAsync(p => p.UserId == userId && !p.Archived);
+                if (me is not null)
+                {
+                    _isInstructor = me.HasRole(GymStation.Domain.People.PersonRoles.Instructor);
+                    _caps = me.HasRole(GymStation.Domain.People.PersonRoles.Owner)
+                        ? [.. Enum.GetValues<GymStation.Domain.People.GymCapability>()]
+                        : [.. await db.PermissionGrants.Where(g => g.PersonId == me.Id).Select(g => g.Capability).ToListAsync()];
+                }
             }
         }
     }

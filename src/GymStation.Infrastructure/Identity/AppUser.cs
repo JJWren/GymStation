@@ -17,4 +17,9 @@ public class AppUser : IdentityUser<Guid>
     /// <summary>Minutes of inactivity before the browser signs this login out fully.
     /// Null = off (the default) — it's an opt-in for people on shared machines (#86).</summary>
     public int? IdleSignOutMinutes { get; set; }
+
+    /// <summary>Where a multi-view user (staff + instructor + member shapes) lands
+    /// after sign-in: "admin", "teach", or "member" (#218). Null = not chosen yet —
+    /// they're prompted once and can change it from the header any time.</summary>
+    public string? PreferredLandingView { get; set; }
 }

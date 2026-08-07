@@ -133,6 +133,33 @@ public static class AuthEndpoints
             return Results.Redirect(destination);
         }).RequireAuthorization();
 
+        // Default landing view (#218): saved on the account, prompted once at
+        // sign-in for multi-view users, changeable any time via /choose-view.
+        // The choice must be a view the user's roles actually open TODAY.
+        group.MapPost("/landing-view", async (
+            [FromForm] string view,
+            ClaimsPrincipal principal,
+            UserManager<AppUser> users,
+            GymMembershipService memberships,
+            GymStation.Infrastructure.Tenancy.ITenantContext tenant) =>
+        {
+            var user = await users.GetUserAsync(principal);
+            if (user is null || tenant.CurrentGymId is not { } gymId)
+            {
+                return Results.Redirect("/login");
+            }
+
+            var views = await memberships.AvailableViewsAsync(user.Id, gymId);
+            if (!views.Contains(view))
+            {
+                return Results.Redirect("/choose-view?failed=1");
+            }
+
+            user.PreferredLandingView = view;
+            await users.UpdateAsync(user);
+            return Results.Redirect(GymMembershipService.ViewPath(view));
+        }).RequireAuthorization();
+
         // Opt-in idle sign-out (#86): stored on the account like the theme, so a
         // front-desk machine and a phone behave the same. 0 = off (the default).
         group.MapPost("/idle-signout", async (

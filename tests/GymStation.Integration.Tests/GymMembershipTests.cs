@@ -73,7 +73,7 @@ public class GymMembershipTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task LandingPath_RoutesStaffToAdminAndEveryoneElseToSchedule()
+    public async Task LandingPath_SingleViewDirect_MultiViewPromptedOnceThenPreferred()
     {
         var (gym, tenant) = await SeedGymAsync();
         var ownerUserId = Guid.NewGuid();
@@ -93,10 +93,33 @@ public class GymMembershipTests(PostgresFixture fixture)
         await using var reader = fixture.CreateContext();
         var memberships = new GymMembershipService(reader);
 
-        Assert.Equal("/", await memberships.LandingPathAsync(ownerUserId, gym.Id));
+        // Single view goes straight in; multi-view users are prompted ONCE (#218).
         Assert.Equal("/schedule", await memberships.LandingPathAsync(memberUserId, gym.Id));
+        Assert.Equal("/choose-view", await memberships.LandingPathAsync(ownerUserId, gym.Id));
+        Assert.Equal("/choose-view", await memberships.LandingPathAsync(instructorUserId, gym.Id));
 
-        // Instructors land on their teaching view (#39).
+        Assert.Equal(["admin", "member"], await memberships.AvailableViewsAsync(ownerUserId, gym.Id));
+        Assert.Equal(["teach", "member"], await memberships.AvailableViewsAsync(instructorUserId, gym.Id));
+
+        // A saved default routes directly on later sign-ins...
+        await using (var writer = fixture.CreateContext())
+        {
+            (await writer.Users.SingleAsync(u => u.Id == ownerUserId)).PreferredLandingView = "admin";
+            (await writer.Users.SingleAsync(u => u.Id == instructorUserId)).PreferredLandingView = "teach";
+            await writer.SaveChangesAsync();
+        }
+
+        Assert.Equal("/", await memberships.LandingPathAsync(ownerUserId, gym.Id));
         Assert.Equal("/teach", await memberships.LandingPathAsync(instructorUserId, gym.Id));
+
+        // ...but a preference for a view the roles no longer open re-prompts
+        // instead of bouncing off a policy-refused page.
+        await using (var writer = fixture.CreateContext())
+        {
+            (await writer.Users.SingleAsync(u => u.Id == ownerUserId)).PreferredLandingView = "teach";
+            await writer.SaveChangesAsync();
+        }
+
+        Assert.Equal("/choose-view", await memberships.LandingPathAsync(ownerUserId, gym.Id));
     }
 }
