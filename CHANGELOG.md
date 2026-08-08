@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.15.0](https://github.com/JJWren/GymStation/compare/v1.14.0...v1.15.0) (2026-08-08)
+
+
+### Features
+
+* award soft delete with audit trail; rank retirement ([#230](https://github.com/JJWren/GymStation/issues/230)) ([837b9a8](https://github.com/JJWren/GymStation/commit/837b9a822488968331c1202798e74a5ae3e3b34b))
+* granular RBAC — owner-managed capability grants ([#226](https://github.com/JJWren/GymStation/issues/226)) ([a1b31a7](https://github.com/JJWren/GymStation/commit/a1b31a7683c3fb227179b80e0a84d911bbee5612))
+* grouped capability-gated admin rail, member crest, default landing view ([#227](https://github.com/JJWren/GymStation/issues/227)) ([50615d3](https://github.com/JJWren/GymStation/commit/50615d32f1405659747c94930a2c78ce8cf824f4))
+* per-gym rank-discipline mapping (ADR 0006) ([#222](https://github.com/JJWren/GymStation/issues/222)) ([61d5f66](https://github.com/JJWren/GymStation/commit/61d5f6637477de277994920f86d87f7b81093240))
+* primary discipline per person; retire seeder back-dating trick ([#224](https://github.com/JJWren/GymStation/issues/224)) ([981de0b](https://github.com/JJWren/GymStation/commit/981de0b88992114683fe9818b19f6d4a53e6eaa2))
+* roster grouped filter panel with discipline-scoped rank facet ([#228](https://github.com/JJWren/GymStation/issues/228)) ([4b27d71](https://github.com/JJWren/GymStation/commit/4b27d71c52ef37c004bfa1b51b4ea70ea44ddf81))
+* utilization, promotion-pipeline, dues-aging reports + pricing what-if ([#232](https://github.com/JJWren/GymStation/issues/232)) ([d4de188](https://github.com/JJWren/GymStation/commit/d4de18828a06b79184d54e7753707f43ad86be8e))
+
+
+### Bug Fixes
+
+* seeder realism — coach belt clobber, seed media, programs, avatars ([#225](https://github.com/JJWren/GymStation/issues/225)) ([a27bd0c](https://github.com/JJWren/GymStation/commit/a27bd0cbba9dc796f62252976bdf97a6c0714893))
+
 ## [1.14.0](https://github.com/JJWren/GymStation/compare/v1.13.0...v1.14.0) (2026-08-07)
 
 
