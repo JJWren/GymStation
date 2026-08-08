@@ -370,9 +370,13 @@
             ? HttpContext.Request.Form["_handler"].ToString()
             : null;
 
+        // One prefill query feeds both forms (at most one form POSTed, so at
+        // least one branch always consumes it); the posted form keeps the
+        // binder's values instead — a failed submit must not lose edits.
+        var prefill = await Reports.BreakEvenPrefillAsync(today);
+
         if (postedHandler != "break-even")
         {
-            var prefill = await Reports.BreakEvenPrefillAsync(today);
             Form!.ActiveMembers = prefill.ActiveMembers;
             Form.Arpm = prefill.Arpm;
             Form.MonthlyFixedCosts = prefill.MonthlyFixedCosts;
@@ -386,8 +390,7 @@
         {
             var rows = await Reports.PricingWhatIfPrefillAsync();
             WhatIf!.Rows = [.. rows.Select(r => new WhatIfRow { Name = r.Name, Price = r.Price, Members = r.Members })];
-            var overhead = await Reports.BreakEvenPrefillAsync(today);
-            WhatIf.MonthlyFixedCosts = overhead.MonthlyFixedCosts;
+            WhatIf.MonthlyFixedCosts = prefill.MonthlyFixedCosts;
         }
         else
         {

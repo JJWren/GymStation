@@ -86,13 +86,15 @@ public class ReportService(GymStationDbContext db)
             .Where(s => s.Date >= from && s.Date <= today && s.Status != Domain.Scheduling.SessionStatus.Cancelled)
             .Include(s => s.ClassTypes)
             .ToListAsync(ct);
-        var sessionIds = sessions.Select(s => s.Id).ToHashSet();
+        var sessionIds = sessions.Select(s => s.Id).ToList();
 
-        var checkIns = await db.AttendanceRecords.AsNoTracking()
-            .Where(a => a.Status == AttendanceStatus.Confirmed && a.Session.Date >= from && a.Session.Date <= today)
-            .Select(a => a.SessionId)
-            .ToListAsync(ct);
-        var bySession = checkIns.Where(sessionIds.Contains).GroupBy(id => id).ToDictionary(g => g.Key, g => g.Count());
+        // Filter AND group at the database: only the window's non-cancelled
+        // sessions ever leave Postgres, as (SessionId, Count) pairs.
+        var bySession = await db.AttendanceRecords.AsNoTracking()
+            .Where(a => a.Status == AttendanceStatus.Confirmed && sessionIds.Contains(a.SessionId))
+            .GroupBy(a => a.SessionId)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
 
         var slots = sessions
             .GroupBy(s => s.Name)
@@ -126,10 +128,13 @@ public class ReportService(GymStationDbContext db)
     /// deletions and #215 primaries need no special handling here.</summary>
     public async Task<List<PipelineRow>> PromotionPipelineAsync(CancellationToken ct = default)
     {
+        // RankProgress.Current consumes RankAward entities (dates, stripes, the
+        // Rank itself) — the full rows ARE the working set here, so no projection.
         var awards = await db.RankAwards.AsNoTracking().Include(a => a.Rank).ToListAsync(ct);
         var people = await db.Persons.AsNoTracking()
             .Where(p => !p.Archived)
-            .ToDictionaryAsync(p => p.Id, p => p.DisplayName, ct);
+            .Select(p => new { p.Id, p.FirstName, p.LastName })
+            .ToDictionaryAsync(p => p.Id, p => $"{p.FirstName} {p.LastName}", ct);
 
         var labels = await db.RankSystems.AsNoTracking().Select(s => new { s.Id, s.Name }).ToDictionaryAsync(x => x.Id, x => x.Name, ct);
         var linked = await db.RankSystemProgramLinks.AsNoTracking()
@@ -160,11 +165,20 @@ public class ReportService(GymStationDbContext db)
     /// applies them oldest-first — never invent a per-charge allocation.</summary>
     public async Task<List<AgingRow>> DuesAgingAsync(CancellationToken ct = default)
     {
-        var charges = await db.Charges.AsNoTracking().ToListAsync(ct);
-        var payments = await db.Payments.AsNoTracking().Where(p => p.VoidedUtc == null).ToListAsync(ct);
-        var people = await db.Persons.AsNoTracking().Where(p => !p.Archived).ToDictionaryAsync(p => p.Id, p => p.DisplayName, ct);
-
-        var paidByPerson = payments.GroupBy(p => p.PersonId).ToDictionary(g => g.Key, g => g.Sum(p => p.Amount));
+        // Aging needs every charge row (oldest-first application), but only
+        // three columns of it — and payments only as per-person sums.
+        var charges = await db.Charges.AsNoTracking()
+            .Select(c => new { c.PersonId, c.Amount, c.RaisedOn })
+            .ToListAsync(ct);
+        var paidByPerson = await db.Payments.AsNoTracking()
+            .Where(p => p.VoidedUtc == null)
+            .GroupBy(p => p.PersonId)
+            .Select(g => new { g.Key, Total = g.Sum(p => p.Amount) })
+            .ToDictionaryAsync(x => x.Key, x => x.Total, ct);
+        var people = await db.Persons.AsNoTracking()
+            .Where(p => !p.Archived)
+            .Select(p => new { p.Id, p.FirstName, p.LastName })
+            .ToDictionaryAsync(p => p.Id, p => $"{p.FirstName} {p.LastName}", ct);
 
         var rows = new List<AgingRow>();
         foreach (var group in charges.GroupBy(c => c.PersonId))
