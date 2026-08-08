@@ -96,9 +96,19 @@ public class ReportService(GymStationDbContext db)
             .Select(g => new { g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
 
+        // Group by TEMPLATE, not name — two "Fundamentals" slots at different
+        // times are different classes. One-offs pool per name; template slots
+        // label with their latest session's day/time (sessions can move).
         var slots = sessions
-            .GroupBy(s => s.Name)
-            .Select(g => new SlotUtilization(g.Key, g.Count(), g.Sum(s => bySession.GetValueOrDefault(s.Id))))
+            .GroupBy(s => s.TemplateId?.ToString() ?? $"one-off:{s.Name}")
+            .Select(g =>
+            {
+                var latest = g.OrderByDescending(s => s.Date).ThenByDescending(s => s.StartTime).First();
+                var label = latest.TemplateId is null
+                    ? $"{latest.Name} (one-offs)"
+                    : $"{latest.Name} · {latest.Date.DayOfWeek.ToString()[..3].ToUpperInvariant()} {latest.StartTime:HH\\:mm}";
+                return new SlotUtilization(label, g.Count(), g.Sum(s => bySession.GetValueOrDefault(s.Id)));
+            })
             .OrderByDescending(s => s.CheckIns)
             .ToList();
 

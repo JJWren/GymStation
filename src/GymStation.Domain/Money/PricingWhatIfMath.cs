@@ -30,6 +30,18 @@ public static class PricingWhatIfMath
         decimal staffingPercentOfRevenue,
         decimal targetOwnerSalary)
     {
+        // Every input is owner-typed — refuse nonsense loudly instead of
+        // projecting negative revenue or contribution above revenue.
+        if (rows.Any(r => r.Price < 0 || r.Members < 0))
+        {
+            throw new InvalidOperationException("Prices and member counts can't be negative.");
+        }
+
+        if (processingRatePercent < 0 || staffingPercentOfRevenue < 0 || monthlyFixedCosts < 0 || targetOwnerSalary < 0)
+        {
+            throw new InvalidOperationException("Percentages, fixed costs, and target salary can't be negative.");
+        }
+
         var variableFraction = (processingRatePercent + staffingPercentOfRevenue) / 100m;
         if (variableFraction >= 1m)
         {

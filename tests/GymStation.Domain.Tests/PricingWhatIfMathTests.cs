@@ -46,4 +46,19 @@ public class PricingWhatIfMathTests
         Assert.Throws<InvalidOperationException>(
             () => PricingWhatIfMath.Calculate([new PlanWhatIfRow("X", 10m, 1)], 100m, 60m, 40m, 0m));
     }
+
+    [Fact]
+    public void NegativeInputs_RefuseLoudly()
+    {
+        Assert.Throws<InvalidOperationException>(
+            () => PricingWhatIfMath.Calculate([new PlanWhatIfRow("X", -10m, 1)], 100m, 2.9m, 20m, 0m));
+        Assert.Throws<InvalidOperationException>(
+            () => PricingWhatIfMath.Calculate([new PlanWhatIfRow("X", 10m, -1)], 100m, 2.9m, 20m, 0m));
+        Assert.Throws<InvalidOperationException>(
+            () => PricingWhatIfMath.Calculate([new PlanWhatIfRow("X", 10m, 1)], -100m, 2.9m, 20m, 0m));
+        Assert.Throws<InvalidOperationException>(
+            () => PricingWhatIfMath.Calculate([new PlanWhatIfRow("X", 10m, 1)], 100m, -2.9m, 20m, 0m));
+        Assert.Throws<InvalidOperationException>(
+            () => PricingWhatIfMath.Calculate([new PlanWhatIfRow("X", 10m, 1)], 100m, 2.9m, 20m, -50m));
+    }
 }
