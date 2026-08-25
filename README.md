@@ -4,6 +4,14 @@ Multi-tenant management platform for combat-sports gyms — BJJ first. GymStatio
 
 **Status:** v1 in development. Built pilot-gym-first: one real academy's workflows drive scope; multi-tenant from day one.
 
+## Try the demo
+
+A fully seeded demo gym is live at **<https://test.gymstation.app>** — sign in as
+`val.moreau@testworks.demo` with password `Testworks!Seed2026` for the owner's view,
+or pick from [two dozen demo logins](docs/DEMO.md) showcasing coaches, members in
+arrears, families, and guardians. The demo database resets nightly at 4 AM US Central,
+and it's a shared public sandbox — don't enter real personal data.
+
 ## Stack
 
 - .NET 10 unified Blazor Web App — SSR public gym pages (`/{gym-slug}`), interactive authenticated app, API endpoints, ASP.NET Identity in one host
@@ -31,5 +39,6 @@ dotnet test GymStation.slnx
 ## Docs
 
 - [CONTEXT.md](CONTEXT.md) — the ubiquitous language (read this first)
+- [docs/DEMO.md](docs/DEMO.md) — the public demo site and its cast of logins
 - [docs/adr/](docs/adr/) — architecture decision records
 - [aidlc-docs/audit.md](aidlc-docs/audit.md) — requirements/design session audit trail
