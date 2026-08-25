@@ -376,3 +376,11 @@ For a family plan, there should be a standard flate rate with an optional increa
 **Context**: Round-5 backlog, issue #221, branch feat/221-reports-calculator
 
 ---
+
+## Issue #235 — Roster filter panel overflow (design session + fix)
+**Timestamp**: 2026-08-25T00:00:00Z
+**User Input**: "/mattpocock-skills:grill-with-docs For https://github.com/JJWren/GymStation, the filters in the Roster section expand down and to the right -- which makes the view have to scroll horizontally in both desktop and mobile views. It should expand down and to the left. We want to refrain from annoying UI/UX controls." Then, after the grilling rounds (Q1 desktop anchoring, Q2 mobile behavior, Q3 scope, Q4 acceptance, Q5 recorded principle, Q6 design-view spec gap, Q7 global overflow guard): "Good on all answers". Then: "Go ahead".
+**AI Response**: "Grilling session settled the design: right-anchor the popover to the FILTERS chip (down-left expansion) with a viewport clamp; ≤900px full-bleed beneath the filter row mirroring the rail pull-down idiom with capped height + inner scroll; no global overflow-x guard; acceptance = no page-level horizontal scroll at 1920/1366/900/375 including load with filters applied; same PR adds the popover to design/views/admin-roster.html (spec gap from #219) and the standing principle 'overlays never widen the page' to the design brief. Root cause: .filter-panel-body was position:absolute with no horizontal anchor and min-width:17rem with no max. Filed issue #235, implemented on fix/235-roster-filter-overflow."
+**Context**: Issue #235, branch fix/235-roster-filter-overflow
+
+---
