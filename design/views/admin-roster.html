@@ -42,6 +42,7 @@
   .filter-panel{position:relative}
   .filter-panel>summary{list-style:none;cursor:pointer}
   .filter-panel>summary::-webkit-details-marker{display:none}
+  .filter-panel>summary::marker{content:none}
   .filter-panel-body{position:absolute;right:0;z-index:30;margin-top:6px;min-width:272px;max-width:calc(100vw - 32px);padding:12px;display:flex;flex-direction:column;gap:10px;background:var(--panel);border:1px solid var(--edge);border-radius:10px;box-shadow:0 8px 24px rgb(0 0 0 / .35)}
   .filter-panel-body fieldset{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:6px 12px}
   .filter-panel-body legend{font:600 8px/1 var(--font-mono);letter-spacing:.18em;color:var(--ink-faint);padding:0 0 4px}
@@ -82,7 +83,7 @@
       <div class="search">SEARCH NAME…</div>
       <details class="filter-panel" open>
         <summary class="chip chip--on">FILTERS (2)</summary>
-        <form class="filter-panel-body">
+        <form method="get" class="filter-panel-body">
           <fieldset>
             <legend>PERSON TYPE — ANY CHECKED</legend>
             <label><input type="checkbox" checked> MEMBERS</label>
@@ -100,7 +101,7 @@
             <legend>DISCIPLINE &amp; RANK</legend>
             <select aria-label="Discipline"><option>— ANY DISCIPLINE —</option><option>BRAZILIAN JIU-JITSU</option></select>
           </fieldset>
-          <button class="apply" type="button">APPLY</button>
+          <button class="apply" type="submit">APPLY</button>
         </form>
       </details>
       <span class="chip chip--on">MEMBERS ✕</span><span class="chip chip--on">KIDS ✕</span>
