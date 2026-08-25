@@ -37,6 +37,25 @@
   .search{flex:1;min-width:180px;background:var(--panel);border:1px solid var(--edge);border-radius:8px;padding:10px 12px;font:600 11px/1 var(--font-mono);color:var(--ink-faint);letter-spacing:.08em}
   .chip{font:600 10px/1 var(--font-mono);letter-spacing:.06em;border:1px solid var(--edge);color:var(--ink-dim);border-radius:99px;padding:7px 11px}
   .chip--on{border-color:var(--tenant);color:var(--tenant)}
+  /* Filter popover (#219, anchoring #235): right edge pinned to the chip so it
+     opens down-LEFT, clamped to the viewport — it must never widen the page. */
+  .filter-panel{position:relative}
+  .filter-panel>summary{list-style:none;cursor:pointer}
+  .filter-panel>summary::-webkit-details-marker{display:none}
+  .filter-panel>summary::marker{content:none}
+  .filter-panel-body{position:absolute;right:0;z-index:30;margin-top:6px;min-width:272px;max-width:calc(100vw - 32px);padding:12px;display:flex;flex-direction:column;gap:10px;background:var(--panel);border:1px solid var(--edge);border-radius:10px;box-shadow:0 8px 24px rgb(0 0 0 / .35)}
+  .filter-panel-body fieldset{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:6px 12px}
+  .filter-panel-body legend{font:600 8px/1 var(--font-mono);letter-spacing:.18em;color:var(--ink-faint);padding:0 0 4px}
+  .filter-panel-body label{font:600 10px/1.4 var(--font-mono);letter-spacing:.08em;color:var(--ink-dim);display:inline-flex;align-items:center;gap:5px}
+  .filter-panel-body select{background:var(--bg);border:1px solid var(--edge);border-radius:8px;padding:8px 10px;font:600 10px/1 var(--font-mono);color:var(--ink);letter-spacing:.06em}
+  .apply{font:700 11px/1 var(--font-mono);letter-spacing:.1em;background:transparent;border:1.5px solid var(--tenant);color:var(--tenant);border-radius:8px;padding:11px 16px;cursor:pointer}
+  /* ≤900px: full-bleed beneath the whole filter row (the rail pull-down idiom);
+     capped height scrolls inside so APPLY stays reachable. */
+  @media (max-width:900px){
+    .filters{position:relative}
+    .filter-panel{position:static}
+    .filter-panel-body{left:0;right:0;top:100%;min-width:0;max-height:calc(100vh - 128px);overflow-y:auto}
+  }
   table{width:100%;border-collapse:collapse}
   th{font:600 9px/1 var(--font-mono);letter-spacing:.16em;color:var(--ink-faint);text-align:left;padding:8px 10px;border-bottom:1px solid var(--edge)}
   td{padding:11px 10px;border-bottom:1px solid #232a35;vertical-align:middle}
@@ -62,8 +81,30 @@
     <div class="head"><h1>ROSTER</h1><button class="add">+ ADD PERSON</button></div>
     <div class="filters">
       <div class="search">SEARCH NAME…</div>
-      <span class="chip chip--on">ALL · 87</span><span class="chip">ADULTS · 61</span><span class="chip">KIDS · 26</span>
-      <span class="chip">INSTRUCTORS · 4</span><span class="chip">BEHIND ON DUES · 6</span><span class="chip">BELT ▾</span>
+      <details class="filter-panel" open>
+        <summary class="chip chip--on">FILTERS (2)</summary>
+        <form method="get" class="filter-panel-body">
+          <fieldset>
+            <legend>PERSON TYPE — ANY CHECKED</legend>
+            <label><input type="checkbox" checked> MEMBERS</label>
+            <label><input type="checkbox"> VISITORS</label>
+            <label><input type="checkbox"> INSTRUCTORS</label>
+            <label><input type="checkbox"> STAFF</label>
+          </fieldset>
+          <fieldset>
+            <legend>AGE GROUP</legend>
+            <label><input type="radio" name="age"> ALL</label>
+            <label><input type="radio" name="age" checked> KIDS</label>
+            <label><input type="radio" name="age"> ADULTS</label>
+          </fieldset>
+          <fieldset>
+            <legend>DISCIPLINE &amp; RANK</legend>
+            <select aria-label="Discipline"><option>— ANY DISCIPLINE —</option><option>BRAZILIAN JIU-JITSU</option></select>
+          </fieldset>
+          <button class="apply" type="submit">APPLY</button>
+        </form>
+      </details>
+      <span class="chip chip--on">MEMBERS ✕</span><span class="chip chip--on">KIDS ✕</span>
     </div>
     <table>
       <thead><tr><th>MEMBER</th><th>RANK</th><th>ATTEND /WK</th><th>AT RANK</th><th>BALANCE</th><th>STATUS</th></tr></thead>
@@ -101,6 +142,7 @@
       </tbody>
     </table>
     <p class="cap">87 PEOPLE · SORTED BY RANK LADDER (RANK SYSTEM ORDER, IBJJF ADULT) · A Person with no login shows NO LOGIN; guardians manage those profiles. Dual-role people appear once.</p>
+    <p class="cap">FILTER POPOVER · Opens DOWN-LEFT from the chip (right-anchored), viewport-clamped — page-level horizontal scroll is a defect. ≤900px it goes full-bleed beneath the filter row with inner scroll. Applied filters render as removable pills.</p>
   </main>
 </div>
 </body>
