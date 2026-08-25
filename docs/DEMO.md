@@ -64,7 +64,7 @@ you what's interesting about it.
 | Login | Who | What to look at |
 |---|---|---|
 | `gus.feld@testworks.demo` | Gus Feld | Training parent — family primary who also trains himself. |
-| `ada.okonkwo@testworks.demo` | Ada Okonkwo | Primary of an over-size family (extra heads beyond the plan's included seats). |
+| `ada.okonkwo@testworks.demo` | Ada Okonkwo | Primary of an oversized family (extra heads beyond the plan's included seats). |
 | `chidi.okonkwo@testworks.demo` | Chidi Okonkwo | The second adult in that family. |
 | `reka.varga@testworks.demo` | Reka Varga | Primary on the per-head family plan (pay per person, no base bundle). |
 | `bram.ashford@testworks.demo` | Bram Ashford | Pays for a family **without being in it** — the payer-outside-the-family shape. |
@@ -79,18 +79,18 @@ back after every reset.
 
 ## Suggested tour
 
-1. Sign in as **`val.moreau`** and walk the back office: dashboard, member roster,
-   dues (14 people are in arrears on purpose), rank ladders, reports.
-2. Switch to **`mateus.rocha`**, open `/teach`, pick tonight's BJJ class, and mark
-   attendance.
-3. Sign in as **`iris.vale`** or **`gus.feld`** to see the member portal — schedule,
-   own dues, ranks, and training history.
-4. Try a guardian (**`dana.morrow`**) to see the manage-your-kids view.
+1. Sign in as **`val.moreau@testworks.demo`** and walk the back office: dashboard,
+   member roster, dues (14 people are in arrears on purpose), rank ladders, reports.
+2. Switch to **`mateus.rocha@testworks.demo`**, open `/teach`, pick tonight's BJJ
+   class, and mark attendance.
+3. Sign in as **`iris.vale@testworks.demo`** or **`gus.feld@testworks.demo`** to see
+   the member portal — schedule, own dues, ranks, and training history.
+4. Try a guardian (**`dana.morrow@testworks.demo`**) to see the manage-your-kids view.
 
 ## For developers
 
 - **The reset** is a scheduled job on the host: every night at 04:00 America/Chicago it
-  pulls the latest `master` image, tears the stack down **including volumes** (database
+  pulls the latest published container image, tears the stack down **including volumes** (database
   and uploaded media are destroyed), brings it back up (the app migrates its own schema
   on start), and reseeds via the key-protected `POST /ops/seed-standard` endpoint. The
   whole cycle takes under a minute. The ops endpoints return 404 unless an ops key is
