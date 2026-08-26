@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.1](https://github.com/JJWren/GymStation/compare/v1.15.0...v1.15.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* roster filter popover opens down-left, never widens the page ([#236](https://github.com/JJWren/GymStation/issues/236)) ([abfd97c](https://github.com/JJWren/GymStation/commit/abfd97c4aebf38df76fd3decf6eeff2ce3f6aedc))
+
 ## [1.15.0](https://github.com/JJWren/GymStation/compare/v1.14.0...v1.15.0) (2026-08-08)
 
 
